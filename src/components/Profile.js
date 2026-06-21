@@ -3,13 +3,28 @@ import './HomeFeed.css';
 
 const placeholderFriendNames = new Set(['Maya', 'Leo', 'Ava', 'Jon']);
 
-export default function Profile({ activeTab = 'profile', onNavigate = () => {}, onOpenGroup = () => {}, events = [], onAddEvent = () => {}, onUpdateEvent = () => {}, onDeleteEvent = () => {} }) {
+export default function Profile({ user, activeTab = 'profile', onNavigate = () => {}, onOpenGroup = () => {}, events = [], onAddEvent = () => {}, onUpdateEvent = () => {}, onDeleteEvent = () => {} }) {
   const [name, setName] = useState(() => localStorage.getItem('rally_name') || '');
   const [bio, setBio] = useState(() => localStorage.getItem('rally_bio') || '');
   const [username, setUsername] = useState(() => localStorage.getItem('rally_username') || '');
   const [editingProfile, setEditingProfile] = useState(false);
 
   const getInitials = (n) => n.split(' ').filter(Boolean).map(s=>s[0]).slice(0,2).join('').toUpperCase();
+
+  const inferCollegeFromEmail = (email) => {
+    if (!email || typeof email !== 'string') return null;
+    const parts = email.toLowerCase().split('@');
+    if (parts.length !== 2) return null;
+    const domain = parts[1];
+    if (!domain.endsWith('.edu')) return null;
+    const base = domain.slice(0, -4).split('.').pop();
+    if (!base) return null;
+    return base
+      .replace(/[-_]/g, ' ')
+      .split(' ')
+      .map((segment) => segment.charAt(0).toUpperCase() + segment.slice(1))
+      .join(' ');
+  };
 
   const getStoredCheers = () => {
     try {
@@ -76,7 +91,7 @@ export default function Profile({ activeTab = 'profile', onNavigate = () => {}, 
     }
   });
   const [inviteName, setInviteName] = useState('');
-  const [showFriendsPanel, setShowFriendsPanel] = useState(true);
+  const [showFriendsPanel, setShowFriendsPanel] = useState(false);
 
   useEffect(() => {
     const filterRequests = (list) => (Array.isArray(list) ? list.filter(item => item?.name && !placeholderFriendNames.has(item.name)) : []);
@@ -139,11 +154,15 @@ export default function Profile({ activeTab = 'profile', onNavigate = () => {}, 
     setShowForm(false);
   }
 
+  const college = inferCollegeFromEmail(user?.email);
+
   return (
     <main className="feed-root">
       <header className="feed-header">
         <h1>Profile</h1>
-        <p className="tagline">{name ? `${name} · UCSD` : 'Update your profile to personalize Rally'}</p>
+        <p className="tagline">
+          {name ? `${name}${college ? ` · ${college}` : ''}` : 'Update your profile to personalize Rally'}
+        </p>
       </header>
 
       <section className="card" style={{ textAlign: 'center' }}>
@@ -404,9 +423,9 @@ export default function Profile({ activeTab = 'profile', onNavigate = () => {}, 
         </div>
       </section>
 
-      <div className="scroll-area">
-        <section style={{ marginTop: 14 }}>
-          <h3 style={{ margin: '6px 0' }}>Attended</h3>
+      <div className="scroll-area" style={{ display:'flex', flexDirection:'column', alignItems:'flex-start' }}>
+        <section style={{ marginTop: 14, width: '100%' }}>
+          <h3 style={{ margin: '6px 0', textAlign: 'left' }}>Attended</h3>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
             {attended.map(a => (
               <div key={a.id} className="card">
@@ -417,8 +436,8 @@ export default function Profile({ activeTab = 'profile', onNavigate = () => {}, 
           </div>
         </section>
 
-        <section style={{ marginTop: 14 }}>
-          <h3 style={{ margin: '6px 0' }}>Media</h3>
+        <section style={{ marginTop: 14, width: '100%' }}>
+          <h3 style={{ margin: '6px 0', textAlign: 'left' }}>Media</h3>
           <div className="media-grid">
             {media.map(m => (
               <div key={m.id} className="media-item">Photo</div>
@@ -426,9 +445,9 @@ export default function Profile({ activeTab = 'profile', onNavigate = () => {}, 
           </div>
         </section>
 
-        <section style={{ marginTop: 14 }}>
-          <h3 style={{ margin: '6px 0' }}>Cheers</h3>
-          <div style={{ display:'flex', alignItems:'center', gap:8 }}>
+        <section style={{ marginTop: 14, width: '100%' }}>
+          <h3 style={{ margin: '6px 0', textAlign: 'left' }}>Cheers</h3>
+          <div style={{ display:'flex', alignItems:'center', gap:8, justifyContent:'flex-start' }}>
             <div className="cheers-count">{cheers.count}</div>
             <div style={{ display:'flex', gap:6 }}>
               {cheers.givers.map((g,i)=> (
@@ -438,8 +457,8 @@ export default function Profile({ activeTab = 'profile', onNavigate = () => {}, 
           </div>
         </section>
 
-        <section style={{ marginTop: 14 }}>
-          <h3 style={{ margin: '6px 0' }}>Groups</h3>
+        <section style={{ marginTop: 14, width: '100%' }}>
+          <h3 style={{ margin: '6px 0', textAlign: 'left' }}>Groups</h3>
           <div style={{ display:'flex', flexDirection:'column', gap:8 }}>
             {groups.map(g => (
               <div key={g.id} className="card" style={{ display:'flex', justifyContent:'space-between', alignItems:'center', cursor:'pointer' }} onClick={() => onOpenGroup(g.id)}>

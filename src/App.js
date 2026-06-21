@@ -10,8 +10,7 @@ import GroupChat from './components/GroupChat';
 import { groupsData } from './data/groups';
 import { isSupabaseConfigured, signInWithOtp, signOut, getUser, onAuthStateChange, signInWithProvider, getEvents as sbGetEvents, insertEvent as sbInsertEvent, updateEvent as sbUpdateEvent, deleteEvent as sbDeleteEvent } from './lib/supabaseClient';
 
-function AuthBar(){
-  const [user, setUser] = useState(null);
+function AuthBar({ user, onSetUser }){
   const [email, setEmail] = useState('');
   const [showForm, setShowForm] = useState(false);
 
@@ -19,12 +18,12 @@ function AuthBar(){
     let mounted = true;
     (async ()=>{
       if (isSupabaseConfigured()){
-        const u = await getUser(); if (mounted) setUser(u);
-        const unsub = onAuthStateChange((event, session)=>{ setUser(session?.user ?? null); });
+        const u = await getUser(); if (mounted) onSetUser(u);
+        const unsub = onAuthStateChange((event, session)=>{ onSetUser(session?.user ?? null); });
         return ()=>{ unsub(); mounted=false };
       }
     })();
-  },[]);
+  },[onSetUser]);
 
   if (!isSupabaseConfigured()) return null;
 
@@ -46,7 +45,7 @@ function AuthBar(){
       {user ? (
         <div style={{ display:'flex', gap:8, alignItems:'center' }}>
           <div style={{ fontWeight:700 }}>{user.email}</div>
-          <button className="nav-btn" onClick={()=>{ signOut(); setUser(null); }}>Sign out</button>
+          <button className="nav-btn" onClick={()=>{ signOut(); onSetUser(null); }}>Sign out</button>
         </div>
       ) : (
         <div>
@@ -65,6 +64,7 @@ function AuthBar(){
 }
 
 function App() {
+  const [user, setUser] = useState(null);
   const [activeTab, setActiveTab] = useState('home');
   const [activeGroupId, setActiveGroupId] = useState(null);
   const [events, setEvents] = useState([]);
@@ -137,7 +137,7 @@ function App() {
 
   return (
     <div className="App">
-      <AuthBar />
+      <AuthBar user={user} onSetUser={setUser} />
       {activeTab === 'home' && (
         <HomeFeed activeTab={activeTab} onNavigate={setActiveTab} events={events} onAddEvent={addEvent} onUpdateEvent={updateEvent} onDeleteEvent={deleteEvent} />
       )}
@@ -148,7 +148,7 @@ function App() {
         <Groups activeTab={activeTab} onNavigate={setActiveTab} onOpenGroup={(id) => { setActiveGroupId(id); setActiveTab('group'); }} />
       )}
       {activeTab === 'profile' && (
-        <Profile activeTab={activeTab} onNavigate={setActiveTab} onOpenGroup={(id) => { setActiveGroupId(id); setActiveTab('group'); }} events={events} onAddEvent={addEvent} onUpdateEvent={updateEvent} onDeleteEvent={deleteEvent} />
+        <Profile user={user} activeTab={activeTab} onNavigate={setActiveTab} onOpenGroup={(id) => { setActiveGroupId(id); setActiveTab('group'); }} events={events} onAddEvent={addEvent} onUpdateEvent={updateEvent} onDeleteEvent={deleteEvent} />
       )}
       {activeTab === 'post' && (
         <Create activeTab={activeTab} onNavigate={setActiveTab} />
