@@ -1,14 +1,28 @@
 import React, { useState, useEffect } from 'react';
 import './HomeFeed.css';
 
+const placeholderFriendNames = new Set(['Maya', 'Leo', 'Ava', 'Jon']);
+
 export default function Profile({ activeTab = 'profile', onNavigate = () => {}, onOpenGroup = () => {}, events = [], onAddEvent = () => {}, onUpdateEvent = () => {}, onDeleteEvent = () => {} }) {
-  // profile name and bio persisted to localStorage
-  const [name, setName] = useState(() => localStorage.getItem('rally_name') || 'Rally User');
-  const [bio, setBio] = useState(() => localStorage.getItem('rally_bio') || 'Loves live music, coffee, and spontaneous plans.');
-  const [username, setUsername] = useState(() => localStorage.getItem('rally_username') || 'rally_user');
+  const [name, setName] = useState(() => localStorage.getItem('rally_name') || '');
+  const [bio, setBio] = useState(() => localStorage.getItem('rally_bio') || '');
+  const [username, setUsername] = useState(() => localStorage.getItem('rally_username') || '');
   const [editingProfile, setEditingProfile] = useState(false);
 
   const getInitials = (n) => n.split(' ').filter(Boolean).map(s=>s[0]).slice(0,2).join('').toUpperCase();
+
+  const getStoredCheers = () => {
+    try {
+      const stored = Number(localStorage.getItem('rally_cheers'));
+      if (Number.isNaN(stored) || stored < 0 || stored === 12) {
+        localStorage.setItem('rally_cheers', '0');
+        return 0;
+      }
+      return stored;
+    } catch (e) {
+      return 0;
+    }
+  };
 
   const saveProfile = (newName, newBio, newUsername) => {
     setName(newName);
@@ -36,38 +50,27 @@ export default function Profile({ activeTab = 'profile', onNavigate = () => {}, 
   const [showForm, setShowForm] = useState(false);
   const [form, setForm] = useState({ title: '', month: '', day: '', time: '', location: '' });
 
-  // rough draft sample data for new profile sections
-  const [attended, setAttended] = useState([
-    { id: 'a1', title: 'Spring Fling', date: '2026-05-10', location: 'Off-Campus Venue' },
-    { id: 'a2', title: 'Campus Open Mic', date: '2026-04-02', location: 'Brewhaus' },
-  ]);
-  const [media, setMedia] = useState([
-    { id: 'm1', type: 'photo', src: '' },
-    { id: 'm2', type: 'photo', src: '' },
-    { id: 'm3', type: 'photo', src: '' },
-  ]);
-  const [cheers, setCheers] = useState({ count: 12, givers: [{name:'Ava'},{name:'Jon'},{name:'Maya'}] });
-  const [groups, setGroups] = useState([
-    { id: 'g1', name: 'Live Music Club', members: 24 },
-    { id: 'g2', name: 'Campus Climbers', members: 8 },
-  ]);
+  const [attended, setAttended] = useState([]);
+  const [media, setMedia] = useState([]);
+  const [cheers, setCheers] = useState({ count: getStoredCheers(), givers: [] });
+  const [groups, setGroups] = useState([]);
   const [friends, setFriends] = useState(() => {
     try {
-      return JSON.parse(localStorage.getItem('rally_friends') || '[{"id":"f1","name":"Ava","mutual":4},{"id":"f2","name":"Jon","mutual":3}]');
+      return JSON.parse(localStorage.getItem('rally_friends') || '[]').filter((item) => item?.name && !placeholderFriendNames.has(item.name));
     } catch (e) {
-      return [{ id: 'f1', name: 'Ava', mutual: 4 }, { id: 'f2', name: 'Jon', mutual: 3 }];
+      return [];
     }
   });
   const [incomingRequests, setIncomingRequests] = useState(() => {
     try {
-      return JSON.parse(localStorage.getItem('rally_friend_incoming') || '[{"id":"r1","name":"Maya","mutual":4},{"id":"r2","name":"Leo","mutual":2}]');
+      return JSON.parse(localStorage.getItem('rally_friend_incoming') || '[]').filter((item) => item?.name && !placeholderFriendNames.has(item.name));
     } catch (e) {
-      return [{ id: 'r1', name: 'Maya', mutual: 4 }, { id: 'r2', name: 'Leo', mutual: 2 }];
+      return [];
     }
   });
   const [outgoingRequests, setOutgoingRequests] = useState(() => {
     try {
-      return JSON.parse(localStorage.getItem('rally_friend_outgoing') || '[]');
+      return JSON.parse(localStorage.getItem('rally_friend_outgoing') || '[]').filter((item) => item?.name && !placeholderFriendNames.has(item.name));
     } catch (e) {
       return [];
     }
@@ -76,12 +79,47 @@ export default function Profile({ activeTab = 'profile', onNavigate = () => {}, 
   const [showFriendsPanel, setShowFriendsPanel] = useState(true);
 
   useEffect(() => {
+    const filterRequests = (list) => (Array.isArray(list) ? list.filter(item => item?.name && !placeholderFriendNames.has(item.name)) : []);
+    const cleanedFriends = Array.isArray(friends) ? friends.filter((item) => item?.name && !placeholderFriendNames.has(item.name)) : [];
+    const cleanedIncoming = filterRequests(incomingRequests);
+    const cleanedOutgoing = filterRequests(outgoingRequests);
+
+    if (cleanedFriends.length !== friends.length) {
+      setFriends(cleanedFriends);
+    }
+    if (cleanedIncoming.length !== incomingRequests.length) {
+      setIncomingRequests(cleanedIncoming);
+    }
+    if (cleanedOutgoing.length !== outgoingRequests.length) {
+      setOutgoingRequests(cleanedOutgoing);
+    }
+
     try {
-      localStorage.setItem('rally_friends', JSON.stringify(friends));
-      localStorage.setItem('rally_friend_incoming', JSON.stringify(incomingRequests));
-      localStorage.setItem('rally_friend_outgoing', JSON.stringify(outgoingRequests));
+      localStorage.setItem('rally_friends', JSON.stringify(cleanedFriends));
+      localStorage.setItem('rally_friend_incoming', JSON.stringify(cleanedIncoming));
+      localStorage.setItem('rally_friend_outgoing', JSON.stringify(cleanedOutgoing));
     } catch (e) {}
   }, [friends, incomingRequests, outgoingRequests]);
+
+  useEffect(() => {
+    const syncCheers = () => setCheers((current) => ({ ...current, count: getStoredCheers() }));
+    syncCheers();
+
+    const handleCheersUpdated = () => syncCheers();
+    const handleStorage = (event) => {
+      if (event.key === 'rally_cheers') {
+        syncCheers();
+      }
+    };
+
+    window.addEventListener('rally-cheers-updated', handleCheersUpdated);
+    window.addEventListener('storage', handleStorage);
+
+    return () => {
+      window.removeEventListener('rally-cheers-updated', handleCheersUpdated);
+      window.removeEventListener('storage', handleStorage);
+    };
+  }, []);
 
   function addEvent(e) {
     e.preventDefault();
@@ -105,7 +143,7 @@ export default function Profile({ activeTab = 'profile', onNavigate = () => {}, 
     <main className="feed-root">
       <header className="feed-header">
         <h1>Profile</h1>
-        <p className="tagline">{name} · UCSD</p>
+        <p className="tagline">{name ? `${name} · UCSD` : 'Update your profile to personalize Rally'}</p>
       </header>
 
       <section className="card" style={{ textAlign: 'center' }}>
@@ -117,9 +155,9 @@ export default function Profile({ activeTab = 'profile', onNavigate = () => {}, 
         {!editingProfile ? (
           <>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, flexDirection: 'column' }}>
-              <div className="username">@{username}</div>
+              <div className="username">{username ? `@${username}` : 'Set your handle'}</div>
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
-                <h2 style={{ margin: '8px 0 4px' }}>{name}</h2>
+                <h2 style={{ margin: '8px 0 4px' }}>{name || 'Your name'}</h2>
                 <button className="edit-btn icon-btn" onClick={()=>setEditingProfile(true)} aria-label="Edit profile">
                   <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" width="16" height="16" aria-hidden="true">
                     <path d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04a1.003 1.003 0 0 0 0-1.42l-2.34-2.34a1.003 1.003 0 0 0-1.42 0l-1.83 1.83 3.75 3.75 1.84-1.82z"/>
@@ -127,7 +165,7 @@ export default function Profile({ activeTab = 'profile', onNavigate = () => {}, 
                 </button>
               </div>
             </div>
-            <p style={{ margin: 0, color: '#666' }}>{bio}</p>
+            <p style={{ margin: 0, color: '#666' }}>{bio || 'Add a short bio to tell people what you’re about.'}</p>
             <div style={{ display:'flex', justifyContent:'center', gap:8, flexWrap:'wrap', marginTop:12 }}>
               <span className="category-pill" style={{ background:'var(--light-teal)', color:'var(--teal)', fontSize:12, padding:'6px 10px' }}>{cheers.count} cheers</span>
               <span className="category-pill" style={{ background:'var(--light-purple)', color:'var(--purple)', fontSize:12, padding:'6px 10px' }}>{groups.length} groups</span>
@@ -143,7 +181,7 @@ export default function Profile({ activeTab = 'profile', onNavigate = () => {}, 
             <textarea className="text-input textarea" value={bio} onChange={(e)=>setBio(e.target.value)} />
             <div style={{ display:'flex', gap:8, justifyContent:'center' }}>
               <button className="join" onClick={()=>saveProfile(name,bio,username)}>Save</button>
-              <button className="nav-btn" onClick={()=>{ setUsername(localStorage.getItem('rally_username')||'rally_user'); setName(localStorage.getItem('rally_name')||'Rally User'); setBio(localStorage.getItem('rally_bio')||'Loves live music, coffee, and spontaneous plans.'); setEditingProfile(false); }}>Cancel</button>
+              <button className="nav-btn" onClick={()=>{ setUsername(localStorage.getItem('rally_username')||''); setName(localStorage.getItem('rally_name')||''); setBio(localStorage.getItem('rally_bio')||''); setEditingProfile(false); }}>Cancel</button>
             </div>
           </div>
         )}
@@ -487,7 +525,7 @@ export default function Profile({ activeTab = 'profile', onNavigate = () => {}, 
       return (
         <div style={{ display:'flex', flexDirection:'column', gap:8 }}>
           <label style={{ fontSize:13, color:'#666' }}>Invite friends (comma-separated names)</label>
-          <input className="text-input" value={text} onChange={e=>setText(e.target.value)} placeholder="e.g. Ava, Jon" />
+          <input className="text-input" value={text} onChange={e=>setText(e.target.value)} placeholder="Invite friends by name, separated with commas" />
           <div style={{ display:'flex', gap:8, justifyContent:'flex-end' }}>
             <button className="join" onClick={send}>Send Invites</button>
           </div>

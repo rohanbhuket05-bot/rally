@@ -5,15 +5,30 @@ import './HomeFeed.css';
 // HomeFeed now accepts `events` as a prop from App-level state
 
 export default function HomeFeed({ activeTab = 'home', onNavigate = () => {}, events = [], onAddEvent = () => {}, onUpdateEvent = () => {}, onDeleteEvent = () => {} }) {
-  const [cheersCount, setCheersCount] = React.useState(() => { try { return Number(localStorage.getItem('rally_cheers') || 12) } catch(e){ return 12 } });
-  const [groupsJoined, setGroupsJoined] = React.useState(() => { try { return JSON.parse(localStorage.getItem('rally_groups_joined') || '[]') } catch(e){ return [] } });
+  const [cheersCount, setCheersCount] = React.useState(() => {
+    try {
+      const stored = Number(localStorage.getItem('rally_cheers'));
+      if (Number.isNaN(stored) || stored < 0 || stored === 12) {
+        localStorage.setItem('rally_cheers', '0');
+        return 0;
+      }
+      return stored;
+    } catch (e) {
+      return 0;
+    }
+  });
+  const [groupsJoined, setGroupsJoined] = React.useState(() => {
+    try {
+      const saved = JSON.parse(localStorage.getItem('rally_groups_joined') || '[]');
+      return Array.isArray(saved) ? saved.filter((id) => typeof id === 'string') : [];
+    } catch(e){ return [] }
+  });
 
-  const spontaneousPosts = [
-    { id: 'p1', text: 'Anyone want to grab late-night pho at Price Center?', location: 'Price Center', time: 'Now', group: 'UCSD students', type: 'Live', color: 'var(--teal)' },
-    { id: 'p2', text: 'Looking for 2 people to run the lake path tomorrow.', location: 'Sunset Cliffs', time: 'Tonight', group: 'Campus runners', type: 'Rally', color: 'var(--amber)' },
-  ];
+  const spontaneousPosts = [];
+  const allGroups = [];
+  const validJoinedGroups = allGroups.filter((group) => groupsJoined.includes(group.id));
 
-  const currentUserName = localStorage.getItem('rally_name') || localStorage.getItem('rally_username') || 'You';
+  const currentUserName = localStorage.getItem('rally_name') || localStorage.getItem('rally_username') || '';
 
   function handleJoin(event){
     const name = currentUserName;
@@ -30,7 +45,12 @@ export default function HomeFeed({ activeTab = 'home', onNavigate = () => {}, ev
   }
 
   function addCheer(){
-    const next = cheersCount + 1; setCheersCount(next); try { localStorage.setItem('rally_cheers', String(next)) } catch(e){}
+    const next = cheersCount + 1;
+    setCheersCount(next);
+    try {
+      localStorage.setItem('rally_cheers', String(next));
+      window.dispatchEvent(new Event('rally-cheers-updated'));
+    } catch(e){}
   }
 
   return (
@@ -40,22 +60,24 @@ export default function HomeFeed({ activeTab = 'home', onNavigate = () => {}, ev
         <p className="tagline">Experiences are better shared</p>
       </header>
 
-      <section style={{ marginBottom: 12 }}>
-        <h3 style={{ margin: '6px 0' }}>Campus Pulse</h3>
-        <div style={{ display:'flex', flexDirection:'column', gap:10 }}>
-          {spontaneousPosts.map((post) => (
-            <div key={post.id} className="card" style={{ padding:'12px 14px' }}>
-              <div style={{ display:'flex', justifyContent:'space-between', gap:12 }}>
-                <div style={{ flex:1, minWidth:0 }}>
-                  <div style={{ fontWeight:700, marginBottom:6 }}>{post.text}</div>
-                  <div style={{ color:'#666', fontSize:12 }}>{post.location} · {post.time} · {post.group}</div>
+      {spontaneousPosts.length > 0 && (
+        <section style={{ marginBottom: 12 }}>
+          <h3 style={{ margin: '6px 0' }}>Campus Pulse</h3>
+          <div style={{ display:'flex', flexDirection:'column', gap:10 }}>
+            {spontaneousPosts.map((post) => (
+              <div key={post.id} className="card" style={{ padding:'12px 14px' }}>
+                <div style={{ display:'flex', justifyContent:'space-between', gap:12 }}>
+                  <div style={{ flex:1, minWidth:0 }}>
+                    <div style={{ fontWeight:700, marginBottom:6 }}>{post.text}</div>
+                    <div style={{ color:'#666', fontSize:12 }}>{post.location} · {post.time} · {post.group}</div>
+                  </div>
+                  <span className="category-pill" style={{ background: post.color, color:'#fff', fontSize:12 }}>{post.type}</span>
                 </div>
-                <span className="category-pill" style={{ background: post.color, color:'#fff', fontSize:12 }}>{post.type}</span>
               </div>
-            </div>
-          ))}
-        </div>
-      </section>
+            ))}
+          </div>
+        </section>
+      )}
 
       <section style={{ marginBottom: 12 }}>
         <h3 style={{ margin: '6px 0' }}>Upcoming</h3>
@@ -76,20 +98,21 @@ export default function HomeFeed({ activeTab = 'home', onNavigate = () => {}, ev
 
       <section style={{ marginTop: 14 }}>
         <h3 style={{ margin: '6px 0' }}>Groups</h3>
-        <div style={{ display:'flex', flexDirection:'column', gap:8 }}>
-          {[
-            { id:'g1', name:'Live Music Club', members:24 },
-            { id:'g2', name:'Campus Climbers', members:8 }
-          ].map(g => (
-            <div key={g.id} className="card" style={{ display:'flex', justifyContent:'space-between', alignItems:'center' }}>
-              <div>
-                <div style={{ fontWeight:700 }}>{g.name}</div>
-                <div style={{ color:'#666', fontSize:13 }}>{g.members} members</div>
+        {validJoinedGroups.length ? (
+          <div style={{ display:'flex', flexDirection:'column', gap:8 }}>
+            {validJoinedGroups.map((g) => (
+              <div key={g.id} className="card" style={{ display:'flex', justifyContent:'space-between', alignItems:'center' }}>
+                <div>
+                  <div style={{ fontWeight:700 }}>{g.name}</div>
+                  <div style={{ color:'#666', fontSize:13 }}>{g.members} members</div>
+                </div>
+                <button className="nav-action-btn joined">Joined</button>
               </div>
-              <button className={`nav-action-btn ${groupsJoined.includes(g.id) ? 'joined' : 'join'}`} onClick={() => toggleGroup(g.id)}>{groupsJoined.includes(g.id) ? 'Joined' : 'Join'}</button>
-            </div>
-          ))}
-        </div>
+            ))}
+          </div>
+        ) : (
+          <div className="card">No groups joined yet.</div>
+        )}
       </section>
 
       <nav className="bottom-nav">

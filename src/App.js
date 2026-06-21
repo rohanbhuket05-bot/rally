@@ -54,7 +54,7 @@ function AuthBar(){
           <button className="nav-btn" style={{ marginLeft:8 }} onClick={()=>handleOAuth('google')}>Sign in with Google</button>
           {showForm && (
             <form onSubmit={handleSignIn} style={{ display:'flex', gap:8, marginTop:8 }}>
-              <input className="text-input" placeholder="you@school.edu" value={email} onChange={e=>setEmail(e.target.value)} />
+              <input className="text-input" placeholder="Email address" value={email} onChange={e=>setEmail(e.target.value)} />
               <button className="join" type="submit">Send</button>
             </form>
           )}

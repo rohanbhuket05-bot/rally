@@ -5,21 +5,14 @@ export default function Groups({ onNavigate = () => {}, onOpenGroup = () => {} }
   const saved = (()=>{ try { return JSON.parse(localStorage.getItem('rally_groups_joined')||'[]') } catch(e){ return [] } })();
   const [joined, setJoined] = useState(saved);
 
-  const recommended = [
-    { id: 'g3', name: 'Board Game Night', members: 18, privacy: 'Public' },
-    { id: 'g4', name: 'Hiking Crew', members: 42, privacy: 'Friends' },
-    { id: 'g5', name: 'Vegan Eats', members: 9, privacy: 'Open' },
-  ];
+  const recommended = [];
 
   function toggle(id){
     const next = joined.includes(id) ? joined.filter(x=>x!==id) : [...joined, id];
     setJoined(next); localStorage.setItem('rally_groups_joined', JSON.stringify(next));
   }
 
-  const allGroups = [
-    { id:'g1', name:'Live Music Club', members:24, privacy: 'Public' },
-    { id:'g2', name:'Campus Climbers', members:8, privacy: 'Private' },
-  ];
+  const allGroups = [];
 
   return (
     <main className="feed-root">
@@ -31,10 +24,10 @@ export default function Groups({ onNavigate = () => {}, onOpenGroup = () => {} }
       <section style={{ marginTop:8 }}>
         <div className="card" style={{ padding:'14px 16px', display:'flex', justifyContent:'space-between', alignItems:'center' }}>
           <div>
-            <div style={{ fontWeight:700 }}>Build a group for your next plan</div>
-            <div style={{ color:'#666', fontSize:13, marginTop:4 }}>Set a target size and first prompt, then let people join with less pressure.</div>
+            <div style={{ fontWeight:700 }}>Create a new group</div>
+            <div style={{ color:'#666', fontSize:13, marginTop:4 }}>Start a group by setting details, time, and location.</div>
           </div>
-          <button className="nav-btn" onClick={()=>alert('Group creation flow coming soon!')}>Start</button>
+          <button className="nav-btn" onClick={()=>onNavigate('post')}>Start</button>
         </div>
       </section>
 
@@ -53,27 +46,14 @@ export default function Groups({ onNavigate = () => {}, onOpenGroup = () => {} }
               <button className="nav-action-btn joined" onClick={(e)=>{ e.stopPropagation(); toggle(g.id); }}>Joined</button>
             </div>
           )) : (
-            <div className="card">You haven't joined any groups yet.</div>
+            <div className="card">No groups available right now.</div>
           )}
         </div>
       </section>
 
       <section style={{ marginTop:14 }}>
         <h3 style={{ margin:'6px 0' }}>Recommended</h3>
-        <div style={{ display:'flex', flexDirection:'column', gap:8 }}>
-          {recommended.map(g => (
-            <div key={g.id} className="card" style={{ display:'flex', justifyContent:'space-between', alignItems:'center' }}>
-              <div>
-                <div style={{ fontWeight:700 }}>{g.name}</div>
-                <div style={{ display:'flex', gap:8, flexWrap:'wrap', color:'#666', fontSize:13 }}>
-                  <span className="category-pill" style={{ background:'var(--light-purple)', color:'var(--purple)', fontSize:12 }}>{g.privacy}</span>
-                  <span>{g.members} members</span>
-                </div>
-              </div>
-              <button className={`nav-action-btn ${joined.includes(g.id)?'joined':'join'}`} onClick={()=>toggle(g.id)}>{joined.includes(g.id)?'Joined':'Join'}</button>
-            </div>
-          ))}
-        </div>
+        <div className="card">No recommendations available yet.</div>
       </section>
 
       <nav className="bottom-nav">
