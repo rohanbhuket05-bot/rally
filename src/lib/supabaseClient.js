@@ -1,49 +1,31 @@
-// Supabase client wrapper with simple helpers.
-// Configure via environment variables in .env:
-// REACT_APP_SUPABASE_URL, REACT_APP_SUPABASE_ANON_KEY, REACT_APP_SUPABASE_USER_ID (dev helper)
+import { createClient } from '@supabase/supabase-js';
 
-let supabase = null;
-let configured = false;
+const SUPABASE_URL = process.env.REACT_APP_SUPABASE_URL || 'https://zjjeybrtumbdwwhxatgm.supabase.co';
+const SUPABASE_ANON_KEY = process.env.REACT_APP_SUPABASE_ANON_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InpqamV5YnJ0dW1iZHd3aHhhdGdtIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODIxODc2NzksImV4cCI6MjA5Nzc2MzY3OX0.UL0uKAGzsaU4z2xwWOvZ6lduhccgyGUqwhrN4QTbeKw';
 
-const URL = process.env.REACT_APP_SUPABASE_URL || 'https://zjjeybrtumbdwwhxatgm.supabase.co';
-const KEY = process.env.REACT_APP_SUPABASE_ANON_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InpqamV5YnJ0dW1iZHd3aHhhdGdtIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODIxODc2NzksImV4cCI6MjA5Nzc2MzY3OX0.UL0uKAGzsaU4z2xwWOvZ6lduhccgyGUqwhrN4QTbeKw';
-const DEV_USER = process.env.REACT_APP_SUPABASE_USER_ID || null;
-
-if (URL && KEY) {
-  try {
-    // import dynamically to avoid breaking builds when package not installed
-    // but createClient must be available at build time; since we added dependency it's fine.
-    const { createClient } = require('@supabase/supabase-js');
-    supabase = createClient(URL, KEY);
-    configured = true;
-  } catch (e) {
-    // keep configured false
-    console.warn('Supabase client could not be initialized', e);
-  }
-}
+const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
 export function isSupabaseConfigured() {
-  return configured;
+  return true;
 }
 
 export async function getEvents() {
-  if (!configured) return null;
   try {
-    const userId = DEV_USER || (supabase.auth && (await supabase.auth.getUser()).data?.user?.id);
-    const { data, error } = await supabase.from('events').select('*').eq('user_id', userId).order('date_iso', { ascending: true });
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return [];
+    const { data, error } = await supabase.from('events').select('*').eq('user_id', user.id).order('date_iso', { ascending: true });
     if (error) throw error;
     return data || [];
   } catch (e) {
     console.warn('getEvents error', e.message || e);
-    return null;
+    return [];
   }
 }
 
 export async function insertEvent(event) {
-  if (!configured) return null;
   try {
-    const userId = DEV_USER || (supabase.auth && (await supabase.auth.getUser()).data?.user?.id);
-    const payload = { ...event, user_id: userId };
+    const { data: { user } } = await supabase.auth.getUser();
+    const payload = { ...event, user_id: user?.id };
     const { data, error } = await supabase.from('events').insert(payload).select();
     if (error) throw error;
     return data?.[0] ?? null;
@@ -54,7 +36,6 @@ export async function insertEvent(event) {
 }
 
 export async function updateEvent(event) {
-  if (!configured) return null;
   try {
     const { id, ...rest } = event;
     const { data, error } = await supabase.from('events').update(rest).eq('id', id).select();
@@ -67,7 +48,6 @@ export async function updateEvent(event) {
 }
 
 export async function deleteEvent(id) {
-  if (!configured) return false;
   try {
     const { error } = await supabase.from('events').delete().eq('id', id);
     if (error) throw error;
@@ -78,30 +58,23 @@ export async function deleteEvent(id) {
   }
 }
 
-// Group helpers
-// Requires a `groups` table: id bigserial PK, name text, description text, type text,
-// privacy text, members jsonb, icebreaker text, event_id bigint, event_title text,
-// created_by uuid references auth.users, created_at timestamptz default now()
-// RLS: enable RLS, policy: auth.uid() = created_by for all operations + select public where privacy='public'
-
 export async function getGroups() {
-  if (!configured) return null;
   try {
-    const userId = DEV_USER || (supabase.auth && (await supabase.auth.getUser()).data?.user?.id);
-    const { data, error } = await supabase.from('groups').select('*').eq('created_by', userId).order('created_at', { ascending: false });
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return [];
+    const { data, error } = await supabase.from('groups').select('*').eq('created_by', user.id).order('created_at', { ascending: false });
     if (error) throw error;
     return data || [];
   } catch (e) {
     console.warn('getGroups error', e.message || e);
-    return null;
+    return [];
   }
 }
 
 export async function insertGroup(group) {
-  if (!configured) return null;
   try {
-    const userId = DEV_USER || (supabase.auth && (await supabase.auth.getUser()).data?.user?.id);
-    const { data, error } = await supabase.from('groups').insert({ ...group, created_by: userId }).select();
+    const { data: { user } } = await supabase.auth.getUser();
+    const { data, error } = await supabase.from('groups').insert({ ...group, created_by: user?.id }).select();
     if (error) throw error;
     return data?.[0] ?? null;
   } catch (e) {
@@ -111,7 +84,6 @@ export async function insertGroup(group) {
 }
 
 export async function updateGroup(id, payload) {
-  if (!configured) return null;
   try {
     const { data, error } = await supabase.from('groups').update(payload).eq('id', id).select();
     if (error) throw error;
@@ -123,7 +95,6 @@ export async function updateGroup(id, payload) {
 }
 
 export async function deleteGroup(id) {
-  if (!configured) return false;
   try {
     const { error } = await supabase.from('groups').delete().eq('id', id);
     if (error) throw error;
@@ -134,12 +105,9 @@ export async function deleteGroup(id) {
   }
 }
 
-// Auth helpers
 export async function signInWithOtp(email) {
-  if (!configured) return { error: 'supabase not configured' };
   try {
-    const resp = await supabase.auth.signInWithOtp({ email });
-    return resp;
+    return await supabase.auth.signInWithOtp({ email });
   } catch (e) {
     console.warn('signInWithOtp error', e.message || e);
     return { error: e };
@@ -147,7 +115,6 @@ export async function signInWithOtp(email) {
 }
 
 export async function signOut() {
-  if (!configured) return { error: 'supabase not configured' };
   try {
     return await supabase.auth.signOut();
   } catch (e) {
@@ -157,7 +124,6 @@ export async function signOut() {
 }
 
 export async function getUser() {
-  if (!configured) return null;
   try {
     const { data } = await supabase.auth.getUser();
     return data?.user ?? null;
@@ -168,7 +134,6 @@ export async function getUser() {
 }
 
 export function onAuthStateChange(cb) {
-  if (!configured) return () => {};
   const { data: sub } = supabase.auth.onAuthStateChange((event, session) => {
     try { cb(event, session); } catch (e) { console.warn(e); }
   });
@@ -176,11 +141,8 @@ export function onAuthStateChange(cb) {
 }
 
 export async function signInWithProvider(provider) {
-  if (!configured) return { error: 'supabase not configured' };
   try {
-    // provider: 'google', 'github', etc.
-    const resp = await supabase.auth.signInWithOAuth({ provider });
-    return resp;
+    return await supabase.auth.signInWithOAuth({ provider });
   } catch (e) {
     console.warn('signInWithProvider error', e.message || e);
     return { error: e };
