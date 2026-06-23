@@ -1,117 +1,217 @@
 import React, { useState } from 'react';
-import { groupsData } from '../data/groups';
 import './HomeFeed.css';
 
-export default function GroupDetails({ activeTab = 'group', onNavigate = () => {}, groupId, messages, onSendMessage, onOpenChat, onBack }) {
-  const group = groupsData.find((g) => g.id === groupId);
-  const [draft, setDraft] = useState('');
+const TYPE_LABELS = { club: 'Club / Org', friend: 'Friend Group', event: 'Event Rally' };
+const TYPE_COLORS = {
+  club:   { color: 'var(--purple)', bg: 'var(--light-purple)' },
+  friend: { color: 'var(--pink)',   bg: 'var(--light-pink)' },
+  event:  { color: 'var(--teal)',   bg: 'var(--light-teal)' },
+};
+
+const AVATAR_COLORS = ['#534AB7','#D4537E','#1D9E75','#EF9F27','#667EEA','#9B59B6'];
+function avatarColor(name = '') {
+  let h = 0;
+  for (let i = 0; i < name.length; i++) h = name.charCodeAt(i) + ((h << 5) - h);
+  return AVATAR_COLORS[Math.abs(h) % AVATAR_COLORS.length];
+}
+
+export default function GroupDetails({
+  activeTab = 'group',
+  onNavigate = () => {},
+  group,
+  onUpdateGroup,
+  messages = [],
+  onSendMessage,
+  onOpenChat,
+  onBack,
+}) {
+  const [inviteInput, setInviteInput] = useState('');
+  const [showInvite, setShowInvite] = useState(false);
+
   if (!group) {
     return (
       <main className="feed-root">
-        <header className="feed-header">
-          <h1>Group not found</h1>
-        </header>
+        <header className="feed-header"><h1>Group not found</h1></header>
         <div className="card">This group could not be loaded.</div>
-        <button className="nav-btn" onClick={onBack}>Back</button>
+        <button className="nav-btn" onClick={onBack}>← Back</button>
       </main>
     );
   }
 
+  const { name, description, type = 'club', privacy = 'public', members = [], icebreaker, eventTitle, events: groupEvents = [] } = group;
+  const { color, bg } = TYPE_COLORS[type] || TYPE_COLORS.club;
+
+  function handleInvite() {
+    const n = inviteInput.trim();
+    if (!n || members.some(m => m.name.toLowerCase() === n.toLowerCase())) { setInviteInput(''); return; }
+    const initials = n.split(' ').map(s => s[0]).slice(0, 2).join('').toUpperCase();
+    const updated = { ...group, members: [...members, { name: n, initials, color: avatarColor(n), role: 'member' }] };
+    onUpdateGroup && onUpdateGroup(updated);
+    setInviteInput('');
+    setShowInvite(false);
+  }
+
+  function handleRemoveMember(memberName) {
+    const myName = localStorage.getItem('rally_name') || localStorage.getItem('rally_username') || '';
+    const me = members.find(m => m.role === 'admin');
+    if (me?.name !== myName) return; // only admin can remove
+    const updated = { ...group, members: members.filter(m => m.name !== memberName) };
+    onUpdateGroup && onUpdateGroup(updated);
+  }
+
   return (
-    <main className="feed-root">
-      <header className="feed-header" style={{ position: 'relative' }}>
+    <main className="feed-root" style={{ overflowY: 'auto' }}>
+      {/* Header */}
+      <header style={{ display: 'flex', alignItems: 'flex-start', gap: 12, marginBottom: 16 }}>
         <button
-          className="icon-btn"
           onClick={onBack}
-          style={{ position: 'absolute', left: 0, top: 0, transform: 'translateY(2px)', borderRadius: 12, border: '1px solid rgba(0,0,0,0.08)', background: '#fff', padding: '8px 10px' }}
+          style={{
+            background: 'rgba(83,74,183,0.1)', border: 'none', borderRadius: 10,
+            padding: '8px 12px', color: 'var(--purple)', fontWeight: 700, cursor: 'pointer', flexShrink: 0, marginTop: 2,
+          }}
         >
-          ←
+          ← Back
         </button>
-        <h1 style={{ marginTop: 32 }}>{group.name}</h1>
-        <p className="tagline">{group.banner}</p>
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: 6 }}>
+            <span className="category-pill" style={{ background: bg, color }}>{TYPE_LABELS[type]}</span>
+            {privacy !== 'public' && (
+              <span className="category-pill" style={{ background: '#F5F5F5', color: '#777' }}>{privacy === 'private' ? 'Private' : 'Friends Only'}</span>
+            )}
+          </div>
+          <h2 style={{ margin: 0, fontSize: 22, color: '#111', lineHeight: 1.2 }}>{name}</h2>
+        </div>
       </header>
 
-      <section className="card" style={{ padding: '18px 16px' }}>
-        <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', gap:12, flexWrap:'wrap' }}>
-          <div>
-            <div style={{ fontWeight:700, fontSize:18 }}>{group.name}</div>
-            <div style={{ color:'#666', marginTop:6 }}>{group.description}</div>
-          </div>
-          <div style={{ display:'flex', gap:8, flexWrap:'wrap' }}>
-            <span className="category-pill" style={{ background:'var(--light-purple)', color:'var(--purple)' }}>{group.privacy}</span>
-            <span className="category-pill" style={{ background:'var(--light-teal)', color:'var(--teal)' }}>{group.members} members</span>
-          </div>
-        </div>
-
-        <div style={{ marginTop:12 }}>
-          <div style={{ fontWeight:700, marginBottom:6 }}>Icebreaker prompt</div>
-          <div style={{ color:'#666' }}>{group.prompt}</div>
-        </div>
-      </section>
-
-      <section style={{ marginTop:14 }}>
-        <h3 style={{ margin: '6px 0' }}>Upcoming group events</h3>
-        <div className="cards">
-          {group.events.map((event) => (
-            <div key={event.id} className="card" style={{ padding:'12px 14px' }}>
-              <div style={{ fontWeight:700 }}>{event.title}</div>
-              <div style={{ color:'#666', fontSize:13 }}>{event.date} · {event.location}</div>
+      {/* About */}
+      {(description || eventTitle || icebreaker) && (
+        <div className="card" style={{ marginBottom: 12 }}>
+          {description && <p style={{ margin: '0 0 10px', color: '#333', fontSize: 14, lineHeight: 1.5 }}>{description}</p>}
+          {eventTitle && (
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '8px 10px', background: 'var(--light-teal)', borderRadius: 8, marginBottom: icebreaker ? 10 : 0 }}>
+              <span>🎯</span>
+              <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--teal)' }}>{eventTitle}</span>
             </div>
-          ))}
+          )}
+          {icebreaker && (
+            <div style={{ padding: '10px', background: 'var(--light-purple)', borderRadius: 8, marginTop: description || eventTitle ? 10 : 0 }}>
+              <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--purple)', marginBottom: 4, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Icebreaker</div>
+              <div style={{ fontSize: 13, color: '#333' }}>{icebreaker}</div>
+            </div>
+          )}
         </div>
-      </section>
+      )}
 
-      <section style={{ marginTop:14 }}>
-        <button
-          className="small-action-btn"
-          onClick={onOpenChat}
-          style={{ marginBottom:12, display:'inline-flex' }}
-        >
-          Open group chat
-        </button>
-
-        <div className="group-chat-panel group-chat-preview" onClick={onOpenChat}>
-          <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', gap:12, flexWrap:'wrap' }}>
-            <h3 style={{ margin: '6px 0', display:'flex', alignItems:'center', gap:8 }}><span aria-hidden="true">💬</span>Group chat</h3>
-            <span className="category-pill" style={{ background:'var(--light-teal)', color:'var(--teal)' }}>{messages.length} messages</span>
+      {/* Members */}
+      <div className="card" style={{ marginBottom: 12 }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+          <h3 style={{ margin: 0, fontSize: 15 }}>Members</h3>
+          <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+            <span className="badge" style={{ background: color }}>{members.length}</span>
+            <button
+              className="edit-btn"
+              onClick={() => setShowInvite(s => !s)}
+              style={{ fontSize: 12, padding: '4px 10px' }}
+            >
+              + Invite
+            </button>
           </div>
-          <div style={{ marginTop:6, color:'#666', fontSize:13 }}>Tap to open the full chat page for this group.</div>
-          <div className="message-thread" style={{ marginTop:12 }}>
-            {messages.slice(-2).map((message) => (
-              <div key={message.id} className={`message-bubble ${message.me ? 'me' : ''}`}>
-                <div style={{ display:'flex', alignItems:'center', gap:8, marginBottom:4 }}>
-                  <span style={{ fontWeight:700, fontSize:13 }}>{message.sender}</span>
-                  <span style={{ color:'#999', fontSize:11 }}>{message.time}</span>
+        </div>
+
+        {showInvite && (
+          <div style={{ display: 'flex', gap: 8, marginBottom: 12 }}>
+            <input
+              className="text-input"
+              placeholder="Add member by name"
+              value={inviteInput}
+              onChange={e => setInviteInput(e.target.value)}
+              onKeyDown={e => e.key === 'Enter' && handleInvite()}
+              style={{ flex: 1 }}
+              autoFocus
+            />
+            <button className="join" onClick={handleInvite} style={{ flexShrink: 0, borderRadius: 10 }}>Add</button>
+          </div>
+        )}
+
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+          {members.map((m, i) => {
+            const mc = m.color && m.color !== '#FFFFFF' ? m.color : avatarColor(m.name);
+            return (
+              <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                <div className="avatar" style={{ backgroundColor: mc, color: '#fff', marginLeft: 0, flexShrink: 0 }}>
+                  {m.initials || m.name?.[0] || '?'}
                 </div>
-                <div style={{ color: message.me ? '#111' : '#222' }}>{message.text}</div>
+                <span style={{ fontWeight: 600, fontSize: 14, flex: 1 }}>{m.name}</span>
+                {m.role === 'admin' && (
+                  <span className="category-pill" style={{ background: 'var(--light-purple)', color: 'var(--purple)', fontSize: 11 }}>Admin</span>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* Upcoming events (hosted by this group) */}
+      {groupEvents.length > 0 && (
+        <section style={{ marginBottom: 12 }}>
+          <h3 style={{ margin: '0 0 8px' }}>Upcoming events</h3>
+          <div className="cards">
+            {groupEvents.map((ev) => (
+              <div key={ev.id} className="card" style={{ padding: '12px 14px' }}>
+                <div style={{ fontWeight: 700 }}>{ev.title}</div>
+                <div style={{ color: '#666', fontSize: 13 }}>{ev.date} · {ev.location}</div>
               </div>
             ))}
           </div>
-        </div>
-      </section>
+        </section>
+      )}
 
-      <button className="small-action-btn" onClick={onBack} style={{ marginTop:16 }}>Back to groups</button>
+      {/* Group chat */}
+      <div
+        className="group-chat-panel group-chat-preview"
+        onClick={onOpenChat}
+        style={{ marginBottom: 12 }}
+      >
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <h3>💬 Group chat</h3>
+          <span className="category-pill" style={{ background: 'var(--light-teal)', color: 'var(--teal)' }}>{messages.length} messages</span>
+        </div>
+        {messages.length > 0 ? (
+          <div className="message-thread" style={{ marginTop: 12 }}>
+            {messages.slice(-2).map((msg) => (
+              <div key={msg.id} className={`message-bubble ${msg.me ? 'me' : ''}`}>
+                <div style={{ display: 'flex', gap: 8, marginBottom: 4, alignItems: 'center' }}>
+                  <span style={{ fontWeight: 700, fontSize: 13 }}>{msg.sender}</span>
+                  <span style={{ color: '#999', fontSize: 11 }}>{msg.time}</span>
+                </div>
+                <div>{msg.text}</div>
+              </div>
+            ))}
+          </div>
+        ) : (
+          <div style={{ marginTop: 8, color: '#888', fontSize: 13 }}>No messages yet. Tap to open chat.</div>
+        )}
+      </div>
+
+      <button className="join" onClick={onOpenChat} style={{ width: '100%', padding: '12px', borderRadius: 12, marginBottom: 12, display: 'block', fontSize: 15 }}>
+        Open group chat
+      </button>
 
       <nav className="bottom-nav">
         <button className={`nav-btn ${activeTab === 'home' ? 'active' : ''}`} onClick={() => onNavigate('home')}>
-          <span className="nav-btn-icon">🏠</span>
-          <span className="nav-btn-label">Home</span>
+          <span className="nav-btn-icon">🏠</span><span className="nav-btn-label">Home</span>
         </button>
         <button className={`nav-btn ${activeTab === 'explore' ? 'active' : ''}`} onClick={() => onNavigate('explore')}>
-          <span className="nav-btn-icon">🔍</span>
-          <span className="nav-btn-label">Explore</span>
+          <span className="nav-btn-icon">🔍</span><span className="nav-btn-label">Explore</span>
         </button>
         <button className={`nav-btn ${activeTab === 'post' ? 'active' : ''}`} onClick={() => onNavigate('post')}>
-          <span className="nav-btn-icon">➕</span>
-          <span className="nav-btn-label">Create</span>
+          <span className="nav-btn-icon">➕</span><span className="nav-btn-label">Create</span>
         </button>
         <button className={`nav-btn ${activeTab === 'groups' || activeTab === 'group' ? 'active' : ''}`} onClick={() => onNavigate('groups')}>
-          <span className="nav-btn-icon">💬</span>
-          <span className="nav-btn-label">Groups</span>
+          <span className="nav-btn-icon">💬</span><span className="nav-btn-label">Groups</span>
         </button>
         <button className={`nav-btn ${activeTab === 'profile' ? 'active' : ''}`} onClick={() => onNavigate('profile')}>
-          <span className="nav-btn-icon">👤</span>
-          <span className="nav-btn-label">Profile</span>
+          <span className="nav-btn-icon">👤</span><span className="nav-btn-label">Profile</span>
         </button>
       </nav>
     </main>

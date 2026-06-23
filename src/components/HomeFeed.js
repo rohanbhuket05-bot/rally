@@ -4,7 +4,7 @@ import './HomeFeed.css';
 
 // HomeFeed now accepts `events` as a prop from App-level state
 
-export default function HomeFeed({ activeTab = 'home', onNavigate = () => {}, events = [], onAddEvent = () => {}, onUpdateEvent = () => {}, onDeleteEvent = () => {} }) {
+export default function HomeFeed({ activeTab = 'home', onNavigate = () => {}, events = [], onAddEvent = () => {}, onUpdateEvent = () => {}, onDeleteEvent = () => {}, onOpenEvent = () => {} }) {
   const [cheersCount, setCheersCount] = React.useState(() => {
     try {
       const stored = Number(localStorage.getItem('rally_cheers'));
@@ -83,7 +83,7 @@ export default function HomeFeed({ activeTab = 'home', onNavigate = () => {}, ev
         <h3 style={{ margin: '6px 0' }}>Upcoming</h3>
         <div className="cards">
           {events.map((ev) => (
-            <EventCard key={ev.id} event={ev} onJoin={handleJoin} currentUserName={currentUserName} />
+            <EventCard key={ev.id} event={ev} onJoin={handleJoin} currentUserName={currentUserName} onOpenDetails={onOpenEvent} />
           ))}
         </div>
       </section>

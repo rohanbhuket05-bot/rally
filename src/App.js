@@ -7,8 +7,10 @@ import Groups from './components/Groups';
 import Create from './components/Create';
 import GroupDetails from './components/GroupDetails';
 import GroupChat from './components/GroupChat';
+import EventDetails from './components/EventDetails';
+import CreateGroup from './components/CreateGroup';
 import { groupsData } from './data/groups';
-import { isSupabaseConfigured, signInWithOtp, signOut, getUser, onAuthStateChange, signInWithProvider, getEvents as sbGetEvents, insertEvent as sbInsertEvent, updateEvent as sbUpdateEvent, deleteEvent as sbDeleteEvent } from './lib/supabaseClient';
+import { isSupabaseConfigured, signInWithOtp, signOut, getUser, onAuthStateChange, signInWithProvider, getEvents as sbGetEvents, insertEvent as sbInsertEvent, updateEvent as sbUpdateEvent, deleteEvent as sbDeleteEvent, insertGroup as sbInsertGroup, updateGroup as sbUpdateGroup, deleteGroup as sbDeleteGroup } from './lib/supabaseClient';
 
 function AuthBar({ user, onSetUser }){
   const [email, setEmail] = useState('');
@@ -66,8 +68,12 @@ function AuthBar({ user, onSetUser }){
 function App() {
   const [user, setUser] = useState(null);
   const [activeTab, setActiveTab] = useState('home');
+  const [previousTab, setPreviousTab] = useState('home');
   const [activeGroupId, setActiveGroupId] = useState(null);
+  const [activeEventId, setActiveEventId] = useState(null);
+  const [createGroupContext, setCreateGroupContext] = useState(null);
   const [events, setEvents] = useState([]);
+  const [groups, setGroups] = useState([]);
   const [groupMessages, setGroupMessages] = useState(() => {
     return groupsData.reduce((acc, group) => {
       acc[group.id] = group.messages || [];
@@ -104,6 +110,16 @@ function App() {
     }
   }, [events]);
 
+  // load groups from localStorage (Supabase groups schema migration required before enabling)
+  useEffect(() => {
+    const raw = localStorage.getItem('rally_groups');
+    if (raw) { try { setGroups(JSON.parse(raw)); } catch(e){} }
+  }, []);
+
+  useEffect(() => {
+    try { localStorage.setItem('rally_groups', JSON.stringify(groups)); } catch(e){}
+  }, [groups]);
+
   const addEvent = useCallback(async (evt) => {
     // optimistic add locally
     const temp = { ...evt, id: Date.now() };
@@ -135,23 +151,53 @@ function App() {
     }
   }, []);
 
+  const openEvent = useCallback((event) => {
+    setActiveEventId(event.id);
+    setActiveTab(current => { setPreviousTab(current); return 'event-details'; });
+  }, []);
+
+  const openCreateGroup = useCallback((context = {}) => {
+    setCreateGroupContext(context);
+    setActiveTab(current => { setPreviousTab(current); return 'create-group'; });
+  }, []);
+
+  const handleGroupCreated = useCallback((groupData) => {
+    const newGroup = { ...groupData, id: Date.now() };
+    setGroups(s => [newGroup, ...s]);
+    setActiveGroupId(newGroup.id);
+    setActiveTab('group');
+    if (isSupabaseConfigured()) sbInsertGroup(groupData).then(row => {
+      if (row) setGroups(s => s.map(g => g.id === newGroup.id ? { ...newGroup, id: row.id } : g));
+    });
+  }, []);
+
+  const updateGroup = useCallback((updated) => {
+    setGroups(s => s.map(g => g.id === updated.id ? updated : g));
+    if (isSupabaseConfigured()) sbUpdateGroup(updated.id, { members: updated.members });
+  }, []);
+
+  const deleteGroup = useCallback((id) => {
+    setGroups(s => s.filter(g => g.id !== id));
+    if (isSupabaseConfigured()) sbDeleteGroup(id);
+  }, []);
+
   return (
     <div className="App">
       <AuthBar user={user} onSetUser={setUser} />
       {activeTab === 'home' && (
-        <HomeFeed activeTab={activeTab} onNavigate={setActiveTab} events={events} onAddEvent={addEvent} onUpdateEvent={updateEvent} onDeleteEvent={deleteEvent} />
+        <HomeFeed activeTab={activeTab} onNavigate={setActiveTab} events={events} onAddEvent={addEvent} onUpdateEvent={updateEvent} onDeleteEvent={deleteEvent} onOpenEvent={openEvent} />
       )}
       {activeTab === 'explore' && (
-        <Explore activeTab={activeTab} onNavigate={setActiveTab} events={events} />
+        <Explore activeTab={activeTab} onNavigate={setActiveTab} events={events} onOpenEvent={openEvent} />
       )}
       {activeTab === 'groups' && (
-        <Groups activeTab={activeTab} onNavigate={setActiveTab} onOpenGroup={(id) => { setActiveGroupId(id); setActiveTab('group'); }} />
+        <Groups activeTab={activeTab} onNavigate={setActiveTab} groups={groups} onOpenGroup={(id) => { setActiveGroupId(id); setActiveTab('group'); }} onCreateGroup={openCreateGroup} />
       )}
       {activeTab === 'profile' && (
         <Profile user={user} activeTab={activeTab} onNavigate={setActiveTab} onOpenGroup={(id) => { setActiveGroupId(id); setActiveTab('group'); }} events={events} onAddEvent={addEvent} onUpdateEvent={updateEvent} onDeleteEvent={deleteEvent} />
       )}
       {activeTab === 'post' && (
-        <Create activeTab={activeTab} onNavigate={setActiveTab} />
+        <Create activeTab={activeTab} onNavigate={setActiveTab} onCreateGroup={openCreateGroup} />
       )}
       {activeTab === 'group' && activeGroupId && (
         <GroupDetails
@@ -160,7 +206,8 @@ function App() {
             setActiveTab(tab);
             if (tab !== 'group' && tab !== 'group-chat') setActiveGroupId(null);
           }}
-          groupId={activeGroupId}
+          group={groups.find(g => g.id === activeGroupId)}
+          onUpdateGroup={updateGroup}
           messages={groupMessages[activeGroupId] ?? []}
           onSendMessage={(text) => {
             setGroupMessages((current) => ({
@@ -196,7 +243,27 @@ function App() {
           onBack={() => setActiveTab('group')}
         />
       )}
-      {/* other tabs (explore, post, groups) can be added later */}
+      {activeTab === 'event-details' && activeEventId && (
+        <EventDetails
+          event={events.find(e => e.id === activeEventId)}
+          onBack={() => setActiveTab(previousTab)}
+          onUpdateEvent={updateEvent}
+          activeTab={previousTab}
+          onNavigate={setActiveTab}
+          onCreateGroup={openCreateGroup}
+        />
+      )}
+      {activeTab === 'create-group' && (
+        <CreateGroup
+          onBack={() => setActiveTab(previousTab)}
+          onCreateGroup={handleGroupCreated}
+          initialType={createGroupContext?.initialType || null}
+          initialEventId={createGroupContext?.eventId || null}
+          initialEventTitle={createGroupContext?.eventTitle || null}
+          activeTab={previousTab}
+          onNavigate={setActiveTab}
+        />
+      )}
     </div>
   );
 }

@@ -78,6 +78,62 @@ export async function deleteEvent(id) {
   }
 }
 
+// Group helpers
+// Requires a `groups` table: id bigserial PK, name text, description text, type text,
+// privacy text, members jsonb, icebreaker text, event_id bigint, event_title text,
+// created_by uuid references auth.users, created_at timestamptz default now()
+// RLS: enable RLS, policy: auth.uid() = created_by for all operations + select public where privacy='public'
+
+export async function getGroups() {
+  if (!configured) return null;
+  try {
+    const userId = DEV_USER || (supabase.auth && (await supabase.auth.getUser()).data?.user?.id);
+    const { data, error } = await supabase.from('groups').select('*').eq('created_by', userId).order('created_at', { ascending: false });
+    if (error) throw error;
+    return data || [];
+  } catch (e) {
+    console.warn('getGroups error', e.message || e);
+    return null;
+  }
+}
+
+export async function insertGroup(group) {
+  if (!configured) return null;
+  try {
+    const userId = DEV_USER || (supabase.auth && (await supabase.auth.getUser()).data?.user?.id);
+    const { data, error } = await supabase.from('groups').insert({ ...group, created_by: userId }).select();
+    if (error) throw error;
+    return data?.[0] ?? null;
+  } catch (e) {
+    console.warn('insertGroup error', e.message || e);
+    return null;
+  }
+}
+
+export async function updateGroup(id, payload) {
+  if (!configured) return null;
+  try {
+    const { data, error } = await supabase.from('groups').update(payload).eq('id', id).select();
+    if (error) throw error;
+    return data?.[0] ?? null;
+  } catch (e) {
+    console.warn('updateGroup error', e.message || e);
+    return null;
+  }
+}
+
+export async function deleteGroup(id) {
+  if (!configured) return false;
+  try {
+    const { error } = await supabase.from('groups').delete().eq('id', id);
+    if (error) throw error;
+    return true;
+  } catch (e) {
+    console.warn('deleteGroup error', e.message || e);
+    return false;
+  }
+}
+
 // Auth helpers
 export async function signInWithOtp(email) {
   if (!configured) return { error: 'supabase not configured' };
