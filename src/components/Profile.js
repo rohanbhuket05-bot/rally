@@ -1,9 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import './HomeFeed.css';
+import { getSchoolFromEmail } from '../data/schools';
+import { isSupabaseConfigured, signInWithOtp, signInWithProvider } from '../lib/supabaseClient';
 
 const placeholderFriendNames = new Set(['Maya', 'Leo', 'Ava', 'Jon']);
 
-export default function Profile({ user, activeTab = 'profile', onNavigate = () => {}, onOpenGroup = () => {}, events = [], onAddEvent = () => {}, onUpdateEvent = () => {}, onDeleteEvent = () => {} }) {
+export default function Profile({ user, activeTab = 'profile', onNavigate = () => {}, onOpenGroup = () => {}, events = [], onAddEvent = () => {}, onUpdateEvent = () => {}, onDeleteEvent = () => {}, onSignOut = () => {}, onAuthRequired = () => {} }) {
   const [name, setName] = useState(() => localStorage.getItem('rally_name') || '');
   const [bio, setBio] = useState(() => localStorage.getItem('rally_bio') || '');
   const [username, setUsername] = useState(() => localStorage.getItem('rally_username') || '');
@@ -11,20 +13,6 @@ export default function Profile({ user, activeTab = 'profile', onNavigate = () =
 
   const getInitials = (n) => n.split(' ').filter(Boolean).map(s=>s[0]).slice(0,2).join('').toUpperCase();
 
-  const inferCollegeFromEmail = (email) => {
-    if (!email || typeof email !== 'string') return null;
-    const parts = email.toLowerCase().split('@');
-    if (parts.length !== 2) return null;
-    const domain = parts[1];
-    if (!domain.endsWith('.edu')) return null;
-    const base = domain.slice(0, -4).split('.').pop();
-    if (!base) return null;
-    return base
-      .replace(/[-_]/g, ' ')
-      .split(' ')
-      .map((segment) => segment.charAt(0).toUpperCase() + segment.slice(1))
-      .join(' ');
-  };
 
   const getStoredCheers = () => {
     try {
@@ -154,15 +142,26 @@ export default function Profile({ user, activeTab = 'profile', onNavigate = () =
     setShowForm(false);
   }
 
-  const college = inferCollegeFromEmail(user?.email);
+  const school = getSchoolFromEmail(user?.email);
+
+  // ── Logged-out state ─────────────────────────────────────────────────────────
+  if (!user) {
+    return <ProfileSignIn activeTab={activeTab} onNavigate={onNavigate} />;
+  }
 
   return (
     <main className="feed-root">
-      <header className="feed-header">
-        <h1>Profile</h1>
-        <p className="tagline">
-          {name ? `${name}${college ? ` · ${college}` : ''}` : 'Update your profile to personalize Rally'}
-        </p>
+      <header className="feed-header" style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+        <div>
+          <h1 style={{ margin: 0 }}>Profile</h1>
+          <p className="tagline" style={{ margin: 0 }}>{name || 'Set up your profile'}</p>
+        </div>
+        <button
+          onClick={onSignOut}
+          style={{ background: 'none', border: '1px solid #DDD', borderRadius: 8, padding: '6px 12px', fontSize: 12, color: '#888', cursor: 'pointer', flexShrink: 0 }}
+        >
+          Sign out
+        </button>
       </header>
 
       <section className="card" style={{ textAlign: 'center' }}>
@@ -186,6 +185,9 @@ export default function Profile({ user, activeTab = 'profile', onNavigate = () =
             </div>
             <p style={{ margin: 0, color: '#666' }}>{bio || 'Add a short bio to tell people what you’re about.'}</p>
             <div style={{ display:'flex', justifyContent:'center', gap:8, flexWrap:'wrap', marginTop:12 }}>
+              {school && (
+                <span className="category-pill" style={{ background:'var(--purple)', color:'#fff', fontSize:12, padding:'6px 10px', fontWeight:700 }}>{school}</span>
+              )}
               <span className="category-pill" style={{ background:'var(--light-teal)', color:'var(--teal)', fontSize:12, padding:'6px 10px' }}>{cheers.count} cheers</span>
               <span className="category-pill" style={{ background:'var(--light-purple)', color:'var(--purple)', fontSize:12, padding:'6px 10px' }}>{groups.length} groups</span>
             </div>
@@ -498,6 +500,83 @@ export default function Profile({ user, activeTab = 'profile', onNavigate = () =
     </main>
   );
 }
+
+    function ProfileSignIn({ activeTab, onNavigate }) {
+      const [email, setEmail] = React.useState('');
+      const [sent, setSent] = React.useState(false);
+      const configured = isSupabaseConfigured();
+
+      async function handleGoogle() { await signInWithProvider('google'); }
+      async function handleEmail(e) {
+        e.preventDefault();
+        if (!email.trim()) return;
+        await signInWithOtp(email.trim());
+        setSent(true);
+      }
+
+      return (
+        <main className="feed-root" style={{ justifyContent: 'center', textAlign: 'center' }}>
+          <div style={{ marginBottom: 32, marginTop: 24 }}>
+            <div style={{ fontSize: 40, fontWeight: 900, color: 'var(--purple)', letterSpacing: '-1px', lineHeight: 1 }}>Rally</div>
+            <div style={{ fontSize: 14, color: '#888', marginTop: 8 }}>Experiences are better shared</div>
+          </div>
+
+          <div className="card" style={{ padding: 24 }}>
+            <div style={{ fontWeight: 700, fontSize: 17, marginBottom: 6 }}>Join the community</div>
+            <div style={{ color: '#666', fontSize: 14, marginBottom: 20, lineHeight: 1.5 }}>
+              Track events, form groups, and connect with people going to the same things.
+            </div>
+
+            {!configured ? (
+              <div style={{ color: '#888', fontSize: 13, padding: 12, background: '#F7F7F7', borderRadius: 10 }}>
+                Sign-in requires Supabase to be configured.
+              </div>
+            ) : sent ? (
+              <div style={{ color: 'var(--teal)', fontWeight: 600, padding: 14, background: 'var(--light-teal)', borderRadius: 10 }}>
+                Check your email for a sign-in link.
+              </div>
+            ) : (
+              <>
+                <button
+                  onClick={handleGoogle}
+                  style={{
+                    width: '100%', padding: '13px', borderRadius: 12,
+                    border: '2px solid #E8E8E8', background: '#fff',
+                    fontWeight: 700, fontSize: 15, cursor: 'pointer', marginBottom: 12,
+                    display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10,
+                  }}
+                >
+                  <svg width="18" height="18" viewBox="0 0 18 18" aria-hidden="true">
+                    <path fill="#4285F4" d="M17.64 9.2c0-.637-.057-1.251-.164-1.84H9v3.481h4.844c-.209 1.125-.843 2.078-1.796 2.717v2.258h2.908c1.702-1.567 2.684-3.874 2.684-6.615z"/>
+                    <path fill="#34A853" d="M9 18c2.43 0 4.467-.806 5.956-2.18l-2.908-2.259c-.806.54-1.837.86-3.048.86-2.344 0-4.328-1.584-5.036-3.711H.957v2.332A8.997 8.997 0 0 0 9 18z"/>
+                    <path fill="#FBBC05" d="M3.964 10.71A5.41 5.41 0 0 1 3.682 9c0-.593.102-1.17.282-1.71V4.958H.957A8.996 8.996 0 0 0 0 9c0 1.452.348 2.827.957 4.042l3.007-2.332z"/>
+                    <path fill="#EA4335" d="M9 3.58c1.321 0 2.508.454 3.44 1.345l2.582-2.58C13.463.891 11.426 0 9 0A8.997 8.997 0 0 0 .957 4.958L3.964 7.29C4.672 5.163 6.656 3.58 9 3.58z"/>
+                  </svg>
+                  Continue with Google
+                </button>
+
+                <div style={{ display: 'flex', alignItems: 'center', gap: 10, margin: '4px 0 12px', color: '#ccc', fontSize: 12 }}>
+                  <div style={{ flex: 1, height: 1, background: '#EEE' }} />or<div style={{ flex: 1, height: 1, background: '#EEE' }} />
+                </div>
+
+                <form onSubmit={handleEmail} style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                  <input className="text-input" type="email" placeholder="Email address" value={email} onChange={e => setEmail(e.target.value)} style={{ width: '100%', boxSizing: 'border-box' }} />
+                  <button type="submit" className="join" style={{ width: '100%', padding: '12px', borderRadius: 12, fontSize: 15 }}>Send magic link</button>
+                </form>
+              </>
+            )}
+          </div>
+
+          <nav className="bottom-nav">
+            <button className="nav-btn" onClick={() => onNavigate('home')}><span className="nav-btn-icon">🏠</span><span className="nav-btn-label">Home</span></button>
+            <button className="nav-btn" onClick={() => onNavigate('explore')}><span className="nav-btn-icon">🔍</span><span className="nav-btn-label">Explore</span></button>
+            <button className="nav-btn" onClick={() => onNavigate('post')}><span className="nav-btn-icon">➕</span><span className="nav-btn-label">Create</span></button>
+            <button className="nav-btn" onClick={() => onNavigate('groups')}><span className="nav-btn-icon">💬</span><span className="nav-btn-label">Groups</span></button>
+            <button className={`nav-btn ${activeTab === 'profile' ? 'active' : ''}`} onClick={() => onNavigate('profile')}><span className="nav-btn-icon">👤</span><span className="nav-btn-label">Profile</span></button>
+          </nav>
+        </main>
+      );
+    }
 
     function EventEditor({ event, onSave }){
       const [title, setTitle] = useState(event.title);

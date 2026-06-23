@@ -9,64 +9,13 @@ import GroupDetails from './components/GroupDetails';
 import GroupChat from './components/GroupChat';
 import EventDetails from './components/EventDetails';
 import CreateGroup from './components/CreateGroup';
+import AuthModal from './components/AuthModal';
 import { groupsData } from './data/groups';
-import { isSupabaseConfigured, signInWithOtp, signOut, getUser, onAuthStateChange, signInWithProvider, getEvents as sbGetEvents, insertEvent as sbInsertEvent, updateEvent as sbUpdateEvent, deleteEvent as sbDeleteEvent, insertGroup as sbInsertGroup, updateGroup as sbUpdateGroup, deleteGroup as sbDeleteGroup } from './lib/supabaseClient';
-
-function AuthBar({ user, onSetUser }){
-  const [email, setEmail] = useState('');
-  const [showForm, setShowForm] = useState(false);
-
-  useEffect(()=>{
-    let mounted = true;
-    (async ()=>{
-      if (isSupabaseConfigured()){
-        const u = await getUser(); if (mounted) onSetUser(u);
-        const unsub = onAuthStateChange((event, session)=>{ onSetUser(session?.user ?? null); });
-        return ()=>{ unsub(); mounted=false };
-      }
-    })();
-  },[onSetUser]);
-
-  if (!isSupabaseConfigured()) return null;
-
-  async function handleSignIn(e){
-    e.preventDefault();
-    if(!email) return;
-    await signInWithOtp(email);
-    setShowForm(false);
-    alert('Check your email for a sign-in link (magic link).');
-  }
-
-  async function handleOAuth(provider){
-    await signInWithProvider(provider);
-    // redirects to provider flow
-  }
-
-  return (
-    <div style={{ position:'fixed', top:12, right:12 }}>
-      {user ? (
-        <div style={{ display:'flex', gap:8, alignItems:'center' }}>
-          <div style={{ fontWeight:700 }}>{user.email}</div>
-          <button className="nav-btn" onClick={()=>{ signOut(); onSetUser(null); }}>Sign out</button>
-        </div>
-      ) : (
-        <div>
-          <button className="nav-btn" onClick={()=>setShowForm(s=>!s)}>Sign in</button>
-          <button className="nav-btn" style={{ marginLeft:8 }} onClick={()=>handleOAuth('google')}>Sign in with Google</button>
-          {showForm && (
-            <form onSubmit={handleSignIn} style={{ display:'flex', gap:8, marginTop:8 }}>
-              <input className="text-input" placeholder="Email address" value={email} onChange={e=>setEmail(e.target.value)} />
-              <button className="join" type="submit">Send</button>
-            </form>
-          )}
-        </div>
-      )}
-    </div>
-  );
-}
+import { isSupabaseConfigured, signOut, getUser, onAuthStateChange, getEvents as sbGetEvents, insertEvent as sbInsertEvent, updateEvent as sbUpdateEvent, deleteEvent as sbDeleteEvent, insertGroup as sbInsertGroup, updateGroup as sbUpdateGroup, deleteGroup as sbDeleteGroup } from './lib/supabaseClient';
 
 function App() {
   const [user, setUser] = useState(null);
+  const [authModalMessage, setAuthModalMessage] = useState(null); // null = hidden, string = shown
   const [activeTab, setActiveTab] = useState('home');
   const [previousTab, setPreviousTab] = useState('home');
   const [activeGroupId, setActiveGroupId] = useState(null);
@@ -119,6 +68,19 @@ function App() {
   useEffect(() => {
     try { localStorage.setItem('rally_groups', JSON.stringify(groups)); } catch(e){}
   }, [groups]);
+
+  // auth init — runs once, replaces the old AuthBar effect
+  useEffect(() => {
+    if (!isSupabaseConfigured()) return;
+    let mounted = true;
+    (async () => { const u = await getUser(); if (mounted) setUser(u); })();
+    const unsub = onAuthStateChange((event, session) => { setUser(session?.user ?? null); });
+    return () => { mounted = false; unsub(); };
+  }, []);
+
+  const onAuthRequired = useCallback((message = 'Sign in to continue') => {
+    setAuthModalMessage(message);
+  }, []);
 
   const addEvent = useCallback(async (evt) => {
     // optimistic add locally
@@ -183,21 +145,23 @@ function App() {
 
   return (
     <div className="App">
-      <AuthBar user={user} onSetUser={setUser} />
+      {authModalMessage !== null && (
+        <AuthModal message={authModalMessage} onClose={() => setAuthModalMessage(null)} />
+      )}
       {activeTab === 'home' && (
-        <HomeFeed activeTab={activeTab} onNavigate={setActiveTab} events={events} onAddEvent={addEvent} onUpdateEvent={updateEvent} onDeleteEvent={deleteEvent} onOpenEvent={openEvent} />
+        <HomeFeed activeTab={activeTab} onNavigate={setActiveTab} events={events} onAddEvent={addEvent} onUpdateEvent={updateEvent} onDeleteEvent={deleteEvent} onOpenEvent={openEvent} user={user} onAuthRequired={onAuthRequired} />
       )}
       {activeTab === 'explore' && (
         <Explore activeTab={activeTab} onNavigate={setActiveTab} events={events} onOpenEvent={openEvent} />
       )}
       {activeTab === 'groups' && (
-        <Groups activeTab={activeTab} onNavigate={setActiveTab} groups={groups} onOpenGroup={(id) => { setActiveGroupId(id); setActiveTab('group'); }} onCreateGroup={openCreateGroup} />
+        <Groups activeTab={activeTab} onNavigate={setActiveTab} groups={groups} onOpenGroup={(id) => { setActiveGroupId(id); setActiveTab('group'); }} onCreateGroup={openCreateGroup} user={user} onAuthRequired={onAuthRequired} />
       )}
       {activeTab === 'profile' && (
-        <Profile user={user} activeTab={activeTab} onNavigate={setActiveTab} onOpenGroup={(id) => { setActiveGroupId(id); setActiveTab('group'); }} events={events} onAddEvent={addEvent} onUpdateEvent={updateEvent} onDeleteEvent={deleteEvent} />
+        <Profile user={user} activeTab={activeTab} onNavigate={setActiveTab} onOpenGroup={(id) => { setActiveGroupId(id); setActiveTab('group'); }} events={events} onAddEvent={addEvent} onUpdateEvent={updateEvent} onDeleteEvent={deleteEvent} onSignOut={() => { signOut(); setUser(null); }} onAuthRequired={onAuthRequired} />
       )}
       {activeTab === 'post' && (
-        <Create activeTab={activeTab} onNavigate={setActiveTab} onCreateGroup={openCreateGroup} />
+        <Create activeTab={activeTab} onNavigate={setActiveTab} onCreateGroup={openCreateGroup} user={user} onAuthRequired={onAuthRequired} />
       )}
       {activeTab === 'group' && activeGroupId && (
         <GroupDetails
@@ -251,6 +215,8 @@ function App() {
           activeTab={previousTab}
           onNavigate={setActiveTab}
           onCreateGroup={openCreateGroup}
+          user={user}
+          onAuthRequired={onAuthRequired}
         />
       )}
       {activeTab === 'create-group' && (
@@ -262,6 +228,8 @@ function App() {
           initialEventTitle={createGroupContext?.eventTitle || null}
           activeTab={previousTab}
           onNavigate={setActiveTab}
+          user={user}
+          onAuthRequired={onAuthRequired}
         />
       )}
     </div>

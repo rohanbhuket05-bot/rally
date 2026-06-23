@@ -28,6 +28,8 @@ export default function CreateGroup({
   initialEventTitle = null,
   activeTab,
   onNavigate,
+  user = null,
+  onAuthRequired = () => {},
 }) {
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
@@ -50,6 +52,7 @@ export default function CreateGroup({
 
   function handleSubmit() {
     if (!name.trim()) return;
+    if (!user) { onAuthRequired('Sign in to create a group'); return; }
     onCreateGroup({
       name: name.trim(),
       description: description.trim(),

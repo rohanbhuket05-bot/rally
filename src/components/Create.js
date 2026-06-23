@@ -32,9 +32,10 @@ const createOptions = [
   },
 ];
 
-export default function Create({ onNavigate = () => {}, onCreateGroup = () => {} }) {
+export default function Create({ onNavigate = () => {}, onCreateGroup = () => {}, user = null, onAuthRequired = () => {} }) {
   function handleStart(option) {
     if (option.action) {
+      if (!user) { onAuthRequired('Sign in to create on Rally'); return; }
       option.action(onCreateGroup);
     } else {
       alert(`${option.title} coming soon!`);

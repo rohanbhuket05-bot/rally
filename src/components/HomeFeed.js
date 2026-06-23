@@ -4,7 +4,7 @@ import './HomeFeed.css';
 
 // HomeFeed now accepts `events` as a prop from App-level state
 
-export default function HomeFeed({ activeTab = 'home', onNavigate = () => {}, events = [], onAddEvent = () => {}, onUpdateEvent = () => {}, onDeleteEvent = () => {}, onOpenEvent = () => {} }) {
+export default function HomeFeed({ activeTab = 'home', onNavigate = () => {}, events = [], onAddEvent = () => {}, onUpdateEvent = () => {}, onDeleteEvent = () => {}, onOpenEvent = () => {}, user = null, onAuthRequired = () => {} }) {
   const [cheersCount, setCheersCount] = React.useState(() => {
     try {
       const stored = Number(localStorage.getItem('rally_cheers'));
@@ -31,6 +31,7 @@ export default function HomeFeed({ activeTab = 'home', onNavigate = () => {}, ev
   const currentUserName = localStorage.getItem('rally_name') || localStorage.getItem('rally_username') || '';
 
   function handleJoin(event){
+    if (!user) { onAuthRequired('Sign in to join this event'); return; }
     const name = currentUserName;
     const initials = (name || 'You').split(' ').map(s=>s[0]).slice(0,2).join('').toUpperCase();
     const exists = (event.attendees || []).some(a=>a.name === name);

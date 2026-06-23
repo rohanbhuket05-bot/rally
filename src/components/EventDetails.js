@@ -12,7 +12,7 @@ function avatarColor(name = '') {
   return AVATAR_COLORS[Math.abs(h) % AVATAR_COLORS.length];
 }
 
-export default function EventDetails({ event, onBack, onUpdateEvent, activeTab, onNavigate, onCreateGroup = () => {} }) {
+export default function EventDetails({ event, onBack, onUpdateEvent, activeTab, onNavigate, onCreateGroup = () => {}, user = null, onAuthRequired = () => {} }) {
   if (!event) return null;
 
   const currentUserName = localStorage.getItem('rally_name') || localStorage.getItem('rally_username') || '';
@@ -32,6 +32,7 @@ export default function EventDetails({ event, onBack, onUpdateEvent, activeTab, 
   const joined = currentUserName && attendees.some(a => a.name === currentUserName);
 
   function handleJoin() {
+    if (!user) { onAuthRequired('Sign in to join this event'); return; }
     const name = currentUserName;
     const initials = (name || 'You').split(' ').map(s => s[0]).slice(0, 2).join('').toUpperCase();
     const exists = attendees.some(a => a.name === name);
@@ -132,7 +133,7 @@ export default function EventDetails({ event, onBack, onUpdateEvent, activeTab, 
         <button
           className="join"
           style={{ width: '100%', padding: '10px 0', borderRadius: 12, display: 'block' }}
-          onClick={() => onCreateGroup({ eventId: event.id, eventTitle: event.title })}
+          onClick={() => { if (!user) { onAuthRequired('Sign in to form a group'); return; } onCreateGroup({ eventId: event.id, eventTitle: event.title }); }}
         >
           + Form a Group
         </button>
