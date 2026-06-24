@@ -195,17 +195,23 @@ function App() {
   return (
     <div className={`App${darkMode ? ' dark-theme' : ''}`}>
       {/* TEMPORARY dark mode preview toggle — remove before shipping */}
-      <button
-        onClick={() => setDarkMode(d => !d)}
-        style={{
-          position: 'fixed', top: 10, right: 10, zIndex: 99999,
-          background: darkMode ? '#9D8FFF' : '#222', color: '#fff',
-          border: 'none', borderRadius: 8, padding: '6px 12px',
-          fontSize: 12, fontWeight: 700, cursor: 'pointer', opacity: 0.85,
-        }}
-      >
-        {darkMode ? '☀ Light' : '🌙 Dark'}
-      </button>
+      <div style={{
+        position: 'fixed', top: 10, left: '50%', transform: 'translateX(-50%)',
+        width: '100%', maxWidth: 520, display: 'flex', justifyContent: 'flex-end',
+        padding: '0 12px', boxSizing: 'border-box', zIndex: 99999, pointerEvents: 'none',
+      }}>
+        <button
+          onClick={() => setDarkMode(d => !d)}
+          style={{
+            pointerEvents: 'all',
+            background: darkMode ? '#9D8FFF' : '#222', color: '#fff',
+            border: 'none', borderRadius: 8, padding: '6px 12px',
+            fontSize: 12, fontWeight: 700, cursor: 'pointer', opacity: 0.85,
+          }}
+        >
+          {darkMode ? '☀ Light' : '🌙 Dark'}
+        </button>
+      </div>
       {authModalMessage !== null && (
         <AuthModal message={authModalMessage} onClose={() => setAuthModalMessage(null)} />
       )}
