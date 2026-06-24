@@ -37,6 +37,7 @@ export default function Profile({ user, activeTab = 'profile', onNavigate = () =
     setEditingProfile(false);
   };
   // `events` and handlers are provided by App (single source of truth)
+  const [showSignOutConfirm, setShowSignOutConfirm] = useState(false);
   const [showConfirm, setShowConfirm] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState(null);
   const [selectedEvent, setSelectedEvent] = useState(null);
@@ -157,11 +158,24 @@ export default function Profile({ user, activeTab = 'profile', onNavigate = () =
           <p className="tagline" style={{ margin: 0 }}>{name || 'Set up your profile'}</p>
         </div>
         <button
-          onClick={onSignOut}
+          onClick={() => setShowSignOutConfirm(true)}
           style={{ background: 'none', border: '1px solid #DDD', borderRadius: 8, padding: '6px 12px', fontSize: 12, color: '#888', cursor: 'pointer', flexShrink: 0 }}
         >
           Sign out
         </button>
+
+        {showSignOutConfirm && (
+          <div className="modal-overlay">
+            <div className="modal" style={{ textAlign: 'center', padding: 24 }}>
+              <p style={{ margin: '0 0 8px', fontWeight: 700, fontSize: 16 }}>Sign out?</p>
+              <p style={{ margin: '0 0 20px', color: '#666', fontSize: 14 }}>You'll need to sign back in to join events or create groups.</p>
+              <div style={{ display: 'flex', gap: 8 }}>
+                <button className="nav-btn" style={{ flex: 1 }} onClick={() => setShowSignOutConfirm(false)}>Cancel</button>
+                <button className="join" style={{ flex: 1, borderRadius: 10 }} onClick={() => { setShowSignOutConfirm(false); onSignOut(); }}>Sign out</button>
+              </div>
+            </div>
+          </div>
+        )}
       </header>
 
       <section className="card" style={{ textAlign: 'center' }}>
