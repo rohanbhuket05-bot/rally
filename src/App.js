@@ -31,7 +31,9 @@ function App() {
   const [activeGroupId, setActiveGroupId] = useState(null);
   const [activeEventId, setActiveEventId] = useState(null);
   const [createGroupContext, setCreateGroupContext] = useState(null);
-  const [events, setEvents] = useState([]);
+  const [events, setEvents] = useState(() => {
+    try { return JSON.parse(localStorage.getItem('rally_events') || '[]'); } catch(e) { return []; }
+  });
   const [groups, setGroups] = useState([]);
   const [groupMessages, setGroupMessages] = useState(() => {
     return groupsData.reduce((acc, group) => {
@@ -40,21 +42,14 @@ function App() {
     }, {});
   });
 
-  // load events once
+  // load events from Supabase if available, but keep localStorage as source of truth
   useEffect(() => {
     let mounted = true;
     async function load() {
       if (isSupabaseConfigured()) {
         const rows = await sbGetEvents();
-        if (mounted && rows) {
+        if (mounted && rows && rows.length > 0) {
           setEvents(rows.map(r => ({ id: r.id, title: r.title, dateISO: r.date_iso || r.dateISO, showTime: r.show_time ?? r.showTime ?? true, location: r.location, attendees: r.attendees || [] })));
-        }
-      } else {
-        const raw = localStorage.getItem('rally_events');
-        if (raw) {
-          try { const parsed = JSON.parse(raw); if (mounted) setEvents(parsed); } catch(e){}
-        } else {
-          setEvents([]);
         }
       }
     }
@@ -62,11 +57,9 @@ function App() {
     return () => { mounted = false };
   }, []);
 
-  // persist to localStorage when not using Supabase
+  // always persist events to localStorage
   useEffect(() => {
-    if (!isSupabaseConfigured()){
-      try { localStorage.setItem('rally_events', JSON.stringify(events)); } catch(e){}
-    }
+    try { localStorage.setItem('rally_events', JSON.stringify(events)); } catch(e){}
   }, [events]);
 
   // load groups from localStorage (Supabase groups schema migration required before enabling)
@@ -195,23 +188,17 @@ function App() {
   return (
     <div className={`App${darkMode ? ' dark-theme' : ''}`}>
       {/* TEMPORARY dark mode preview toggle — remove before shipping */}
-      <div style={{
-        position: 'fixed', top: 10, left: '50%', transform: 'translateX(-50%)',
-        width: '100%', maxWidth: 520, display: 'flex', justifyContent: 'flex-end',
-        padding: '0 12px', boxSizing: 'border-box', zIndex: 99999, pointerEvents: 'none',
-      }}>
-        <button
-          onClick={() => setDarkMode(d => !d)}
-          style={{
-            pointerEvents: 'all',
-            background: darkMode ? '#9D8FFF' : '#222', color: '#fff',
-            border: 'none', borderRadius: 8, padding: '6px 12px',
-            fontSize: 12, fontWeight: 700, cursor: 'pointer', opacity: 0.85,
-          }}
-        >
-          {darkMode ? '☀ Light' : '🌙 Dark'}
-        </button>
-      </div>
+      <button
+        onClick={() => setDarkMode(d => !d)}
+        style={{
+          position: 'fixed', top: 10, right: 'calc(50% - 248px)', zIndex: 99999,
+          background: darkMode ? '#9D8FFF' : '#222', color: '#fff',
+          border: 'none', borderRadius: 8, padding: '6px 12px',
+          fontSize: 12, fontWeight: 700, cursor: 'pointer', opacity: 0.85,
+        }}
+      >
+        {darkMode ? '☀ Light' : '🌙 Dark'}
+      </button>
       {authModalMessage !== null && (
         <AuthModal message={authModalMessage} onClose={() => setAuthModalMessage(null)} />
       )}
