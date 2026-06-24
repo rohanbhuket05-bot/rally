@@ -1,0 +1,161 @@
+.dark-theme {
+  --purple: #9D8FFF;
+  --light-purple: rgba(157,143,255,0.15);
+  --pink: #FF6BA8;
+  --light-pink: rgba(255,107,168,0.15);
+  --teal: #00E5A8;
+  --light-teal: rgba(0,229,168,0.15);
+  --amber: #FFB420;
+  --light-amber: rgba(255,180,32,0.12);
+  --nav-bg: #07070F;
+}
+
+.dark-theme .feed-root {
+  background: linear-gradient(160deg, #080810 0%, #0F0F20 100%);
+  color: #EEEEFF;
+}
+
+.dark-theme .feed-header h1 {
+  color: var(--purple);
+}
+
+.dark-theme .tagline {
+  color: #8888AA;
+}
+
+.dark-theme .card {
+  background: rgba(255, 255, 255, 0.04);
+  border-color: rgba(255, 255, 255, 0.08);
+  color: #EEEEFF;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+}
+
+.dark-theme .card-title {
+  color: #EEEEFF;
+}
+
+.dark-theme .meta-label {
+  color: #8888AA;
+}
+
+.dark-theme .meta-value {
+  color: #EEEEFF;
+}
+
+.dark-theme .join {
+  background: linear-gradient(135deg, var(--purple), #7B5FDB);
+  box-shadow: 0 4px 20px rgba(157, 143, 255, 0.35);
+  border: none;
+}
+
+.dark-theme .join:hover {
+  box-shadow: 0 6px 28px rgba(157, 143, 255, 0.5);
+}
+
+.dark-theme .nav-btn {
+  background: rgba(255, 255, 255, 0.06);
+  border-color: rgba(255, 255, 255, 0.1);
+  color: #8888AA;
+}
+
+.dark-theme .nav-btn.active {
+  background: rgba(157, 143, 255, 0.15);
+  border-color: var(--purple);
+  color: var(--purple);
+  box-shadow: 0 0 16px rgba(157, 143, 255, 0.25);
+}
+
+.dark-theme .nav-btn .nav-btn-label {
+  color: #8888AA;
+}
+
+.dark-theme .nav-btn.active .nav-btn-label {
+  color: var(--purple);
+}
+
+.dark-theme .bottom-nav {
+  background: #07070F;
+  box-shadow: 0 -4px 30px rgba(0, 0, 0, 0.6);
+  border-top: 1px solid rgba(255,255,255,0.06);
+}
+
+.dark-theme .text-input {
+  background: rgba(255, 255, 255, 0.06);
+  border-color: rgba(255, 255, 255, 0.1);
+  color: #EEEEFF;
+}
+
+.dark-theme .text-input::placeholder {
+  color: #555577;
+}
+
+.dark-theme .text-input:focus {
+  border-color: var(--purple);
+  background: rgba(157, 143, 255, 0.08);
+}
+
+.dark-theme .badge {
+  background: var(--purple);
+  box-shadow: 0 2px 10px rgba(157, 143, 255, 0.4);
+}
+
+.dark-theme .category-pill {
+  background: rgba(157, 143, 255, 0.15);
+  color: var(--purple);
+}
+
+.dark-theme .modal-overlay {
+  background: rgba(0, 0, 0, 0.7);
+}
+
+.dark-theme .modal {
+  background: #12112A;
+  border-color: rgba(255, 255, 255, 0.1);
+  color: #EEEEFF;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.6), 0 0 40px rgba(157, 143, 255, 0.15);
+}
+
+.dark-theme .nav-action-btn {
+  background: rgba(255, 255, 255, 0.06);
+  border-color: rgba(255, 255, 255, 0.1);
+  color: #EEEEFF;
+}
+
+.dark-theme .nav-action-btn.joined,
+.dark-theme .nav-action-btn.active {
+  background: linear-gradient(135deg, var(--purple), #7B5FDB);
+  box-shadow: 0 4px 16px rgba(157, 143, 255, 0.35);
+}
+
+.dark-theme .create-card {
+  background: rgba(255, 255, 255, 0.04);
+  border-color: rgba(255, 255, 255, 0.08);
+  color: #EEEEFF;
+}
+
+.dark-theme .create-card p {
+  color: #8888AA;
+}
+
+.dark-theme h2, .dark-theme h3 {
+  color: #EEEEFF;
+}
+
+.dark-theme p {
+  color: #A0A0C0;
+}
+
+.dark-theme .cheers-count {
+  background: var(--pink);
+  box-shadow: 0 4px 16px rgba(255, 107, 168, 0.4);
+}
+
+.dark-theme .username {
+  color: var(--purple);
+}
+
+.dark-theme .edit-btn {
+  border-color: var(--purple);
+  color: var(--purple);
+  background: rgba(157, 143, 255, 0.08);
+}

@@ -1,4 +1,5 @@
 import './App.css';
+import './styles/darkTheme.css';
 import { useState, useEffect, useCallback } from 'react';
 import HomeFeed from './components/HomeFeed';
 import Profile from './components/Profile';
@@ -17,6 +18,7 @@ import { isSupabaseConfigured, signOut, getUser, onAuthStateChange, getEvents as
 function App() {
   const [user, setUser] = useState(null);
   const [showUsernamePrompt, setShowUsernamePrompt] = useState(false);
+  const [darkMode, setDarkMode] = useState(false);
   const [profile, setProfile] = useState({
     name: localStorage.getItem('rally_name') || '',
     bio: localStorage.getItem('rally_bio') || '',
@@ -191,7 +193,19 @@ function App() {
   }, []);
 
   return (
-    <div className="App">
+    <div className={`App${darkMode ? ' dark-theme' : ''}`}>
+      {/* TEMPORARY dark mode preview toggle — remove before shipping */}
+      <button
+        onClick={() => setDarkMode(d => !d)}
+        style={{
+          position: 'fixed', top: 10, right: 10, zIndex: 99999,
+          background: darkMode ? '#9D8FFF' : '#222', color: '#fff',
+          border: 'none', borderRadius: 8, padding: '6px 12px',
+          fontSize: 12, fontWeight: 700, cursor: 'pointer', opacity: 0.85,
+        }}
+      >
+        {darkMode ? '☀ Light' : '🌙 Dark'}
+      </button>
       {authModalMessage !== null && (
         <AuthModal message={authModalMessage} onClose={() => setAuthModalMessage(null)} />
       )}
