@@ -187,22 +187,13 @@ export async function getGroupInvites(userId) {
   }
 }
 
-export async function acceptGroupInvite(inviteId, groupId, memberEntry) {
-  try {
-    const { data: groupRow, error: gErr } = await supabase
-      .from('groups').select('members').eq('id', groupId).single();
-    if (gErr) throw gErr;
-    const updatedMembers = [...(groupRow.members || []), memberEntry];
-    const { data: updated, error: uErr } = await supabase
-      .from('groups').update({ members: updatedMembers }).eq('id', groupId).select().single();
-    if (uErr) throw uErr;
-    const { error: dErr } = await supabase.from('group_invites').delete().eq('id', inviteId);
-    if (dErr) throw dErr;
-    return mapGroupRow(updated);
-  } catch (e) {
-    console.warn('acceptGroupInvite error', e.message || e);
-    return null;
-  }
+export async function acceptGroupInvite(inviteId, memberEntry) {
+  const { data, error } = await supabase.rpc('accept_group_invite', {
+    p_invite_id: inviteId,
+    p_member_entry: memberEntry,
+  });
+  if (error) throw error;
+  return data ? mapGroupRow(data) : null;
 }
 
 export async function declineGroupInvite(inviteId) {

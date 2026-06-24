@@ -28,6 +28,7 @@ export default function Groups({
 }) {
   const myName = localStorage.getItem('rally_name') || localStorage.getItem('rally_username') || '';
   const [invites, setInvites] = useState([]);
+  const [acceptError, setAcceptError] = useState('');
 
   useEffect(() => {
     if (!user || !isSupabaseConfigured()) return;
@@ -54,10 +55,15 @@ export default function Groups({
       role: 'member',
       user_id: user.id,
     };
-    const group = await acceptGroupInvite(invite.id, invite.group_id, memberEntry);
-    if (group) {
-      setInvites(s => s.filter(i => i.id !== invite.id));
-      onGroupJoined(group);
+    setAcceptError('');
+    try {
+      const group = await acceptGroupInvite(invite.id, memberEntry);
+      if (group) {
+        setInvites(s => s.filter(i => i.id !== invite.id));
+        onGroupJoined(group);
+      }
+    } catch (e) {
+      setAcceptError(e.message || 'Failed to accept invite.');
     }
   }
 
@@ -90,6 +96,11 @@ export default function Groups({
       {invites.length > 0 && (
         <section style={{ marginTop: 8 }}>
           <h3 style={{ margin: '6px 0' }}>Invites</h3>
+          {acceptError && (
+            <div style={{ fontSize: 12, color: '#E74C3C', background: 'rgba(231,76,60,0.08)', borderRadius: 8, padding: '8px 10px', marginBottom: 8 }}>
+              ⚠ {acceptError}
+            </div>
+          )}
           <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
             {invites.map(inv => {
               const g = inv.group;
