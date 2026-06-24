@@ -279,53 +279,53 @@ export default function Profile({ user, profile = {}, onUpdateProfile = () => {}
         </div>
 
         {showForm && (
-          <form className="card form-card" onSubmit={addEvent}>
-            <label style={{ fontSize: 13, color: '#666' }}>Event name</label>
-            <input className="text-input" value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} placeholder="Event name" />
-
-            <label style={{ fontSize: 13, color: '#666' }}>Month</label>
-            <select className="text-input" value={form.month} onChange={(e) => setForm({ ...form, month: e.target.value })}>
-              <option value="">Month</option>
-              <option value="01">Jan</option>
-              <option value="02">Feb</option>
-              <option value="03">Mar</option>
-              <option value="04">Apr</option>
-              <option value="05">May</option>
-              <option value="06">Jun</option>
-              <option value="07">Jul</option>
-              <option value="08">Aug</option>
-              <option value="09">Sep</option>
-              <option value="10">Oct</option>
-              <option value="11">Nov</option>
-              <option value="12">Dec</option>
-            </select>
-
-            <label style={{ fontSize: 13, color: '#666' }}>Day</label>
-            <input
-              className="text-input"
-              type="number"
-              min="1"
-              max="31"
-              value={form.day}
-              onChange={(e) => setForm({ ...form, day: e.target.value })}
-            />
-
-            <label style={{ fontSize: 13, color: '#666' }}>Time (optional)</label>
-            <input
-              className="text-input"
-              type="time"
-              value={form.time}
-              onChange={(e) => setForm({ ...form, time: e.target.value })}
-            />
-
-            <label style={{ fontSize: 13, color: '#666' }}>Location</label>
-            <input className="text-input" value={form.location} onChange={(e) => setForm({ ...form, location: e.target.value })} placeholder="Location" />
-
-            <div style={{ display: 'flex', gap: 8, marginTop: 8 }}>
-              <button type="submit" className="join">Add</button>
-              <button type="button" className="nav-btn" onClick={() => setShowForm(false)}>Cancel</button>
+          <div className="modal-overlay" onClick={() => setShowForm(false)}>
+            <div className="modal" style={{ width: '100%', maxWidth: 400, padding: 24 }} onClick={e => e.stopPropagation()}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20 }}>
+                <h3 style={{ margin: 0, fontSize: 18 }}>Add Event</h3>
+                <button onClick={() => setShowForm(false)} style={{ background: 'none', border: 'none', fontSize: 20, cursor: 'pointer', color: '#888', lineHeight: 1, padding: '0 4px' }}>✕</button>
+              </div>
+              <form onSubmit={addEvent} style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+                <div>
+                  <label style={{ fontSize: 13, color: '#888', display: 'block', marginBottom: 4 }}>Event name</label>
+                  <input className="text-input" value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} placeholder="Event name" autoFocus />
+                </div>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+                  <div>
+                    <label style={{ fontSize: 13, color: '#888', display: 'block', marginBottom: 4 }}>Month</label>
+                    <select className="text-input" value={form.month} onChange={(e) => setForm({ ...form, month: e.target.value })}>
+                      <option value="">Month</option>
+                      <option value="01">Jan</option>
+                      <option value="02">Feb</option>
+                      <option value="03">Mar</option>
+                      <option value="04">Apr</option>
+                      <option value="05">May</option>
+                      <option value="06">Jun</option>
+                      <option value="07">Jul</option>
+                      <option value="08">Aug</option>
+                      <option value="09">Sep</option>
+                      <option value="10">Oct</option>
+                      <option value="11">Nov</option>
+                      <option value="12">Dec</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label style={{ fontSize: 13, color: '#888', display: 'block', marginBottom: 4 }}>Day</label>
+                    <input className="text-input" type="number" min="1" max="31" value={form.day} onChange={(e) => setForm({ ...form, day: e.target.value })} placeholder="1–31" />
+                  </div>
+                </div>
+                <div>
+                  <label style={{ fontSize: 13, color: '#888', display: 'block', marginBottom: 4 }}>Time <span style={{ color: '#aaa' }}>(optional)</span></label>
+                  <input className="text-input" type="time" value={form.time} onChange={(e) => setForm({ ...form, time: e.target.value })} />
+                </div>
+                <div>
+                  <label style={{ fontSize: 13, color: '#888', display: 'block', marginBottom: 4 }}>Location</label>
+                  <input className="text-input" value={form.location} onChange={(e) => setForm({ ...form, location: e.target.value })} placeholder="Location" />
+                </div>
+                <button type="submit" className="join" style={{ marginTop: 4, width: '100%', padding: '12px', fontSize: 15 }}>Add Event</button>
+              </form>
             </div>
-          </form>
+          </div>
         )}
 
         <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginTop: 8 }}>
