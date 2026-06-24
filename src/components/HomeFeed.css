@@ -128,9 +128,10 @@
   justify-content:center;
 }
 
-.form-card{ display:flex; flex-direction:column; gap:8px; border: 2px solid #C6C6CC }
-.form-card{ max-width:100%; margin:0 auto; padding:12px; box-sizing:border-box; overflow:hidden }
-.text-input{ padding:8px 10px; border-radius:8px; border:1px solid #EEE; font-size:14px; width:100%; box-sizing:border-box; display:block }
+.form-card{ display:flex; flex-direction:column; gap:8px; }
+.form-card{ width:100%; max-width:100%; margin:0 auto; padding:12px; box-sizing:border-box; overflow:hidden }
+.text-input{ padding:8px 10px; border-radius:8px; border:1px solid #EEE; font-size:14px; width:100%; max-width:100%; min-width:0; box-sizing:border-box; display:block }
+.text-input:focus{ outline:none; border-color: var(--purple); }
 
 .edit-btn{ background:transparent; border:1px solid var(--purple); color:var(--purple); padding:6px 8px; border-radius:8px; font-weight:600 }
 .textarea{ min-height:72px; resize:vertical }

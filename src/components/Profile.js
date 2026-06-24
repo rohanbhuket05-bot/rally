@@ -272,7 +272,7 @@ export default function Profile({ user, profile = {}, onUpdateProfile = () => {}
         )}
       </section>
 
-      <section style={{ marginTop: 12 }}>
+      <section style={{ marginTop: 12, overflow: 'hidden' }}>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
           <h3 style={{ margin: '6px 0' }}>Upcoming</h3>
           <button className="add-btn" onClick={() => setShowForm((s) => !s)}>+</button>
