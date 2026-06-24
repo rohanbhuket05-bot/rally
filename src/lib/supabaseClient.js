@@ -311,7 +311,10 @@ export function onAuthStateChange(cb) {
 
 export async function signInWithProvider(provider) {
   try {
-    return await supabase.auth.signInWithOAuth({ provider });
+    return await supabase.auth.signInWithOAuth({
+      provider,
+      options: { redirectTo: window.location.origin },
+    });
   } catch (e) {
     console.warn('signInWithProvider error', e.message || e);
     return { error: e };
