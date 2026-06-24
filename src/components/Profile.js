@@ -278,7 +278,10 @@ export default function Profile({ user, profile = {}, onUpdateProfile = () => {}
           <h3
             style={{ margin: '6px 0', cursor: 'pointer' }}
             onClick={() => setShowFriendsPanel((current) => !current)}
-          >Friends</h3>
+          >
+            Friends
+            <span style={{ fontSize: 11, marginLeft: 6, color: '#999', transition: 'transform 200ms', display: 'inline-block', transform: showFriendsPanel ? 'rotate(180deg)' : 'rotate(0deg)' }}>▼</span>
+          </h3>
           <span style={{ color: '#666', fontSize: 13 }}>{friends.length} friends</span>
         </div>
         {showFriendsPanel && (
