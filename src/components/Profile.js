@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import './HomeFeed.css';
 import { getSchoolFromEmail } from '../data/schools';
-import { isSupabaseConfigured, signInWithOtp, signInWithProvider } from '../lib/supabaseClient';
+import { isSupabaseConfigured, signInWithOtp, signInWithProvider, checkUsernameAvailable } from '../lib/supabaseClient';
+import { validateUsername } from '../lib/usernameValidation';
 
 const placeholderFriendNames = new Set(['Maya', 'Leo', 'Ava', 'Jon']);
 
@@ -10,6 +11,8 @@ export default function Profile({ user, profile = {}, onUpdateProfile = () => {}
   const [bio, setBio] = useState(() => profile.bio || localStorage.getItem('rally_bio') || '');
   const [username, setUsername] = useState(() => profile.username || localStorage.getItem('rally_username') || '');
   const [editingProfile, setEditingProfile] = useState(false);
+  const [usernameStatus, setUsernameStatus] = useState('idle'); // idle | checking | available | taken | invalid
+  const [usernameError, setUsernameError] = useState(null);
 
   const getInitials = (n) => n.split(' ').filter(Boolean).map(s=>s[0]).slice(0,2).join('').toUpperCase();
 
@@ -37,15 +40,35 @@ export default function Profile({ user, profile = {}, onUpdateProfile = () => {}
     }
   }, [profile]);
 
+  // Live username validation + availability check while editing
+  useEffect(() => {
+    if (!editingProfile) return;
+    const original = (profile.username || localStorage.getItem('rally_username') || '').toLowerCase();
+    if (username.toLowerCase() === original) {
+      setUsernameStatus('idle'); setUsernameError(null); return;
+    }
+    const { valid, error } = validateUsername(username);
+    if (!valid) { setUsernameStatus('invalid'); setUsernameError(error); return; }
+    setUsernameStatus('checking');
+    const timer = setTimeout(async () => {
+      const available = await checkUsernameAvailable(username.toLowerCase(), user?.id);
+      setUsernameStatus(available ? 'available' : 'taken');
+      setUsernameError(available ? null : 'Username already taken');
+    }, 400);
+    return () => clearTimeout(timer);
+  }, [username, editingProfile]); // eslint-disable-line react-hooks/exhaustive-deps
+
   const saveProfile = (newName, newBio, newUsername) => {
+    if (usernameStatus === 'invalid' || usernameStatus === 'taken' || usernameStatus === 'checking') return;
+    const finalUsername = newUsername.toLowerCase();
     setName(newName);
     setBio(newBio);
-    setUsername(newUsername);
+    setUsername(finalUsername);
     localStorage.setItem('rally_name', newName);
     localStorage.setItem('rally_bio', newBio);
-    localStorage.setItem('rally_username', newUsername);
+    localStorage.setItem('rally_username', finalUsername);
     setEditingProfile(false);
-    onUpdateProfile({ name: newName, bio: newBio, username: newUsername, friends });
+    onUpdateProfile({ name: newName, bio: newBio, username: finalUsername, friends });
   };
   // `events` and handlers are provided by App (single source of truth)
   const [showSignOutConfirm, setShowSignOutConfirm] = useState(false);
@@ -220,13 +243,30 @@ export default function Profile({ user, profile = {}, onUpdateProfile = () => {}
         ) : (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
             <label style={{ fontSize: 13, color: '#666' }}>Username</label>
-            <input className="text-input" value={username} onChange={(e)=>setUsername(e.target.value)} />
+            <input
+              className="text-input"
+              value={username}
+              onChange={(e) => setUsername(e.target.value)}
+              style={{
+                borderColor: usernameStatus === 'available' ? 'var(--teal)'
+                  : usernameStatus === 'invalid' || usernameStatus === 'taken' ? '#E74C3C'
+                  : undefined,
+              }}
+            />
+            {usernameStatus === 'checking' && <div style={{ fontSize: 12, color: '#999' }}>Checking availability...</div>}
+            {usernameStatus === 'available' && <div style={{ fontSize: 12, color: 'var(--teal)' }}>✓ Available</div>}
+            {(usernameStatus === 'taken' || usernameStatus === 'invalid') && <div style={{ fontSize: 12, color: '#E74C3C' }}>{usernameError}</div>}
             <label style={{ fontSize: 13, color: '#666' }}>Full name</label>
             <input className="text-input" value={name} onChange={(e)=>setName(e.target.value)} />
             <label style={{ fontSize: 13, color: '#666' }}>Bio</label>
             <textarea className="text-input textarea" value={bio} onChange={(e)=>setBio(e.target.value)} />
             <div style={{ display:'flex', gap:8, justifyContent:'center' }}>
-              <button className="join" onClick={()=>saveProfile(name,bio,username)}>Save</button>
+              <button
+                className="join"
+                onClick={() => saveProfile(name, bio, username)}
+                disabled={usernameStatus === 'invalid' || usernameStatus === 'taken' || usernameStatus === 'checking'}
+                style={{ opacity: (usernameStatus === 'invalid' || usernameStatus === 'taken' || usernameStatus === 'checking') ? 0.45 : 1 }}
+              >Save</button>
               <button className="nav-btn" onClick={()=>{ setUsername(localStorage.getItem('rally_username')||''); setName(localStorage.getItem('rally_name')||''); setBio(localStorage.getItem('rally_bio')||''); setEditingProfile(false); }}>Cancel</button>
             </div>
           </div>

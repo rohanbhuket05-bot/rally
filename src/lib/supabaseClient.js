@@ -105,6 +105,22 @@ export async function deleteGroup(id) {
   }
 }
 
+export async function checkUsernameAvailable(username, currentUserId) {
+  try {
+    const { data, error } = await supabase
+      .from('profiles')
+      .select('id')
+      .eq('username', username.toLowerCase())
+      .single();
+    if (error && error.code === 'PGRST116') return true; // no rows = available
+    if (error) throw error;
+    return data?.id === currentUserId; // available if it's their own username
+  } catch (e) {
+    console.warn('checkUsernameAvailable error', e.message || e);
+    return true;
+  }
+}
+
 export async function getProfile(userId) {
   try {
     const { data, error } = await supabase.from('profiles').select('*').eq('id', userId).single();
