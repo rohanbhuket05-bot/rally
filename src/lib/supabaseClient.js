@@ -58,13 +58,36 @@ export async function deleteEvent(id) {
   }
 }
 
+export function mapGroupRow(r) {
+  return {
+    id: r.id,
+    name: r.name,
+    description: r.description,
+    type: r.type || 'club',
+    privacy: r.privacy || 'public',
+    members: r.members || [],
+    icebreaker: r.icebreaker,
+    eventTitle: r.event_title,
+    events: r.events || [],
+    createdBy: r.created_by,
+  };
+}
+
 export async function getGroups() {
   try {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return [];
-    const { data, error } = await supabase.from('groups').select('*').eq('created_by', user.id).order('created_at', { ascending: false });
-    if (error) throw error;
-    return data || [];
+    const [{ data: created, error: e1 }, { data: member, error: e2 }] = await Promise.all([
+      supabase.from('groups').select('*').eq('created_by', user.id),
+      supabase.from('groups').select('*').contains('members', [{ user_id: user.id }]),
+    ]);
+    if (e1) throw e1;
+    const all = [...(created || []), ...(e2 ? [] : (member || []))];
+    const seen = new Set();
+    return all
+      .filter(g => { if (seen.has(g.id)) return false; seen.add(g.id); return true; })
+      .sort((a, b) => new Date(b.created_at) - new Date(a.created_at))
+      .map(mapGroupRow);
   } catch (e) {
     console.warn('getGroups error', e.message || e);
     return [];
@@ -74,9 +97,21 @@ export async function getGroups() {
 export async function insertGroup(group) {
   try {
     const { data: { user } } = await supabase.auth.getUser();
-    const { data, error } = await supabase.from('groups').insert({ ...group, created_by: user?.id }).select();
+    if (!user) return null;
+    const payload = {
+      name: group.name,
+      description: group.description || null,
+      type: group.type || 'club',
+      privacy: group.privacy || 'public',
+      members: group.members || [],
+      icebreaker: group.icebreaker || null,
+      event_title: group.eventTitle || null,
+      events: group.events || [],
+      created_by: user.id,
+    };
+    const { data, error } = await supabase.from('groups').insert(payload).select();
     if (error) throw error;
-    return data?.[0] ?? null;
+    return data?.[0] ? mapGroupRow(data[0]) : null;
   } catch (e) {
     console.warn('insertGroup error', e.message || e);
     return null;
@@ -87,7 +122,7 @@ export async function updateGroup(id, payload) {
   try {
     const { data, error } = await supabase.from('groups').update(payload).eq('id', id).select();
     if (error) throw error;
-    return data?.[0] ?? null;
+    return data?.[0] ? mapGroupRow(data[0]) : null;
   } catch (e) {
     console.warn('updateGroup error', e.message || e);
     return null;
@@ -102,6 +137,93 @@ export async function deleteGroup(id) {
   } catch (e) {
     console.warn('deleteGroup error', e.message || e);
     return false;
+  }
+}
+
+export async function sendGroupInvite(groupId, inviteeId) {
+  try {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return null;
+    const { data, error } = await supabase.from('group_invites').insert({
+      group_id: groupId,
+      inviter_id: user.id,
+      invitee_id: inviteeId,
+      status: 'pending',
+    }).select();
+    if (error) throw error;
+    return data?.[0] ?? null;
+  } catch (e) {
+    console.warn('sendGroupInvite error', e.message || e);
+    return null;
+  }
+}
+
+export async function getGroupInvites(userId) {
+  try {
+    const { data, error } = await supabase
+      .from('group_invites')
+      .select('*, group:groups(id, name, type, description, members, privacy, icebreaker, event_title, events, created_by)')
+      .eq('invitee_id', userId)
+      .eq('status', 'pending')
+      .order('created_at', { ascending: false });
+    if (error) throw error;
+    if (!data || data.length === 0) return [];
+    const inviterIds = [...new Set(data.map(i => i.inviter_id))];
+    const { data: inviterProfiles } = await supabase
+      .from('profiles').select('id, name, username').in('id', inviterIds);
+    const profileMap = Object.fromEntries((inviterProfiles || []).map(p => [p.id, p]));
+    return data.map(inv => ({
+      ...inv,
+      group: inv.group ? mapGroupRow(inv.group) : null,
+      inviter: profileMap[inv.inviter_id] || null,
+    }));
+  } catch (e) {
+    console.warn('getGroupInvites error', e.message || e);
+    return [];
+  }
+}
+
+export async function acceptGroupInvite(inviteId, groupId, memberEntry) {
+  try {
+    const { data: groupRow, error: gErr } = await supabase
+      .from('groups').select('members').eq('id', groupId).single();
+    if (gErr) throw gErr;
+    const updatedMembers = [...(groupRow.members || []), memberEntry];
+    const { data: updated, error: uErr } = await supabase
+      .from('groups').update({ members: updatedMembers }).eq('id', groupId).select().single();
+    if (uErr) throw uErr;
+    const { error: dErr } = await supabase.from('group_invites').delete().eq('id', inviteId);
+    if (dErr) throw dErr;
+    return mapGroupRow(updated);
+  } catch (e) {
+    console.warn('acceptGroupInvite error', e.message || e);
+    return null;
+  }
+}
+
+export async function declineGroupInvite(inviteId) {
+  try {
+    const { error } = await supabase.from('group_invites').delete().eq('id', inviteId);
+    if (error) throw error;
+    return true;
+  } catch (e) {
+    console.warn('declineGroupInvite error', e.message || e);
+    return false;
+  }
+}
+
+export async function getOutgoingGroupInvites(groupId) {
+  try {
+    const { data, error } = await supabase
+      .from('group_invites')
+      .select('invitee_id')
+      .eq('group_id', groupId)
+      .eq('status', 'pending');
+    if (error) throw error;
+    return (data || []).map(r => r.invitee_id);
+  } catch (e) {
+    console.warn('getOutgoingGroupInvites error', e.message || e);
+    return [];
   }
 }
 

@@ -13,7 +13,7 @@ import CreateGroup from './components/CreateGroup';
 import AuthModal from './components/AuthModal';
 import UsernamePrompt from './components/UsernamePrompt';
 import { groupsData } from './data/groups';
-import { isSupabaseConfigured, signOut, getUser, onAuthStateChange, getEvents as sbGetEvents, insertEvent as sbInsertEvent, updateEvent as sbUpdateEvent, deleteEvent as sbDeleteEvent, insertGroup as sbInsertGroup, updateGroup as sbUpdateGroup, deleteGroup as sbDeleteGroup, getProfile, upsertProfile } from './lib/supabaseClient';
+import { isSupabaseConfigured, signOut, getUser, onAuthStateChange, getEvents as sbGetEvents, insertEvent as sbInsertEvent, updateEvent as sbUpdateEvent, deleteEvent as sbDeleteEvent, getGroups as sbGetGroups, insertGroup as sbInsertGroup, updateGroup as sbUpdateGroup, deleteGroup as sbDeleteGroup, mapGroupRow, getProfile, upsertProfile } from './lib/supabaseClient';
 
 function App() {
   const [user, setUser] = useState(null);
@@ -46,7 +46,10 @@ function App() {
   const [events, setEvents] = useState(() => {
     try { return JSON.parse(localStorage.getItem('rally_events') || '[]'); } catch(e) { return []; }
   });
-  const [groups, setGroups] = useState([]);
+  const [groups, setGroups] = useState(() => {
+    try { return JSON.parse(localStorage.getItem('rally_groups') || '[]'); } catch(e) { return []; }
+  });
+  const [previewGroup, setPreviewGroup] = useState(null);
   const [groupMessages, setGroupMessages] = useState(() => {
     return groupsData.reduce((acc, group) => {
       acc[group.id] = group.messages || [];
@@ -85,11 +88,32 @@ function App() {
     try { localStorage.setItem('rally_events', JSON.stringify(events)); } catch(e){}
   }, [events]);
 
-  // load groups from localStorage (Supabase groups schema migration required before enabling)
+  // load groups from Supabase when user is available; migrate localStorage groups if Supabase is empty
   useEffect(() => {
-    const raw = localStorage.getItem('rally_groups');
-    if (raw) { try { setGroups(JSON.parse(raw)); } catch(e){} }
-  }, []);
+    if (!user || !isSupabaseConfigured()) return;
+    let mounted = true;
+    async function loadGroups() {
+      const rows = await sbGetGroups();
+      if (!mounted) return;
+      if (rows.length > 0) {
+        setGroups(rows);
+      } else {
+        const local = (() => { try { return JSON.parse(localStorage.getItem('rally_groups') || '[]'); } catch(e) { return []; } })();
+        if (local.length > 0) {
+          const uploaded = await Promise.all(
+            local.map(g => sbInsertGroup({
+              ...g,
+              members: (g.members || []).map(m => m.role === 'admin' ? { ...m, user_id: user.id } : m),
+            }))
+          );
+          const migrated = uploaded.filter(Boolean);
+          if (mounted && migrated.length > 0) setGroups(migrated);
+        }
+      }
+    }
+    loadGroups();
+    return () => { mounted = false };
+  }, [user]);
 
   useEffect(() => {
     try { localStorage.setItem('rally_groups', JSON.stringify(groups)); } catch(e){}
@@ -189,14 +213,24 @@ function App() {
   }, []);
 
   const handleGroupCreated = useCallback((groupData) => {
-    const newGroup = { ...groupData, id: Date.now() };
+    const membersWithId = (groupData.members || []).map(m =>
+      m.role === 'admin' && user ? { ...m, user_id: user.id } : m
+    );
+    const enriched = { ...groupData, members: membersWithId };
+    const tempId = Date.now();
+    const newGroup = { ...enriched, id: tempId };
     setGroups(s => [newGroup, ...s]);
-    setActiveGroupId(newGroup.id);
+    setActiveGroupId(tempId);
     setActiveTab('group');
-    if (isSupabaseConfigured()) sbInsertGroup(groupData).then(row => {
-      if (row) setGroups(s => s.map(g => g.id === newGroup.id ? { ...newGroup, id: row.id } : g));
-    });
-  }, []);
+    if (isSupabaseConfigured() && user) {
+      sbInsertGroup(enriched).then(row => {
+        if (row) {
+          setGroups(s => s.map(g => g.id === tempId ? row : g));
+          setActiveGroupId(row.id);
+        }
+      });
+    }
+  }, [user]);
 
   const updateGroup = useCallback((updated) => {
     setGroups(s => s.map(g => g.id === updated.id ? updated : g));
@@ -235,7 +269,22 @@ function App() {
         <Explore activeTab={activeTab} onNavigate={setActiveTab} events={events} onOpenEvent={openEvent} />
       )}
       {activeTab === 'groups' && (
-        <Groups activeTab={activeTab} onNavigate={setActiveTab} groups={groups} onOpenGroup={(id) => { setActiveGroupId(id); setActiveTab('group'); }} onCreateGroup={openCreateGroup} user={user} onAuthRequired={onAuthRequired} />
+        <Groups
+          activeTab={activeTab}
+          onNavigate={setActiveTab}
+          groups={groups}
+          onOpenGroup={(id) => { setActiveGroupId(id); setActiveTab('group'); }}
+          onCreateGroup={openCreateGroup}
+          user={user}
+          onAuthRequired={onAuthRequired}
+          onGroupJoined={(group) => {
+            setGroups(s => s.some(g => g.id === group.id) ? s.map(g => g.id === group.id ? group : g) : [group, ...s]);
+          }}
+          onViewGroup={(group) => {
+            setPreviewGroup(group);
+            setActiveTab('group');
+          }}
+        />
       )}
       {activeTab === 'profile' && (
         <Profile user={user} profile={profile} onUpdateProfile={handleUpdateProfile} activeTab={activeTab} onNavigate={setActiveTab} onOpenGroup={(id) => { setActiveGroupId(id); setActiveTab('group'); }} events={events} onAddEvent={addEvent} onUpdateEvent={updateEvent} onDeleteEvent={deleteEvent} onSignOut={() => { signOut(); setUser(null); }} onAuthRequired={onAuthRequired} />
@@ -243,27 +292,26 @@ function App() {
       {activeTab === 'post' && (
         <Create activeTab={activeTab} onNavigate={setActiveTab} onCreateGroup={openCreateGroup} user={user} onAuthRequired={onAuthRequired} />
       )}
-      {activeTab === 'group' && activeGroupId && (
+      {activeTab === 'group' && (activeGroupId || previewGroup) && (
         <GroupDetails
           activeTab={activeTab}
           onNavigate={(tab) => {
             setActiveTab(tab);
-            if (tab !== 'group' && tab !== 'group-chat') setActiveGroupId(null);
+            if (tab !== 'group' && tab !== 'group-chat') { setActiveGroupId(null); setPreviewGroup(null); }
           }}
-          group={groups.find(g => g.id === activeGroupId)}
+          group={previewGroup || groups.find(g => g.id === activeGroupId)}
+          isPreview={!!previewGroup}
           onUpdateGroup={updateGroup}
           user={user}
-          messages={groupMessages[activeGroupId] ?? []}
+          messages={groupMessages[previewGroup?.id || activeGroupId] ?? []}
           onSendMessage={(text) => {
+            const gid = previewGroup?.id || activeGroupId;
             setGroupMessages((current) => ({
               ...current,
-              [activeGroupId]: [
-                ...((current[activeGroupId] || [])),
-                { id: `new-${Date.now()}`, sender: 'You', text: text.trim(), time: 'Now', me: true },
-              ],
+              [gid]: [...(current[gid] || []), { id: `new-${Date.now()}`, sender: 'You', text: text.trim(), time: 'Now', me: true }],
             }));
           }}
-          onBack={() => { setActiveGroupId(null); setActiveTab('groups'); }}
+          onBack={() => { setActiveGroupId(null); setPreviewGroup(null); setActiveTab('groups'); }}
           onOpenChat={() => setActiveTab('group-chat')}
         />
       )}

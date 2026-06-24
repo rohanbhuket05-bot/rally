@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { getFriendships, searchUsersByUsername } from '../lib/supabaseClient';
+import { getFriendships, searchUsersByUsername, sendGroupInvite, getOutgoingGroupInvites, isSupabaseConfigured } from '../lib/supabaseClient';
 import './HomeFeed.css';
 
 const TYPE_LABELS = { club: 'Club / Org', friend: 'Friend Group', event: 'Event Rally' };
@@ -16,10 +16,28 @@ function avatarColor(name = '') {
   return AVATAR_COLORS[Math.abs(h) % AVATAR_COLORS.length];
 }
 
+function isUUID(id) {
+  return typeof id === 'string' && /^[0-9a-f]{8}-[0-9a-f]{4}-/.test(id);
+}
+
+// Small green checkmark badge overlay for friend-members
+function FriendBadge() {
+  return (
+    <span style={{
+      position: 'absolute', bottom: -2, right: -2,
+      width: 14, height: 14, borderRadius: '50%',
+      background: '#2ECC71', border: '2px solid #fff',
+      display: 'flex', alignItems: 'center', justifyContent: 'center',
+      fontSize: 8, color: '#fff', fontWeight: 700, lineHeight: 1,
+    }}>✓</span>
+  );
+}
+
 export default function GroupDetails({
   activeTab = 'group',
   onNavigate = () => {},
   group,
+  isPreview = false,
   onUpdateGroup,
   messages = [],
   onSendMessage,
@@ -32,16 +50,24 @@ export default function GroupDetails({
   const [searchQuery, setSearchQuery] = useState('');
   const [searchResults, setSearchResults] = useState([]);
   const [searching, setSearching] = useState(false);
+  const [pendingInviteIds, setPendingInviteIds] = useState(new Set());
+  const [inviting, setInviting] = useState(new Set());
 
+  // Load friends on mount (for member checkmarks + invite panel)
   useEffect(() => {
-    if (showInvite && user) {
-      getFriendships(user.id).then(setFriends);
-    } else {
-      setSearchQuery('');
-      setSearchResults([]);
-    }
-  }, [showInvite, user]);
+    if (user) getFriendships(user.id).then(setFriends);
+  }, [user]);
 
+  // Load outgoing invites when invite panel opens
+  useEffect(() => {
+    if (!showInvite || !group || !isUUID(group.id)) return;
+    getOutgoingGroupInvites(group.id).then(ids => setPendingInviteIds(new Set(ids)));
+    setSearchQuery('');
+    setSearchResults([]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [showInvite, group?.id]);
+
+  // Debounced username search
   useEffect(() => {
     if (!searchQuery.trim() || searchQuery.length < 2) { setSearchResults([]); return; }
     setSearching(true);
@@ -66,22 +92,49 @@ export default function GroupDetails({
   const { name, description, type = 'club', privacy = 'public', members = [], icebreaker, eventTitle, events: groupEvents = [] } = group;
   const { color, bg } = TYPE_COLORS[type] || TYPE_COLORS.club;
 
-  function handleAddProfile(displayName) {
-    if (!displayName || members.some(m => m.name.toLowerCase() === displayName.toLowerCase())) return;
-    const initials = displayName.split(' ').map(s => s[0]).slice(0, 2).join('').toUpperCase();
-    const updated = { ...group, members: [...members, { name: displayName, initials, color: avatarColor(displayName), role: 'member' }] };
-    onUpdateGroup && onUpdateGroup(updated);
+  const adminMember = members.find(m => m.role === 'admin');
+  const isAdmin = !isPreview && user && (
+    adminMember?.user_id ? adminMember.user_id === user.id
+      : adminMember?.name === (localStorage.getItem('rally_name') || localStorage.getItem('rally_username') || '')
+  );
+
+  // Build sets for quick lookups
+  const memberIds = new Set(members.map(m => m.user_id).filter(Boolean));
+  const memberNames = new Set(members.map(m => m.name?.toLowerCase()).filter(Boolean));
+  const friendIds = new Set(friends.map(f => f.other?.id).filter(Boolean));
+  const friendNames = new Set(friends.map(f => (f.other?.name || f.other?.username || '').toLowerCase()).filter(Boolean));
+
+  function isMemberFriend(member) {
+    if (member.user_id) return friendIds.has(member.user_id);
+    return friendNames.has(member.name?.toLowerCase() || '');
   }
 
-  const myName = localStorage.getItem('rally_name') || localStorage.getItem('rally_username') || '';
-  const adminMember = members.find(m => m.role === 'admin');
-  const isAdmin = adminMember && adminMember.name === myName;
+  function isMember(profile) {
+    if (profile.id && memberIds.size > 0) return memberIds.has(profile.id);
+    const n = (profile.name || profile.username || '').toLowerCase();
+    return memberNames.has(n);
+  }
+
+  async function handleSendInvite(profileId, displayName) {
+    if (!group || !isUUID(group.id) || !profileId) return;
+    setInviting(s => new Set([...s, profileId]));
+    const result = await sendGroupInvite(group.id, profileId);
+    if (result) {
+      setPendingInviteIds(s => new Set([...s, profileId]));
+    }
+    setInviting(s => { const next = new Set(s); next.delete(profileId); return next; });
+  }
 
   function handleRemoveMember(memberName) {
     if (!isAdmin) return;
     const updated = { ...group, members: members.filter(m => m.name !== memberName) };
     onUpdateGroup && onUpdateGroup(updated);
   }
+
+  // Filter non-member friends for the invite panel
+  const nonMemberFriends = friends.filter(f => !isMember({ id: f.other?.id, name: f.other?.name, username: f.other?.username }));
+  const nonMemberSearchResults = searchResults.filter(r => !isMember(r));
+  const canInvite = !isPreview && isUUID(group.id) && isSupabaseConfigured();
 
   return (
     <main className="feed-root" style={{ overflowY: 'auto' }}>
@@ -99,6 +152,9 @@ export default function GroupDetails({
         <div style={{ flex: 1, minWidth: 0 }}>
           <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: 6 }}>
             <span className="category-pill" style={{ background: bg, color }}>{TYPE_LABELS[type]}</span>
+            {isPreview && (
+              <span className="category-pill" style={{ background: 'var(--light-amber)', color: 'var(--amber)' }}>Preview</span>
+            )}
             {privacy !== 'public' && (
               <span className="category-pill" style={{ background: '#F5F5F5', color: '#777' }}>{privacy === 'private' ? 'Private' : 'Friends Only'}</span>
             )}
@@ -132,17 +188,19 @@ export default function GroupDetails({
           <h3 style={{ margin: 0, fontSize: 15 }}>Members</h3>
           <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
             <span className="badge" style={{ background: color }}>{members.length}</span>
-            <button
-              className="edit-btn"
-              onClick={() => setShowInvite(s => !s)}
-              style={{ fontSize: 12, padding: '4px 10px' }}
-            >
-              + Invite
-            </button>
+            {canInvite && (
+              <button
+                className="edit-btn"
+                onClick={() => setShowInvite(s => !s)}
+                style={{ fontSize: 12, padding: '4px 10px' }}
+              >
+                {showInvite ? 'Done' : '+ Invite'}
+              </button>
+            )}
           </div>
         </div>
 
-        {showInvite && (
+        {showInvite && canInvite && (
           <div style={{ marginBottom: 14, padding: 12, background: 'rgba(83,74,183,0.05)', borderRadius: 10, border: '1px solid rgba(83,74,183,0.12)' }}>
             {/* Username search */}
             <div style={{ fontSize: 11, fontWeight: 700, color: '#888', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 6 }}>Search users</div>
@@ -158,54 +216,51 @@ export default function GroupDetails({
               />
             </div>
             {searching && <div style={{ fontSize: 12, color: '#999', marginBottom: 8 }}>Searching...</div>}
-            {searchResults.length > 0 && (
+            {nonMemberSearchResults.length > 0 && (
               <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 12 }}>
-                {searchResults.map(result => {
+                {nonMemberSearchResults.map(result => {
                   const displayName = result.name || result.username;
-                  const alreadyIn = members.some(m => m.name.toLowerCase() === displayName.toLowerCase());
+                  const invited = pendingInviteIds.has(result.id);
+                  const loading = inviting.has(result.id);
                   return (
-                    <div key={result.id} style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                      <div className="avatar" style={{ backgroundColor: avatarColor(displayName), color: '#fff', marginLeft: 0, flexShrink: 0, width: 34, height: 34, fontSize: 13 }}>
-                        {displayName.split(' ').map(s => s[0]).slice(0, 2).join('').toUpperCase()}
-                      </div>
-                      <div style={{ flex: 1, minWidth: 0 }}>
-                        <div style={{ fontWeight: 600, fontSize: 14 }}>{displayName}</div>
-                        <div style={{ fontSize: 12, color: '#888' }}>@{result.username}</div>
-                      </div>
-                      {alreadyIn
-                        ? <span style={{ fontSize: 12, color: '#aaa' }}>Added</span>
-                        : <button className="join" style={{ borderRadius: 8, padding: '5px 12px', fontSize: 13 }} onClick={() => handleAddProfile(displayName)}>Add</button>
-                      }
-                    </div>
+                    <InviteRow
+                      key={result.id}
+                      displayName={displayName}
+                      username={result.username}
+                      invited={invited}
+                      loading={loading}
+                      onInvite={() => handleSendInvite(result.id, displayName)}
+                    />
                   );
                 })}
               </div>
             )}
-            {/* Friends quick-add */}
-            {friends.length > 0 && (
+            {/* Friends quick-invite */}
+            {nonMemberFriends.length > 0 && (
               <div>
                 <div style={{ fontSize: 11, fontWeight: 700, color: '#888', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 8 }}>Your Friends</div>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-                  {friends.map(f => {
+                  {nonMemberFriends.map(f => {
                     const displayName = f.other?.name || f.other?.username || '';
-                    const alreadyIn = members.some(m => m.name.toLowerCase() === displayName.toLowerCase());
+                    const invited = f.other?.id ? pendingInviteIds.has(f.other.id) : false;
+                    const loading = f.other?.id ? inviting.has(f.other.id) : false;
                     return (
-                      <div key={f.id} style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                        <div className="avatar" style={{ backgroundColor: avatarColor(displayName), color: '#fff', marginLeft: 0, flexShrink: 0, width: 34, height: 34, fontSize: 13 }}>
-                          {displayName.split(' ').map(s => s[0]).slice(0, 2).join('').toUpperCase()}
-                        </div>
-                        <div style={{ flex: 1, minWidth: 0 }}>
-                          <div style={{ fontWeight: 600, fontSize: 14 }}>{displayName}</div>
-                          {f.other?.username && <div style={{ fontSize: 12, color: '#888' }}>@{f.other.username}</div>}
-                        </div>
-                        {alreadyIn
-                          ? <span style={{ fontSize: 12, color: '#aaa' }}>Added</span>
-                          : <button className="join" style={{ borderRadius: 8, padding: '5px 12px', fontSize: 13 }} onClick={() => handleAddProfile(displayName)}>Add</button>
-                        }
-                      </div>
+                      <InviteRow
+                        key={f.id}
+                        displayName={displayName}
+                        username={f.other?.username}
+                        invited={invited}
+                        loading={loading}
+                        onInvite={() => handleSendInvite(f.other?.id, displayName)}
+                      />
                     );
                   })}
                 </div>
+              </div>
+            )}
+            {nonMemberFriends.length === 0 && nonMemberSearchResults.length === 0 && !searching && !searchQuery && (
+              <div style={{ fontSize: 13, color: '#999', textAlign: 'center', paddingTop: 4 }}>
+                All your friends are already members.
               </div>
             )}
           </div>
@@ -214,10 +269,14 @@ export default function GroupDetails({
         <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
           {members.map((m, i) => {
             const mc = m.color && m.color !== '#FFFFFF' ? m.color : avatarColor(m.name);
+            const isFriend = isMemberFriend(m);
             return (
               <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                <div className="avatar" style={{ backgroundColor: mc, color: '#fff', marginLeft: 0, flexShrink: 0 }}>
-                  {m.initials || m.name?.[0] || '?'}
+                <div style={{ position: 'relative', flexShrink: 0 }}>
+                  <div className="avatar" style={{ backgroundColor: mc, color: '#fff', marginLeft: 0 }}>
+                    {m.initials || m.name?.[0] || '?'}
+                  </div>
+                  {isFriend && <FriendBadge />}
                 </div>
                 <span style={{ fontWeight: 600, fontSize: 14, flex: 1 }}>{m.name}</span>
                 {m.role === 'admin'
@@ -253,35 +312,38 @@ export default function GroupDetails({
       )}
 
       {/* Group chat */}
-      <div
-        className="group-chat-panel group-chat-preview"
-        onClick={onOpenChat}
-        style={{ marginBottom: 12 }}
-      >
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-          <h3>💬 Group chat</h3>
-          <span className="category-pill" style={{ background: 'var(--light-teal)', color: 'var(--teal)' }}>{messages.length} messages</span>
-        </div>
-        {messages.length > 0 ? (
-          <div className="message-thread" style={{ marginTop: 12 }}>
-            {messages.slice(-2).map((msg) => (
-              <div key={msg.id} className={`message-bubble ${msg.me ? 'me' : ''}`}>
-                <div style={{ display: 'flex', gap: 8, marginBottom: 4, alignItems: 'center' }}>
-                  <span style={{ fontWeight: 700, fontSize: 13 }}>{msg.sender}</span>
-                  <span style={{ color: '#999', fontSize: 11 }}>{msg.time}</span>
-                </div>
-                <div>{msg.text}</div>
+      {!isPreview && (
+        <>
+          <div
+            className="group-chat-panel group-chat-preview"
+            onClick={onOpenChat}
+            style={{ marginBottom: 12 }}
+          >
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <h3>💬 Group chat</h3>
+              <span className="category-pill" style={{ background: 'var(--light-teal)', color: 'var(--teal)' }}>{messages.length} messages</span>
+            </div>
+            {messages.length > 0 ? (
+              <div className="message-thread" style={{ marginTop: 12 }}>
+                {messages.slice(-2).map((msg) => (
+                  <div key={msg.id} className={`message-bubble ${msg.me ? 'me' : ''}`}>
+                    <div style={{ display: 'flex', gap: 8, marginBottom: 4, alignItems: 'center' }}>
+                      <span style={{ fontWeight: 700, fontSize: 13 }}>{msg.sender}</span>
+                      <span style={{ color: '#999', fontSize: 11 }}>{msg.time}</span>
+                    </div>
+                    <div>{msg.text}</div>
+                  </div>
+                ))}
               </div>
-            ))}
+            ) : (
+              <div style={{ marginTop: 8, color: '#888', fontSize: 13 }}>No messages yet. Tap to open chat.</div>
+            )}
           </div>
-        ) : (
-          <div style={{ marginTop: 8, color: '#888', fontSize: 13 }}>No messages yet. Tap to open chat.</div>
-        )}
-      </div>
-
-      <button className="join" onClick={onOpenChat} style={{ width: '100%', padding: '12px', borderRadius: 12, marginBottom: 12, display: 'block', fontSize: 15 }}>
-        Open group chat
-      </button>
+          <button className="join" onClick={onOpenChat} style={{ width: '100%', padding: '12px', borderRadius: 12, marginBottom: 12, display: 'block', fontSize: 15 }}>
+            Open group chat
+          </button>
+        </>
+      )}
 
       <nav className="bottom-nav">
         <button className={`nav-btn ${activeTab === 'home' ? 'active' : ''}`} onClick={() => onNavigate('home')}>
@@ -301,5 +363,32 @@ export default function GroupDetails({
         </button>
       </nav>
     </main>
+  );
+}
+
+function InviteRow({ displayName, username, invited, loading, onInvite }) {
+  return (
+    <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+      <div className="avatar" style={{ backgroundColor: avatarColor(displayName), color: '#fff', marginLeft: 0, flexShrink: 0, width: 34, height: 34, fontSize: 13 }}>
+        {displayName.split(' ').map(s => s[0]).slice(0, 2).join('').toUpperCase()}
+      </div>
+      <div style={{ flex: 1, minWidth: 0 }}>
+        <div style={{ fontWeight: 600, fontSize: 14 }}>{displayName}</div>
+        {username && <div style={{ fontSize: 12, color: '#888' }}>@{username}</div>}
+      </div>
+      {invited
+        ? <span style={{ fontSize: 12, color: '#2ECC71', fontWeight: 600 }}>✓ Invited</span>
+        : (
+          <button
+            className="join"
+            style={{ borderRadius: 8, padding: '5px 12px', fontSize: 13, opacity: loading ? 0.6 : 1 }}
+            onClick={onInvite}
+            disabled={loading}
+          >
+            {loading ? '...' : 'Invite'}
+          </button>
+        )
+      }
+    </div>
   );
 }
