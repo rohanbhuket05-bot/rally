@@ -147,6 +147,119 @@ export async function upsertProfile(userId, { name, bio, username, friends }) {
   }
 }
 
+export async function searchUsersByUsername(query, currentUserId) {
+  try {
+    const { data, error } = await supabase
+      .from('profiles')
+      .select('id, username, name')
+      .ilike('username', `${query}%`)
+      .neq('id', currentUserId)
+      .limit(8);
+    if (error) throw error;
+    return data || [];
+  } catch (e) {
+    console.warn('searchUsersByUsername error', e.message || e);
+    return [];
+  }
+}
+
+export async function sendFriendRequest(addresseeId) {
+  try {
+    const { data: { user } } = await supabase.auth.getUser();
+    const { error } = await supabase.from('friendships').insert({
+      requester_id: user.id,
+      addressee_id: addresseeId,
+      status: 'pending',
+    });
+    if (error) throw error;
+    return true;
+  } catch (e) {
+    console.warn('sendFriendRequest error', e.message || e);
+    return false;
+  }
+}
+
+export async function getFriendships(userId) {
+  try {
+    const { data, error } = await supabase
+      .from('friendships')
+      .select('id, requester_id, addressee_id, requester:profiles!requester_id(id, username, name), addressee:profiles!addressee_id(id, username, name)')
+      .or(`requester_id.eq.${userId},addressee_id.eq.${userId}`)
+      .eq('status', 'accepted');
+    if (error) throw error;
+    return (data || []).map(f => ({
+      id: f.id,
+      other: f.requester_id === userId ? f.addressee : f.requester,
+    }));
+  } catch (e) {
+    console.warn('getFriendships error', e.message || e);
+    return [];
+  }
+}
+
+export async function getIncomingFriendRequests(userId) {
+  try {
+    const { data, error } = await supabase
+      .from('friendships')
+      .select('id, requester_id, requester:profiles!requester_id(id, username, name)')
+      .eq('addressee_id', userId)
+      .eq('status', 'pending');
+    if (error) throw error;
+    return data || [];
+  } catch (e) {
+    console.warn('getIncomingFriendRequests error', e.message || e);
+    return [];
+  }
+}
+
+export async function getOutgoingFriendRequests(userId) {
+  try {
+    const { data, error } = await supabase
+      .from('friendships')
+      .select('id, addressee_id, addressee:profiles!addressee_id(id, username, name)')
+      .eq('requester_id', userId)
+      .eq('status', 'pending');
+    if (error) throw error;
+    return data || [];
+  } catch (e) {
+    console.warn('getOutgoingFriendRequests error', e.message || e);
+    return [];
+  }
+}
+
+export async function acceptFriendRequest(friendshipId) {
+  try {
+    const { error } = await supabase.from('friendships').update({ status: 'accepted' }).eq('id', friendshipId);
+    if (error) throw error;
+    return true;
+  } catch (e) {
+    console.warn('acceptFriendRequest error', e.message || e);
+    return false;
+  }
+}
+
+export async function declineFriendRequest(friendshipId) {
+  try {
+    const { error } = await supabase.from('friendships').delete().eq('id', friendshipId);
+    if (error) throw error;
+    return true;
+  } catch (e) {
+    console.warn('declineFriendRequest error', e.message || e);
+    return false;
+  }
+}
+
+export async function removeFriend(friendshipId) {
+  try {
+    const { error } = await supabase.from('friendships').delete().eq('id', friendshipId);
+    if (error) throw error;
+    return true;
+  } catch (e) {
+    console.warn('removeFriend error', e.message || e);
+    return false;
+  }
+}
+
 export async function signInWithOtp(email) {
   try {
     return await supabase.auth.signInWithOtp({ email });

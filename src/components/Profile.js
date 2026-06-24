@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import './HomeFeed.css';
 import { getSchoolFromEmail } from '../data/schools';
+import FriendsPanel from './FriendsPanel';
 import { isSupabaseConfigured, signInWithOtp, signInWithProvider, checkUsernameAvailable } from '../lib/supabaseClient';
 import { validateUsername } from '../lib/usernameValidation';
 
@@ -35,9 +36,6 @@ export default function Profile({ user, profile = {}, onUpdateProfile = () => {}
     if (profile.name !== undefined) setName(profile.name);
     if (profile.bio !== undefined) setBio(profile.bio);
     if (profile.username !== undefined) setUsername(profile.username);
-    if (Array.isArray(profile.friends) && profile.friends.length > 0) {
-      setFriends(profile.friends.filter(f => f?.name && !placeholderFriendNames.has(f.name)));
-    }
   }, [profile]);
 
   // Live username validation + availability check while editing
@@ -68,7 +66,7 @@ export default function Profile({ user, profile = {}, onUpdateProfile = () => {}
     localStorage.setItem('rally_bio', newBio);
     localStorage.setItem('rally_username', finalUsername);
     setEditingProfile(false);
-    onUpdateProfile({ name: newName, bio: newBio, username: finalUsername, friends });
+    onUpdateProfile({ name: newName, bio: newBio, username: finalUsername, friends: [] });
   };
   // `events` and handlers are provided by App (single source of truth)
   const [showSignOutConfirm, setShowSignOutConfirm] = useState(false);
@@ -92,52 +90,8 @@ export default function Profile({ user, profile = {}, onUpdateProfile = () => {}
   const [media, setMedia] = useState([]);
   const [cheers, setCheers] = useState({ count: getStoredCheers(), givers: [] });
   const [groups, setGroups] = useState([]);
-  const [friends, setFriends] = useState(() => {
-    try {
-      return JSON.parse(localStorage.getItem('rally_friends') || '[]').filter((item) => item?.name && !placeholderFriendNames.has(item.name));
-    } catch (e) {
-      return [];
-    }
-  });
-  const [incomingRequests, setIncomingRequests] = useState(() => {
-    try {
-      return JSON.parse(localStorage.getItem('rally_friend_incoming') || '[]').filter((item) => item?.name && !placeholderFriendNames.has(item.name));
-    } catch (e) {
-      return [];
-    }
-  });
-  const [outgoingRequests, setOutgoingRequests] = useState(() => {
-    try {
-      return JSON.parse(localStorage.getItem('rally_friend_outgoing') || '[]').filter((item) => item?.name && !placeholderFriendNames.has(item.name));
-    } catch (e) {
-      return [];
-    }
-  });
-  const [inviteName, setInviteName] = useState('');
   const [showFriendsPanel, setShowFriendsPanel] = useState(false);
 
-  useEffect(() => {
-    const filterRequests = (list) => (Array.isArray(list) ? list.filter(item => item?.name && !placeholderFriendNames.has(item.name)) : []);
-    const cleanedFriends = Array.isArray(friends) ? friends.filter((item) => item?.name && !placeholderFriendNames.has(item.name)) : [];
-    const cleanedIncoming = filterRequests(incomingRequests);
-    const cleanedOutgoing = filterRequests(outgoingRequests);
-
-    if (cleanedFriends.length !== friends.length) {
-      setFriends(cleanedFriends);
-    }
-    if (cleanedIncoming.length !== incomingRequests.length) {
-      setIncomingRequests(cleanedIncoming);
-    }
-    if (cleanedOutgoing.length !== outgoingRequests.length) {
-      setOutgoingRequests(cleanedOutgoing);
-    }
-
-    try {
-      localStorage.setItem('rally_friends', JSON.stringify(cleanedFriends));
-      localStorage.setItem('rally_friend_incoming', JSON.stringify(cleanedIncoming));
-      localStorage.setItem('rally_friend_outgoing', JSON.stringify(cleanedOutgoing));
-    } catch (e) {}
-  }, [friends, incomingRequests, outgoingRequests]);
 
   useEffect(() => {
     const syncCheers = () => setCheers((current) => ({ ...current, count: getStoredCheers() }));
@@ -282,84 +236,10 @@ export default function Profile({ user, profile = {}, onUpdateProfile = () => {}
             Friends
             <span style={{ fontSize: 11, marginLeft: 6, color: '#999', transition: 'transform 200ms', display: 'inline-block', transform: showFriendsPanel ? 'rotate(180deg)' : 'rotate(0deg)' }}>▼</span>
           </h3>
-          <span style={{ color: '#666', fontSize: 13 }}>{friends.length} friends</span>
         </div>
         {showFriendsPanel && (
           <div className="card" style={{ padding: 16 }}>
-            <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
-              <input
-              className="text-input"
-              placeholder="Invite a friend by name"
-              value={inviteName}
-              onChange={(e) => setInviteName(e.target.value)}
-              style={{ flex: 1 }}
-            />
-            <button
-              className="join"
-              type="button"
-              onClick={() => {
-                const target = inviteName.trim();
-                if (!target) return;
-                if (target.toLowerCase() === username.toLowerCase() || target.toLowerCase() === name.toLowerCase()) {
-                  setInviteName('');
-                  return;
-                }
-                if (friends.some((f) => f.name.toLowerCase() === target.toLowerCase()) || outgoingRequests.some((r) => r.name.toLowerCase() === target.toLowerCase()) || incomingRequests.some((r) => r.name.toLowerCase() === target.toLowerCase())) {
-                  setInviteName('');
-                  return;
-                }
-                setOutgoingRequests((current) => [...current, { id: `o-${Date.now()}`, name: target }]);
-                setInviteName('');
-              }}
-            >Invite</button>
-          </div>
-
-          <div style={{ marginTop: 16, display: 'grid', gap: 12 }}>
-            <div>
-              <div style={{ fontWeight: 700, marginBottom: 8 }}>Incoming requests</div>
-              {incomingRequests.length ? incomingRequests.map((request) => (
-                <div key={request.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12, padding: '10px 0', borderTop: '1px solid rgba(0,0,0,0.08)' }}>
-                  <div>
-                    <div style={{ fontWeight: 700 }}>{request.name}</div>
-                    <div style={{ color: '#666', fontSize: 12 }}>{request.mutual} mutual friends</div>
-                  </div>
-                  <div style={{ display: 'flex', gap: 8 }}>
-                    <button className="join" onClick={() => {
-                      setFriends((current) => [...current, { id: `f-${Date.now()}`, name: request.name, mutual: request.mutual }]);
-                      setIncomingRequests((current) => current.filter((r) => r.id !== request.id));
-                    }}>Accept</button>
-                    <button className="nav-btn" onClick={() => setIncomingRequests((current) => current.filter((r) => r.id !== request.id))}>Decline</button>
-                  </div>
-                </div>
-              )) : <div style={{ color: '#666' }}>No incoming requests.</div>}
-            </div>
-
-            <div>
-              <div style={{ fontWeight: 700, marginBottom: 8 }}>Outgoing invites</div>
-              {outgoingRequests.length ? outgoingRequests.map((request) => (
-                <div key={request.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12, padding: '10px 0', borderTop: '1px solid rgba(0,0,0,0.08)' }}>
-                  <div>
-                    <div style={{ fontWeight: 700 }}>{request.name}</div>
-                    <div style={{ color: '#666', fontSize: 12 }}>Awaiting response</div>
-                  </div>
-                  <button className="nav-btn" onClick={() => setOutgoingRequests((current) => current.filter((r) => r.id !== request.id))}>Cancel</button>
-                </div>
-              )) : <div style={{ color: '#666' }}>No outgoing invites.</div>}
-            </div>
-
-            <div>
-              <div style={{ fontWeight: 700, marginBottom: 8 }}>Friends</div>
-              {friends.length ? friends.map((friend) => (
-                <div key={friend.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12, padding: '10px 0', borderTop: '1px solid rgba(0,0,0,0.08)' }}>
-                  <div>
-                    <div style={{ fontWeight: 700 }}>{friend.name}</div>
-                    <div style={{ color: '#666', fontSize: 12 }}>{friend.mutual ? `${friend.mutual} mutual friends` : 'Friend'}</div>
-                  </div>
-                  <button className="nav-btn">Message</button>
-                </div>
-              )) : <div style={{ color: '#666' }}>No friends yet.</div>}
-            </div>
-          </div>
+            <FriendsPanel user={user} />
         </div>
         )}
       </section>
