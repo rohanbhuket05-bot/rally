@@ -159,7 +159,7 @@ export default function Profile({ user, profile = {}, onUpdateProfile = () => {}
   }
 
   return (
-    <main className="feed-root">
+    <main className="feed-root" style={{ height: '100vh', overflow: 'hidden', paddingBottom: 0 }}>
       <header className="feed-header" style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
         <div>
           <h1 style={{ margin: 0 }}>Profile</h1>
@@ -246,6 +246,9 @@ export default function Profile({ user, profile = {}, onUpdateProfile = () => {}
           </div>
         )}
       </section>
+
+      {/* Scrollable content — everything below the profile card */}
+      <div style={{ flex: 1, overflowY: 'auto', minHeight: 0, paddingBottom: 'calc(var(--bottom-nav-height) + 16px)' }}>
 
       <section style={{ marginTop: 14 }}>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
@@ -401,7 +404,7 @@ export default function Profile({ user, profile = {}, onUpdateProfile = () => {}
         </div>
       </section>
 
-      <div className="scroll-area" style={{ display:'flex', flexDirection:'column', alignItems:'flex-start' }}>
+      <div style={{ display:'flex', flexDirection:'column', alignItems:'flex-start' }}>
         <section style={{ marginTop: 14, width: '100%' }}>
           <h3 style={{ margin: '6px 0', textAlign: 'left' }}>Attended</h3>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
@@ -450,6 +453,8 @@ export default function Profile({ user, profile = {}, onUpdateProfile = () => {}
           </div>
         </section>
       </div>
+
+      </div>{/* end scrollable content */}
 
       <nav className="bottom-nav">
         <button className={`nav-btn ${activeTab === 'home' ? 'active' : ''}`} onClick={() => onNavigate('home')}>
