@@ -25,7 +25,7 @@
 
 .dark-theme .card {
   background: rgba(255, 255, 255, 0.04);
-  border-color: rgba(255, 255, 255, 0.08);
+  border-color: rgba(255, 180, 32, 0.35);
   color: #EEEEFF;
   box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
 }
@@ -54,7 +54,7 @@
 
 .dark-theme .nav-btn {
   background: rgba(255, 255, 255, 0.06);
-  border-color: rgba(255, 255, 255, 0.1);
+  border-color: rgba(255, 180, 32, 0.3);
   color: #8888AA;
 }
 
@@ -76,12 +76,12 @@
 .dark-theme .bottom-nav {
   background: #07070F;
   box-shadow: 0 -4px 30px rgba(0, 0, 0, 0.6);
-  border-top: 1px solid rgba(255,255,255,0.06);
+  border-top: 1px solid rgba(255, 180, 32, 0.25);
 }
 
 .dark-theme .text-input {
   background: rgba(255, 255, 255, 0.06);
-  border-color: rgba(255, 255, 255, 0.1);
+  border-color: rgba(255, 180, 32, 0.35);
   color: #EEEEFF;
 }
 
@@ -120,14 +120,14 @@
 
 .dark-theme .modal {
   background: #12112A;
-  border-color: rgba(255, 255, 255, 0.1);
+  border-color: rgba(255, 180, 32, 0.4);
   color: #EEEEFF;
-  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.6), 0 0 40px rgba(157, 143, 255, 0.15);
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.6), 0 0 40px rgba(255, 180, 32, 0.1);
 }
 
 .dark-theme .nav-action-btn {
   background: rgba(255, 255, 255, 0.06);
-  border-color: rgba(255, 255, 255, 0.1);
+  border-color: rgba(255, 180, 32, 0.3);
   color: #EEEEFF;
 }
 
@@ -139,7 +139,7 @@
 
 .dark-theme .create-card {
   background: rgba(255, 255, 255, 0.04);
-  border-color: rgba(255, 255, 255, 0.08);
+  border-color: rgba(255, 180, 32, 0.35);
   color: #EEEEFF;
 }
 
