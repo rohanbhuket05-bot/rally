@@ -162,7 +162,7 @@ export async function getGroupInvites(userId) {
   try {
     const { data, error } = await supabase
       .from('group_invites')
-      .select('*, group:groups(id, name, type, description, members, privacy, icebreaker, event_title, events, created_by)')
+      .select('*, group:groups!group_id(id, name, type, description, members, privacy, icebreaker, event_title, events, created_by)')
       .eq('invitee_id', userId)
       .eq('status', 'pending')
       .order('created_at', { ascending: false });
