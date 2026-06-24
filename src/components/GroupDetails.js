@@ -1,4 +1,5 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import { getFriendships } from '../lib/supabaseClient';
 import './HomeFeed.css';
 
 const TYPE_LABELS = { club: 'Club / Org', friend: 'Friend Group', event: 'Event Rally' };
@@ -24,9 +25,17 @@ export default function GroupDetails({
   onSendMessage,
   onOpenChat,
   onBack,
+  user,
 }) {
   const [inviteInput, setInviteInput] = useState('');
   const [showInvite, setShowInvite] = useState(false);
+  const [friends, setFriends] = useState([]);
+
+  useEffect(() => {
+    if (showInvite && user) {
+      getFriendships(user.id).then(setFriends);
+    }
+  }, [showInvite, user]);
 
   if (!group) {
     return (
@@ -48,7 +57,14 @@ export default function GroupDetails({
     const updated = { ...group, members: [...members, { name: n, initials, color: avatarColor(n), role: 'member' }] };
     onUpdateGroup && onUpdateGroup(updated);
     setInviteInput('');
-    setShowInvite(false);
+  }
+
+  function handleAddFriend(friend) {
+    const displayName = friend.other?.name || friend.other?.username || '';
+    if (!displayName || members.some(m => m.name.toLowerCase() === displayName.toLowerCase())) return;
+    const initials = displayName.split(' ').map(s => s[0]).slice(0, 2).join('').toUpperCase();
+    const updated = { ...group, members: [...members, { name: displayName, initials, color: avatarColor(displayName), role: 'member' }] };
+    onUpdateGroup && onUpdateGroup(updated);
   }
 
   function handleRemoveMember(memberName) {
@@ -119,17 +135,48 @@ export default function GroupDetails({
         </div>
 
         {showInvite && (
-          <div style={{ display: 'flex', gap: 8, marginBottom: 12 }}>
-            <input
-              className="text-input"
-              placeholder="Add member by name"
-              value={inviteInput}
-              onChange={e => setInviteInput(e.target.value)}
-              onKeyDown={e => e.key === 'Enter' && handleInvite()}
-              style={{ flex: 1 }}
-              autoFocus
-            />
-            <button className="join" onClick={handleInvite} style={{ flexShrink: 0, borderRadius: 10 }}>Add</button>
+          <div style={{ marginBottom: 14, padding: 12, background: 'rgba(83,74,183,0.05)', borderRadius: 10, border: '1px solid rgba(83,74,183,0.12)' }}>
+            {/* Friends list */}
+            {friends.length > 0 && (
+              <div style={{ marginBottom: 12 }}>
+                <div style={{ fontSize: 11, fontWeight: 700, color: '#888', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 8 }}>Your Friends</div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                  {friends.map(f => {
+                    const displayName = f.other?.name || f.other?.username || '';
+                    const alreadyIn = members.some(m => m.name.toLowerCase() === displayName.toLowerCase());
+                    return (
+                      <div key={f.id} style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                        <div className="avatar" style={{ backgroundColor: avatarColor(displayName), color: '#fff', marginLeft: 0, flexShrink: 0, width: 34, height: 34, fontSize: 13 }}>
+                          {displayName.split(' ').map(s => s[0]).slice(0, 2).join('').toUpperCase()}
+                        </div>
+                        <div style={{ flex: 1, minWidth: 0 }}>
+                          <div style={{ fontWeight: 600, fontSize: 14 }}>{displayName}</div>
+                          {f.other?.username && <div style={{ fontSize: 12, color: '#888' }}>@{f.other.username}</div>}
+                        </div>
+                        {alreadyIn
+                          ? <span style={{ fontSize: 12, color: '#aaa' }}>Added</span>
+                          : <button className="join" style={{ borderRadius: 8, padding: '5px 12px', fontSize: 13 }} onClick={() => handleAddFriend(f)}>Add</button>
+                        }
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+            {/* Manual name entry */}
+            <div style={{ fontSize: 11, fontWeight: 700, color: '#888', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 6 }}>Add by name</div>
+            <div style={{ display: 'flex', gap: 8 }}>
+              <input
+                className="text-input"
+                placeholder="Enter a name"
+                value={inviteInput}
+                onChange={e => setInviteInput(e.target.value)}
+                onKeyDown={e => e.key === 'Enter' && handleInvite()}
+                style={{ flex: 1 }}
+                autoFocus
+              />
+              <button className="join" onClick={handleInvite} style={{ flexShrink: 0, borderRadius: 10 }}>Add</button>
+            </div>
           </div>
         )}
 

@@ -252,6 +252,7 @@ function App() {
           }}
           group={groups.find(g => g.id === activeGroupId)}
           onUpdateGroup={updateGroup}
+          user={user}
           messages={groupMessages[activeGroupId] ?? []}
           onSendMessage={(text) => {
             setGroupMessages((current) => ({
