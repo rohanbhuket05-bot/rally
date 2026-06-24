@@ -85,6 +85,16 @@
   color: #EEEEFF;
 }
 
+.dark-theme select.text-input {
+  color: #000;
+  background: #fff;
+}
+
+.dark-theme select.text-input option {
+  color: #000;
+  background: #fff;
+}
+
 .dark-theme .text-input::placeholder {
   color: #555577;
 }
