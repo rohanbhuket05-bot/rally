@@ -105,6 +105,32 @@ export async function deleteGroup(id) {
   }
 }
 
+export async function getProfile(userId) {
+  try {
+    const { data, error } = await supabase.from('profiles').select('*').eq('id', userId).single();
+    if (error && error.code !== 'PGRST116') throw error;
+    return data || null;
+  } catch (e) {
+    console.warn('getProfile error', e.message || e);
+    return null;
+  }
+}
+
+export async function upsertProfile(userId, { name, bio, username, friends }) {
+  try {
+    const { data, error } = await supabase
+      .from('profiles')
+      .upsert({ id: userId, name, bio, username, friends: friends || [], updated_at: new Date().toISOString() })
+      .select()
+      .single();
+    if (error) throw error;
+    return data;
+  } catch (e) {
+    console.warn('upsertProfile error', e.message || e);
+    return null;
+  }
+}
+
 export async function signInWithOtp(email) {
   try {
     return await supabase.auth.signInWithOtp({ email });

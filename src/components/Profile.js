@@ -5,10 +5,10 @@ import { isSupabaseConfigured, signInWithOtp, signInWithProvider } from '../lib/
 
 const placeholderFriendNames = new Set(['Maya', 'Leo', 'Ava', 'Jon']);
 
-export default function Profile({ user, activeTab = 'profile', onNavigate = () => {}, onOpenGroup = () => {}, events = [], onAddEvent = () => {}, onUpdateEvent = () => {}, onDeleteEvent = () => {}, onSignOut = () => {}, onAuthRequired = () => {} }) {
-  const [name, setName] = useState(() => localStorage.getItem('rally_name') || '');
-  const [bio, setBio] = useState(() => localStorage.getItem('rally_bio') || '');
-  const [username, setUsername] = useState(() => localStorage.getItem('rally_username') || '');
+export default function Profile({ user, profile = {}, onUpdateProfile = () => {}, activeTab = 'profile', onNavigate = () => {}, onOpenGroup = () => {}, events = [], onAddEvent = () => {}, onUpdateEvent = () => {}, onDeleteEvent = () => {}, onSignOut = () => {}, onAuthRequired = () => {} }) {
+  const [name, setName] = useState(() => profile.name || localStorage.getItem('rally_name') || '');
+  const [bio, setBio] = useState(() => profile.bio || localStorage.getItem('rally_bio') || '');
+  const [username, setUsername] = useState(() => profile.username || localStorage.getItem('rally_username') || '');
   const [editingProfile, setEditingProfile] = useState(false);
 
   const getInitials = (n) => n.split(' ').filter(Boolean).map(s=>s[0]).slice(0,2).join('').toUpperCase();
@@ -27,6 +27,16 @@ export default function Profile({ user, activeTab = 'profile', onNavigate = () =
     }
   };
 
+  // Sync state when Supabase profile loads after sign-in
+  useEffect(() => {
+    if (profile.name !== undefined) setName(profile.name);
+    if (profile.bio !== undefined) setBio(profile.bio);
+    if (profile.username !== undefined) setUsername(profile.username);
+    if (Array.isArray(profile.friends) && profile.friends.length > 0) {
+      setFriends(profile.friends.filter(f => f?.name && !placeholderFriendNames.has(f.name)));
+    }
+  }, [profile]);
+
   const saveProfile = (newName, newBio, newUsername) => {
     setName(newName);
     setBio(newBio);
@@ -35,6 +45,7 @@ export default function Profile({ user, activeTab = 'profile', onNavigate = () =
     localStorage.setItem('rally_bio', newBio);
     localStorage.setItem('rally_username', newUsername);
     setEditingProfile(false);
+    onUpdateProfile({ name: newName, bio: newBio, username: newUsername, friends });
   };
   // `events` and handlers are provided by App (single source of truth)
   const [showSignOutConfirm, setShowSignOutConfirm] = useState(false);

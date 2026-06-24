@@ -11,10 +11,16 @@ import EventDetails from './components/EventDetails';
 import CreateGroup from './components/CreateGroup';
 import AuthModal from './components/AuthModal';
 import { groupsData } from './data/groups';
-import { isSupabaseConfigured, signOut, getUser, onAuthStateChange, getEvents as sbGetEvents, insertEvent as sbInsertEvent, updateEvent as sbUpdateEvent, deleteEvent as sbDeleteEvent, insertGroup as sbInsertGroup, updateGroup as sbUpdateGroup, deleteGroup as sbDeleteGroup } from './lib/supabaseClient';
+import { isSupabaseConfigured, signOut, getUser, onAuthStateChange, getEvents as sbGetEvents, insertEvent as sbInsertEvent, updateEvent as sbUpdateEvent, deleteEvent as sbDeleteEvent, insertGroup as sbInsertGroup, updateGroup as sbUpdateGroup, deleteGroup as sbDeleteGroup, getProfile, upsertProfile } from './lib/supabaseClient';
 
 function App() {
   const [user, setUser] = useState(null);
+  const [profile, setProfile] = useState({
+    name: localStorage.getItem('rally_name') || '',
+    bio: localStorage.getItem('rally_bio') || '',
+    username: localStorage.getItem('rally_username') || '',
+    friends: (() => { try { return JSON.parse(localStorage.getItem('rally_friends') || '[]'); } catch(e) { return []; } })(),
+  });
   const [authModalMessage, setAuthModalMessage] = useState(null); // null = hidden, string = shown
   const [activeTab, setActiveTab] = useState('home');
   const [previousTab, setPreviousTab] = useState('home');
@@ -69,14 +75,46 @@ function App() {
     try { localStorage.setItem('rally_groups', JSON.stringify(groups)); } catch(e){}
   }, [groups]);
 
+  const loadUserProfile = useCallback(async (userId) => {
+    const data = await getProfile(userId);
+    if (data) {
+      const loaded = {
+        name: data.name || '',
+        bio: data.bio || '',
+        username: data.username || '',
+        friends: Array.isArray(data.friends) ? data.friends : [],
+      };
+      setProfile(loaded);
+      localStorage.setItem('rally_name', loaded.name);
+      localStorage.setItem('rally_bio', loaded.bio);
+      localStorage.setItem('rally_username', loaded.username);
+      localStorage.setItem('rally_friends', JSON.stringify(loaded.friends));
+    }
+  }, []);
+
+  const handleUpdateProfile = useCallback(async (updated) => {
+    setProfile(updated);
+    localStorage.setItem('rally_name', updated.name || '');
+    localStorage.setItem('rally_bio', updated.bio || '');
+    localStorage.setItem('rally_username', updated.username || '');
+    localStorage.setItem('rally_friends', JSON.stringify(updated.friends || []));
+    if (user) await upsertProfile(user.id, updated);
+  }, [user]);
+
   // auth init — runs once, replaces the old AuthBar effect
   useEffect(() => {
     if (!isSupabaseConfigured()) return;
     let mounted = true;
-    (async () => { const u = await getUser(); if (mounted) setUser(u); })();
-    const unsub = onAuthStateChange((event, session) => { setUser(session?.user ?? null); });
+    (async () => {
+      const u = await getUser();
+      if (mounted) { setUser(u); if (u) loadUserProfile(u.id); }
+    })();
+    const unsub = onAuthStateChange((event, session) => {
+      setUser(session?.user ?? null);
+      if (session?.user) loadUserProfile(session.user.id);
+    });
     return () => { mounted = false; unsub(); };
-  }, []);
+  }, [loadUserProfile]);
 
   const onAuthRequired = useCallback((message = 'Sign in to continue') => {
     setAuthModalMessage(message);
@@ -158,7 +196,7 @@ function App() {
         <Groups activeTab={activeTab} onNavigate={setActiveTab} groups={groups} onOpenGroup={(id) => { setActiveGroupId(id); setActiveTab('group'); }} onCreateGroup={openCreateGroup} user={user} onAuthRequired={onAuthRequired} />
       )}
       {activeTab === 'profile' && (
-        <Profile user={user} activeTab={activeTab} onNavigate={setActiveTab} onOpenGroup={(id) => { setActiveGroupId(id); setActiveTab('group'); }} events={events} onAddEvent={addEvent} onUpdateEvent={updateEvent} onDeleteEvent={deleteEvent} onSignOut={() => { signOut(); setUser(null); }} onAuthRequired={onAuthRequired} />
+        <Profile user={user} profile={profile} onUpdateProfile={handleUpdateProfile} activeTab={activeTab} onNavigate={setActiveTab} onOpenGroup={(id) => { setActiveGroupId(id); setActiveTab('group'); }} events={events} onAddEvent={addEvent} onUpdateEvent={updateEvent} onDeleteEvent={deleteEvent} onSignOut={() => { signOut(); setUser(null); }} onAuthRequired={onAuthRequired} />
       )}
       {activeTab === 'post' && (
         <Create activeTab={activeTab} onNavigate={setActiveTab} onCreateGroup={openCreateGroup} user={user} onAuthRequired={onAuthRequired} />
