@@ -144,7 +144,7 @@ export default function Profile({ user, profile = {}, onUpdateProfile = () => {}
     const pad = (s) => String(s).padStart(2, '0');
     const yearForISO = String(new Date().getFullYear());
     const dateISO = `${yearForISO}-${pad(form.month)}-${pad(form.day)}T${timeForISO}`; // YYYY-MM-DDTHH:MM
-    const next = { id: Date.now(), title: form.title.trim(), dateISO, showTime: !!useTime, location: form.location.trim() };
+    const next = { id: Date.now(), title: form.title.trim(), dateISO, showTime: !!useTime, location: form.location.trim(), personal: true };
     // delegate persistence/upsert to App-level handler
     onAddEvent(next);
     setForm({ title: '', month: '', day: '', time: '', location: '' });

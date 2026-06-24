@@ -14,9 +14,10 @@ export default function Explore({ events = [], onNavigate = () => {}, onOpenEven
   ];
 
   const results = useMemo(() => {
+    const publicEvents = events.filter(e => !e.personal);
     const term = (q || '').trim().toLowerCase();
-    if (!term) return events;
-    return events.filter(e => (e.title || '').toLowerCase().includes(term) || (e.location || '').toLowerCase().includes(term));
+    if (!term) return publicEvents;
+    return publicEvents.filter(e => (e.title || '').toLowerCase().includes(term) || (e.location || '').toLowerCase().includes(term));
   }, [q, events]);
 
   return (
