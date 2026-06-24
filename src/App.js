@@ -53,14 +53,25 @@ function App() {
     }, {});
   });
 
-  // load events from Supabase if available, but keep localStorage as source of truth
+  // load events from Supabase; migrate any localStorage-only events up on first load
   useEffect(() => {
     let mounted = true;
     async function load() {
-      if (isSupabaseConfigured()) {
-        const rows = await sbGetEvents();
-        if (mounted && rows && rows.length > 0) {
-          setEvents(rows.map(r => ({ id: r.id, title: r.title, dateISO: r.date_iso || r.dateISO, showTime: r.show_time ?? r.showTime ?? true, location: r.location, attendees: r.attendees || [] })));
+      if (!isSupabaseConfigured()) return;
+      const rows = await sbGetEvents();
+      if (!mounted) return;
+      if (rows && rows.length > 0) {
+        // Supabase is authoritative once it has data
+        setEvents(rows.map(r => ({ id: r.id, title: r.title, dateISO: r.date_iso || r.dateISO, showTime: r.show_time ?? r.showTime ?? true, location: r.location, attendees: r.attendees || [] })));
+      } else {
+        // Supabase empty — migrate any localStorage events up
+        const local = (() => { try { return JSON.parse(localStorage.getItem('rally_events') || '[]'); } catch(e) { return []; } })();
+        if (local.length > 0) {
+          const uploaded = await Promise.all(
+            local.map(e => sbInsertEvent({ title: e.title, date_iso: e.dateISO, show_time: e.showTime ?? true, location: e.location, attendees: e.attendees || [] }))
+          );
+          const migrated = uploaded.filter(Boolean).map(r => ({ id: r.id, title: r.title, dateISO: r.date_iso || r.dateISO, showTime: r.show_time ?? true, location: r.location, attendees: r.attendees || [] }));
+          if (mounted && migrated.length > 0) setEvents(migrated);
         }
       }
     }
