@@ -26,7 +26,18 @@ function App() {
     friends: (() => { try { return JSON.parse(localStorage.getItem('rally_friends') || '[]'); } catch(e) { return []; } })(),
   });
   const [authModalMessage, setAuthModalMessage] = useState(null); // null = hidden, string = shown
-  const [activeTab, setActiveTab] = useState('home');
+  const MAIN_TABS = ['home', 'explore', 'groups', 'profile', 'post'];
+  const [activeTab, setActiveTabRaw] = useState(() => {
+    const saved = localStorage.getItem('rally_active_tab');
+    return MAIN_TABS.includes(saved) ? saved : 'home';
+  });
+  const setActiveTab = useCallback((tabOrFn) => {
+    setActiveTabRaw(prev => {
+      const next = typeof tabOrFn === 'function' ? tabOrFn(prev) : tabOrFn;
+      if (MAIN_TABS.includes(next)) localStorage.setItem('rally_active_tab', next);
+      return next;
+    });
+  }, []);
   const [previousTab, setPreviousTab] = useState('home');
   const [activeGroupId, setActiveGroupId] = useState(null);
   const [activeEventId, setActiveEventId] = useState(null);
