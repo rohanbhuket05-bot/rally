@@ -141,40 +141,44 @@ export async function deleteGroup(id) {
 }
 
 export async function sendGroupInvite(groupId, inviteeId) {
-  try {
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) return null;
-    const { data, error } = await supabase.from('group_invites').insert({
-      group_id: groupId,
-      inviter_id: user.id,
-      invitee_id: inviteeId,
-      status: 'pending',
-    }).select();
-    if (error) throw error;
-    return data?.[0] ?? null;
-  } catch (e) {
-    console.warn('sendGroupInvite error', e.message || e);
-    return null;
-  }
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) throw new Error('Not signed in');
+  const { data, error } = await supabase.from('group_invites').insert({
+    group_id: groupId,
+    inviter_id: user.id,
+    invitee_id: inviteeId,
+    status: 'pending',
+  }).select();
+  if (error) throw error;
+  return data?.[0] ?? null;
 }
 
 export async function getGroupInvites(userId) {
   try {
     const { data, error } = await supabase
       .from('group_invites')
-      .select('*, group:groups!group_id(id, name, type, description, members, privacy, icebreaker, event_title, events, created_by)')
+      .select('*')
       .eq('invitee_id', userId)
       .eq('status', 'pending')
       .order('created_at', { ascending: false });
     if (error) throw error;
     if (!data || data.length === 0) return [];
+
+    const groupIds = [...new Set(data.map(i => i.group_id))];
+    const { data: groupRows } = await supabase
+      .from('groups')
+      .select('id, name, type, description, members, privacy, icebreaker, event_title, events, created_by')
+      .in('id', groupIds);
+    const groupMap = Object.fromEntries((groupRows || []).map(g => [g.id, mapGroupRow(g)]));
+
     const inviterIds = [...new Set(data.map(i => i.inviter_id))];
     const { data: inviterProfiles } = await supabase
       .from('profiles').select('id, name, username').in('id', inviterIds);
     const profileMap = Object.fromEntries((inviterProfiles || []).map(p => [p.id, p]));
+
     return data.map(inv => ({
       ...inv,
-      group: inv.group ? mapGroupRow(inv.group) : null,
+      group: groupMap[inv.group_id] || null,
       inviter: profileMap[inv.inviter_id] || null,
     }));
   } catch (e) {

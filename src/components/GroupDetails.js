@@ -52,6 +52,7 @@ export default function GroupDetails({
   const [searching, setSearching] = useState(false);
   const [pendingInviteIds, setPendingInviteIds] = useState(new Set());
   const [inviting, setInviting] = useState(new Set());
+  const [inviteError, setInviteError] = useState('');
 
   // Load friends on mount (for member checkmarks + invite panel)
   useEffect(() => {
@@ -118,9 +119,12 @@ export default function GroupDetails({
   async function handleSendInvite(profileId, displayName) {
     if (!group || !isUUID(group.id) || !profileId) return;
     setInviting(s => new Set([...s, profileId]));
-    const result = await sendGroupInvite(group.id, profileId);
-    if (result) {
+    setInviteError('');
+    try {
+      await sendGroupInvite(group.id, profileId);
       setPendingInviteIds(s => new Set([...s, profileId]));
+    } catch (e) {
+      setInviteError(e.message || 'Failed to send invite. Check console for details.');
     }
     setInviting(s => { const next = new Set(s); next.delete(profileId); return next; });
   }
@@ -256,6 +260,11 @@ export default function GroupDetails({
                     );
                   })}
                 </div>
+              </div>
+            )}
+            {inviteError && (
+              <div style={{ fontSize: 12, color: '#E74C3C', background: 'rgba(231,76,60,0.08)', borderRadius: 8, padding: '8px 10px', marginTop: 8 }}>
+                ⚠ {inviteError}
               </div>
             )}
             {nonMemberFriends.length === 0 && nonMemberSearchResults.length === 0 && !searching && !searchQuery && (
