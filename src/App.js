@@ -18,7 +18,8 @@ import { isSupabaseConfigured, signOut, getUser, onAuthStateChange, getEvents as
 function App() {
   const [user, setUser] = useState(null);
   const [showUsernamePrompt, setShowUsernamePrompt] = useState(false);
-  const [darkMode, setDarkMode] = useState(false);
+  const [darkMode, setDarkMode] = useState(() => localStorage.getItem('rally_dark_mode') === 'true');
+  useEffect(() => { localStorage.setItem('rally_dark_mode', darkMode); }, [darkMode]);
   const [profile, setProfile] = useState({
     name: localStorage.getItem('rally_name') || '',
     bio: localStorage.getItem('rally_bio') || '',
