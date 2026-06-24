@@ -147,6 +147,20 @@ export async function upsertProfile(userId, { name, bio, username, friends }) {
   }
 }
 
+export async function getFriendNotifications(userId) {
+  try {
+    const [{ count: incoming }, { count: acceptedTotal }] = await Promise.all([
+      supabase.from('friendships').select('id', { count: 'exact', head: true })
+        .eq('addressee_id', userId).eq('status', 'pending'),
+      supabase.from('friendships').select('id', { count: 'exact', head: true })
+        .eq('requester_id', userId).eq('status', 'accepted'),
+    ]);
+    return { incoming: incoming || 0, acceptedTotal: acceptedTotal || 0 };
+  } catch (e) {
+    return { incoming: 0, acceptedTotal: 0 };
+  }
+}
+
 export async function searchUsersByUsername(query, currentUserId) {
   try {
     const { data, error } = await supabase

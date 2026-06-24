@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import './HomeFeed.css';
 import { getSchoolFromEmail } from '../data/schools';
 import FriendsPanel from './FriendsPanel';
-import { isSupabaseConfigured, signInWithOtp, signInWithProvider, checkUsernameAvailable } from '../lib/supabaseClient';
+import { isSupabaseConfigured, signInWithOtp, signInWithProvider, checkUsernameAvailable, getFriendNotifications } from '../lib/supabaseClient';
 import { validateUsername } from '../lib/usernameValidation';
 
 const placeholderFriendNames = new Set(['Maya', 'Leo', 'Ava', 'Jon']);
@@ -91,6 +91,26 @@ export default function Profile({ user, profile = {}, onUpdateProfile = () => {}
   const [cheers, setCheers] = useState({ count: getStoredCheers(), givers: [] });
   const [groups, setGroups] = useState([]);
   const [showFriendsPanel, setShowFriendsPanel] = useState(false);
+  const [friendNotifCount, setFriendNotifCount] = useState(0);
+
+  useEffect(() => {
+    if (!user) return;
+    getFriendNotifications(user.id).then(({ incoming, acceptedTotal }) => {
+      const seenAccepted = parseInt(localStorage.getItem('rally_seen_accepted') || '0');
+      setFriendNotifCount(incoming + Math.max(0, acceptedTotal - seenAccepted));
+    });
+  }, [user]);
+
+  function handleToggleFriendsPanel() {
+    const opening = !showFriendsPanel;
+    setShowFriendsPanel(opening);
+    if (opening && user) {
+      getFriendNotifications(user.id).then(({ acceptedTotal }) => {
+        localStorage.setItem('rally_seen_accepted', String(acceptedTotal));
+      });
+      setFriendNotifCount(0);
+    }
+  }
 
 
   useEffect(() => {
@@ -230,11 +250,19 @@ export default function Profile({ user, profile = {}, onUpdateProfile = () => {}
       <section style={{ marginTop: 14 }}>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
           <h3
-            style={{ margin: '6px 0', cursor: 'pointer' }}
-            onClick={() => setShowFriendsPanel((current) => !current)}
+            style={{ margin: '6px 0', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 6 }}
+            onClick={handleToggleFriendsPanel}
           >
             Friends
-            <span style={{ fontSize: 11, marginLeft: 6, color: '#999', transition: 'transform 200ms', display: 'inline-block', transform: showFriendsPanel ? 'rotate(180deg)' : 'rotate(0deg)' }}>▼</span>
+            {friendNotifCount > 0 && (
+              <span style={{
+                background: '#E74C3C', color: '#fff', borderRadius: 999,
+                fontSize: 11, fontWeight: 700, padding: '2px 7px', lineHeight: 1.4,
+              }}>
+                {friendNotifCount}
+              </span>
+            )}
+            <span style={{ fontSize: 11, color: '#999', transition: 'transform 200ms', display: 'inline-block', transform: showFriendsPanel ? 'rotate(180deg)' : 'rotate(0deg)' }}>▼</span>
           </h3>
         </div>
         {showFriendsPanel && (
