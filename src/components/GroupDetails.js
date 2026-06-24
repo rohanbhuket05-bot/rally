@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { getFriendships } from '../lib/supabaseClient';
+import { getFriendships, searchUsersByUsername } from '../lib/supabaseClient';
 import './HomeFeed.css';
 
 const TYPE_LABELS = { club: 'Club / Org', friend: 'Friend Group', event: 'Event Rally' };
@@ -27,15 +27,31 @@ export default function GroupDetails({
   onBack,
   user,
 }) {
-  const [inviteInput, setInviteInput] = useState('');
   const [showInvite, setShowInvite] = useState(false);
   const [friends, setFriends] = useState([]);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [searchResults, setSearchResults] = useState([]);
+  const [searching, setSearching] = useState(false);
 
   useEffect(() => {
     if (showInvite && user) {
       getFriendships(user.id).then(setFriends);
+    } else {
+      setSearchQuery('');
+      setSearchResults([]);
     }
   }, [showInvite, user]);
+
+  useEffect(() => {
+    if (!searchQuery.trim() || searchQuery.length < 2) { setSearchResults([]); return; }
+    setSearching(true);
+    const t = setTimeout(async () => {
+      const results = await searchUsersByUsername(searchQuery.trim(), user?.id);
+      setSearchResults(results);
+      setSearching(false);
+    }, 350);
+    return () => clearTimeout(t);
+  }, [searchQuery, user?.id]);
 
   if (!group) {
     return (
@@ -50,17 +66,7 @@ export default function GroupDetails({
   const { name, description, type = 'club', privacy = 'public', members = [], icebreaker, eventTitle, events: groupEvents = [] } = group;
   const { color, bg } = TYPE_COLORS[type] || TYPE_COLORS.club;
 
-  function handleInvite() {
-    const n = inviteInput.trim();
-    if (!n || members.some(m => m.name.toLowerCase() === n.toLowerCase())) { setInviteInput(''); return; }
-    const initials = n.split(' ').map(s => s[0]).slice(0, 2).join('').toUpperCase();
-    const updated = { ...group, members: [...members, { name: n, initials, color: avatarColor(n), role: 'member' }] };
-    onUpdateGroup && onUpdateGroup(updated);
-    setInviteInput('');
-  }
-
-  function handleAddFriend(friend) {
-    const displayName = friend.other?.name || friend.other?.username || '';
+  function handleAddProfile(displayName) {
     if (!displayName || members.some(m => m.name.toLowerCase() === displayName.toLowerCase())) return;
     const initials = displayName.split(' ').map(s => s[0]).slice(0, 2).join('').toUpperCase();
     const updated = { ...group, members: [...members, { name: displayName, initials, color: avatarColor(displayName), role: 'member' }] };
@@ -138,9 +144,46 @@ export default function GroupDetails({
 
         {showInvite && (
           <div style={{ marginBottom: 14, padding: 12, background: 'rgba(83,74,183,0.05)', borderRadius: 10, border: '1px solid rgba(83,74,183,0.12)' }}>
-            {/* Friends list */}
+            {/* Username search */}
+            <div style={{ fontSize: 11, fontWeight: 700, color: '#888', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 6 }}>Search users</div>
+            <div style={{ position: 'relative', marginBottom: 8 }}>
+              <span style={{ position: 'absolute', left: 10, top: '50%', transform: 'translateY(-50%)', color: '#aaa', fontSize: 14 }}>@</span>
+              <input
+                className="text-input"
+                placeholder="Search by username"
+                value={searchQuery}
+                onChange={e => setSearchQuery(e.target.value)}
+                style={{ paddingLeft: 24 }}
+                autoFocus
+              />
+            </div>
+            {searching && <div style={{ fontSize: 12, color: '#999', marginBottom: 8 }}>Searching...</div>}
+            {searchResults.length > 0 && (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 12 }}>
+                {searchResults.map(result => {
+                  const displayName = result.name || result.username;
+                  const alreadyIn = members.some(m => m.name.toLowerCase() === displayName.toLowerCase());
+                  return (
+                    <div key={result.id} style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                      <div className="avatar" style={{ backgroundColor: avatarColor(displayName), color: '#fff', marginLeft: 0, flexShrink: 0, width: 34, height: 34, fontSize: 13 }}>
+                        {displayName.split(' ').map(s => s[0]).slice(0, 2).join('').toUpperCase()}
+                      </div>
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <div style={{ fontWeight: 600, fontSize: 14 }}>{displayName}</div>
+                        <div style={{ fontSize: 12, color: '#888' }}>@{result.username}</div>
+                      </div>
+                      {alreadyIn
+                        ? <span style={{ fontSize: 12, color: '#aaa' }}>Added</span>
+                        : <button className="join" style={{ borderRadius: 8, padding: '5px 12px', fontSize: 13 }} onClick={() => handleAddProfile(displayName)}>Add</button>
+                      }
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+            {/* Friends quick-add */}
             {friends.length > 0 && (
-              <div style={{ marginBottom: 12 }}>
+              <div>
                 <div style={{ fontSize: 11, fontWeight: 700, color: '#888', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 8 }}>Your Friends</div>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
                   {friends.map(f => {
@@ -157,7 +200,7 @@ export default function GroupDetails({
                         </div>
                         {alreadyIn
                           ? <span style={{ fontSize: 12, color: '#aaa' }}>Added</span>
-                          : <button className="join" style={{ borderRadius: 8, padding: '5px 12px', fontSize: 13 }} onClick={() => handleAddFriend(f)}>Add</button>
+                          : <button className="join" style={{ borderRadius: 8, padding: '5px 12px', fontSize: 13 }} onClick={() => handleAddProfile(displayName)}>Add</button>
                         }
                       </div>
                     );
@@ -165,20 +208,6 @@ export default function GroupDetails({
                 </div>
               </div>
             )}
-            {/* Manual name entry */}
-            <div style={{ fontSize: 11, fontWeight: 700, color: '#888', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 6 }}>Add by name</div>
-            <div style={{ display: 'flex', gap: 8 }}>
-              <input
-                className="text-input"
-                placeholder="Enter a name"
-                value={inviteInput}
-                onChange={e => setInviteInput(e.target.value)}
-                onKeyDown={e => e.key === 'Enter' && handleInvite()}
-                style={{ flex: 1 }}
-                autoFocus
-              />
-              <button className="join" onClick={handleInvite} style={{ flexShrink: 0, borderRadius: 10 }}>Add</button>
-            </div>
           </div>
         )}
 
