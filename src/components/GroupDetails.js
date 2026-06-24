@@ -39,6 +39,7 @@ export default function GroupDetails({
   group,
   isPreview = false,
   onUpdateGroup,
+  onDeleteGroup,
   messages = [],
   onSendMessage,
   onOpenChat,
@@ -46,6 +47,7 @@ export default function GroupDetails({
   user,
 }) {
   const [showInvite, setShowInvite] = useState(false);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [friends, setFriends] = useState([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [searchResults, setSearchResults] = useState([]);
@@ -163,7 +165,7 @@ export default function GroupDetails({
               <span className="category-pill" style={{ background: '#F5F5F5', color: '#777' }}>{privacy === 'private' ? 'Private' : 'Friends Only'}</span>
             )}
           </div>
-          <h2 style={{ margin: 0, fontSize: 22, color: '#111', lineHeight: 1.2 }}>{name}</h2>
+          <h2 style={{ margin: 0, fontSize: 22, color: '#111', lineHeight: 1.2, textAlign: 'center' }}>{name}</h2>
         </div>
       </header>
 
@@ -352,6 +354,56 @@ export default function GroupDetails({
             Open group chat
           </button>
         </>
+      )}
+
+      {isAdmin && onDeleteGroup && (
+        <button
+          onClick={() => setShowDeleteConfirm(true)}
+          style={{
+            width: '100%', padding: '12px', borderRadius: 12, marginBottom: 12,
+            background: 'none', border: '1.5px solid #E74C3C', color: '#E74C3C',
+            fontWeight: 700, fontSize: 15, cursor: 'pointer',
+          }}
+        >
+          Delete group
+        </button>
+      )}
+
+      {showDeleteConfirm && (
+        <div style={{
+          position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.45)',
+          display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 9999,
+        }}>
+          <div style={{
+            background: '#fff', borderRadius: 16, padding: 28, maxWidth: 320, width: '90%',
+            boxShadow: '0 8px 32px rgba(0,0,0,0.18)',
+          }}>
+            <h3 style={{ margin: '0 0 10px', fontSize: 18, color: '#111' }}>Delete "{name}"?</h3>
+            <p style={{ margin: '0 0 20px', fontSize: 14, color: '#555', lineHeight: 1.5 }}>
+              This will permanently delete the group and all its data. This cannot be undone.
+            </p>
+            <div style={{ display: 'flex', gap: 10 }}>
+              <button
+                onClick={() => setShowDeleteConfirm(false)}
+                style={{
+                  flex: 1, padding: '11px', borderRadius: 10, border: '1.5px solid #ddd',
+                  background: '#fff', color: '#444', fontWeight: 600, fontSize: 14, cursor: 'pointer',
+                }}
+              >
+                Cancel
+              </button>
+              <button
+                onClick={() => onDeleteGroup(group.id)}
+                style={{
+                  flex: 1, padding: '11px', borderRadius: 10, border: 'none',
+                  background: '#E74C3C', color: '#fff', fontWeight: 700, fontSize: 14, cursor: 'pointer',
+                }}
+              >
+                Delete
+              </button>
+            </div>
+          </div>
+        </div>
       )}
 
       <nav className="bottom-nav">

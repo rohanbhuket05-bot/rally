@@ -302,6 +302,7 @@ function App() {
           group={previewGroup || groups.find(g => g.id === activeGroupId)}
           isPreview={!!previewGroup}
           onUpdateGroup={updateGroup}
+          onDeleteGroup={(id) => { deleteGroup(id); setActiveGroupId(null); setPreviewGroup(null); setActiveTab('groups'); }}
           user={user}
           messages={groupMessages[previewGroup?.id || activeGroupId] ?? []}
           onSendMessage={(text) => {
