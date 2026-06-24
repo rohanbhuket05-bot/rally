@@ -10,11 +10,13 @@ import GroupChat from './components/GroupChat';
 import EventDetails from './components/EventDetails';
 import CreateGroup from './components/CreateGroup';
 import AuthModal from './components/AuthModal';
+import UsernamePrompt from './components/UsernamePrompt';
 import { groupsData } from './data/groups';
 import { isSupabaseConfigured, signOut, getUser, onAuthStateChange, getEvents as sbGetEvents, insertEvent as sbInsertEvent, updateEvent as sbUpdateEvent, deleteEvent as sbDeleteEvent, insertGroup as sbInsertGroup, updateGroup as sbUpdateGroup, deleteGroup as sbDeleteGroup, getProfile, upsertProfile } from './lib/supabaseClient';
 
 function App() {
   const [user, setUser] = useState(null);
+  const [showUsernamePrompt, setShowUsernamePrompt] = useState(false);
   const [profile, setProfile] = useState({
     name: localStorage.getItem('rally_name') || '',
     bio: localStorage.getItem('rally_bio') || '',
@@ -77,20 +79,27 @@ function App() {
 
   const loadUserProfile = useCallback(async (userId) => {
     const data = await getProfile(userId);
-    if (data) {
-      const loaded = {
-        name: data.name || '',
-        bio: data.bio || '',
-        username: data.username || '',
-        friends: Array.isArray(data.friends) ? data.friends : [],
-      };
-      setProfile(loaded);
-      localStorage.setItem('rally_name', loaded.name);
-      localStorage.setItem('rally_bio', loaded.bio);
-      localStorage.setItem('rally_username', loaded.username);
-      localStorage.setItem('rally_friends', JSON.stringify(loaded.friends));
-    }
+    const loaded = {
+      name: (data?.name) || '',
+      bio: (data?.bio) || '',
+      username: (data?.username) || '',
+      friends: Array.isArray(data?.friends) ? data.friends : [],
+    };
+    setProfile(loaded);
+    localStorage.setItem('rally_name', loaded.name);
+    localStorage.setItem('rally_bio', loaded.bio);
+    localStorage.setItem('rally_username', loaded.username);
+    localStorage.setItem('rally_friends', JSON.stringify(loaded.friends));
+    if (!loaded.username) setShowUsernamePrompt(true);
   }, []);
+
+  const handleUsernameChosen = useCallback(async (username) => {
+    const updated = { ...profile, username };
+    setProfile(updated);
+    setShowUsernamePrompt(false);
+    localStorage.setItem('rally_username', username);
+    if (user) await upsertProfile(user.id, updated);
+  }, [profile, user]);
 
   const handleUpdateProfile = useCallback(async (updated) => {
     setProfile(updated);
@@ -185,6 +194,9 @@ function App() {
     <div className="App">
       {authModalMessage !== null && (
         <AuthModal message={authModalMessage} onClose={() => setAuthModalMessage(null)} />
+      )}
+      {showUsernamePrompt && user && (
+        <UsernamePrompt user={user} onComplete={handleUsernameChosen} />
       )}
       {activeTab === 'home' && (
         <HomeFeed activeTab={activeTab} onNavigate={setActiveTab} events={events} onAddEvent={addEvent} onUpdateEvent={updateEvent} onDeleteEvent={deleteEvent} onOpenEvent={openEvent} user={user} onAuthRequired={onAuthRequired} />
