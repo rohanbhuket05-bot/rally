@@ -67,10 +67,12 @@ export default function GroupDetails({
     onUpdateGroup && onUpdateGroup(updated);
   }
 
+  const myName = localStorage.getItem('rally_name') || localStorage.getItem('rally_username') || '';
+  const adminMember = members.find(m => m.role === 'admin');
+  const isAdmin = adminMember && adminMember.name === myName;
+
   function handleRemoveMember(memberName) {
-    const myName = localStorage.getItem('rally_name') || localStorage.getItem('rally_username') || '';
-    const me = members.find(m => m.role === 'admin');
-    if (me?.name !== myName) return; // only admin can remove
+    if (!isAdmin) return;
     const updated = { ...group, members: members.filter(m => m.name !== memberName) };
     onUpdateGroup && onUpdateGroup(updated);
   }
@@ -189,9 +191,17 @@ export default function GroupDetails({
                   {m.initials || m.name?.[0] || '?'}
                 </div>
                 <span style={{ fontWeight: 600, fontSize: 14, flex: 1 }}>{m.name}</span>
-                {m.role === 'admin' && (
-                  <span className="category-pill" style={{ background: 'var(--light-purple)', color: 'var(--purple)', fontSize: 11 }}>Admin</span>
-                )}
+                {m.role === 'admin'
+                  ? <span className="category-pill" style={{ background: 'var(--light-purple)', color: 'var(--purple)', fontSize: 11 }}>Admin</span>
+                  : isAdmin && (
+                    <button
+                      onClick={() => handleRemoveMember(m.name)}
+                      style={{ background: 'none', border: '1px solid #E74C3C', color: '#E74C3C', borderRadius: 7, padding: '3px 10px', fontSize: 12, cursor: 'pointer' }}
+                    >
+                      Remove
+                    </button>
+                  )
+                }
               </div>
             );
           })}
