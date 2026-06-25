@@ -143,7 +143,8 @@ export default function GroupDetails({
   const canInvite = !isPreview && isUUID(group.id) && isSupabaseConfigured();
 
   return (
-    <main className="feed-root" style={{ overflowY: 'auto' }}>
+    <main className="feed-root">
+      <div className="scroll-area">
       {/* Header */}
       <header style={{ position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: 16, minHeight: 40 }}>
         <button
@@ -342,7 +343,7 @@ export default function GroupDetails({
           <div
             className="group-chat-panel group-chat-preview"
             onClick={onOpenChat}
-            style={{ marginBottom: 12, flex: 'none' }}
+            style={{ marginBottom: 12 }}
           >
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
               <h3>💬 Group chat</h3>
@@ -407,6 +408,7 @@ export default function GroupDetails({
         </div>
       )}
 
+      </div>{/* end scroll-area */}
       <nav className="bottom-nav">
         <button className={`nav-btn ${activeTab === 'home' ? 'active' : ''}`} onClick={() => onNavigate('home')}>
           <span className="nav-btn-icon">🏠</span><span className="nav-btn-label">Home</span>
