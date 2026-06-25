@@ -31,6 +31,8 @@ function App() {
   const PERSISTENT_TABS = [...MAIN_TABS, 'group', 'group-chat'];
   const [activeTab, setActiveTabRaw] = useState(() => {
     const saved = localStorage.getItem('rally_active_tab');
+    // Reloading on group-chat causes a blank screen — redirect to groups until fixed
+    if (saved === 'group-chat') return 'groups';
     return PERSISTENT_TABS.includes(saved) ? saved : 'home';
   });
   const setActiveTab = useCallback((tabOrFn) => {
