@@ -95,10 +95,9 @@ export default function GroupDetails({
   const { name, description, type = 'club', privacy = 'public', members = [], icebreaker, eventTitle, events: groupEvents = [] } = group;
   const { color, bg } = TYPE_COLORS[type] || TYPE_COLORS.club;
 
-  const adminMember = members.find(m => m.role === 'admin');
-  const isAdmin = !isPreview && user && (
-    adminMember?.user_id ? adminMember.user_id === user.id
-      : adminMember?.name === (localStorage.getItem('rally_name') || localStorage.getItem('rally_username') || '')
+  const isAdmin = !isPreview && !!user && (
+    group.createdBy === user.id ||
+    members.some(m => m.user_id === user.id && m.role === 'admin')
   );
 
   // Build sets for quick lookups
