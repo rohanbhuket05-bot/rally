@@ -440,6 +440,63 @@ export function onAuthStateChange(cb) {
   return () => { try { sub.subscription.unsubscribe(); } catch(e){} };
 }
 
+function mapMessageRow(r) {
+  return {
+    id: r.id,
+    groupId: r.group_id,
+    userId: r.user_id,
+    sender: r.sender_name,
+    text: r.text,
+    createdAt: r.created_at,
+    time: new Date(r.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+  };
+}
+
+export async function getGroupMessages(groupId) {
+  try {
+    const { data, error } = await supabase
+      .from('group_messages')
+      .select('*')
+      .eq('group_id', groupId)
+      .order('created_at', { ascending: true });
+    if (error) throw error;
+    return (data || []).map(mapMessageRow);
+  } catch (e) {
+    console.warn('getGroupMessages error', e.message || e);
+    return [];
+  }
+}
+
+export async function sendGroupMessage(groupId, text, senderName) {
+  try {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) throw new Error('Not authenticated');
+    const { data, error } = await supabase
+      .from('group_messages')
+      .insert({ group_id: groupId, user_id: user.id, sender_name: senderName, text })
+      .select()
+      .single();
+    if (error) throw error;
+    return mapMessageRow(data);
+  } catch (e) {
+    console.warn('sendGroupMessage error', e.message || e);
+    return null;
+  }
+}
+
+export function subscribeToGroupMessages(groupId, onMessage) {
+  const channel = supabase
+    .channel(`group-messages-${groupId}`)
+    .on('postgres_changes', {
+      event: 'INSERT',
+      schema: 'public',
+      table: 'group_messages',
+      filter: `group_id=eq.${groupId}`,
+    }, (payload) => onMessage(mapMessageRow(payload.new)))
+    .subscribe();
+  return () => supabase.removeChannel(channel);
+}
+
 export async function signInWithProvider(provider) {
   try {
     return await supabase.auth.signInWithOAuth({

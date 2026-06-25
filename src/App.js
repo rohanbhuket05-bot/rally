@@ -304,14 +304,7 @@ function App() {
           onUpdateGroup={updateGroup}
           onDeleteGroup={(id) => { deleteGroup(id); setActiveGroupId(null); setPreviewGroup(null); setActiveTab('groups'); }}
           user={user}
-          messages={groupMessages[previewGroup?.id || activeGroupId] ?? []}
-          onSendMessage={(text) => {
-            const gid = previewGroup?.id || activeGroupId;
-            setGroupMessages((current) => ({
-              ...current,
-              [gid]: [...(current[gid] || []), { id: `new-${Date.now()}`, sender: 'You', text: text.trim(), time: 'Now', me: true }],
-            }));
-          }}
+          messages={[]}
           onBack={() => { setActiveGroupId(null); setPreviewGroup(null); setActiveTab('groups'); }}
           onOpenChat={() => setActiveTab('group-chat')}
         />
@@ -323,18 +316,9 @@ function App() {
             setActiveTab(tab);
             if (tab !== 'group-chat') setActiveGroupId(null);
           }}
-          groupId={activeGroupId}
-          messages={groupMessages[activeGroupId] ?? []}
-          onSendMessage={(text) => {
-            setGroupMessages((current) => ({
-              ...current,
-              [activeGroupId]: [
-                ...((current[activeGroupId] || [])),
-                { id: `new-${Date.now()}`, sender: 'You', text: text.trim(), time: 'Now', me: true },
-              ],
-            }));
-          }}
-          onBack={() => setActiveTab('group')}
+          group={groups.find(g => g.id === activeGroupId)}
+          user={user}
+          profile={profile}
         />
       )}
       {activeTab === 'event-details' && activeEventId && (
