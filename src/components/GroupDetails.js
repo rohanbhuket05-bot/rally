@@ -166,7 +166,20 @@ export default function GroupDetails({
               <span className="category-pill" style={{ background: '#F5F5F5', color: '#777' }}>{privacy === 'private' ? 'Private' : 'Friends Only'}</span>
             )}
           </div>
-          <h2 style={{ margin: 0, fontSize: 22, color: '#111', lineHeight: 1.2 }}>{name}</h2>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
+            <h2 style={{ margin: 0, fontSize: 22, color: '#111', lineHeight: 1.2 }}>{name}</h2>
+            {isAdmin && onDeleteGroup && (
+              <button
+                onClick={() => setShowDeleteConfirm(true)}
+                style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 4, color: '#E74C3C', display: 'flex', alignItems: 'center', flexShrink: 0 }}
+                aria-label="Delete group"
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
+                  <path d="M9 3v1H4v2h16V4h-5V3H9zm-2 4l1 13h8l1-13H7zm2 2h2l.5 9H9.5L9 9zm4 0h2l-.5 9h-2L13 9z"/>
+                </svg>
+              </button>
+            )}
+          </div>
         </div>
       </header>
 
@@ -321,19 +334,6 @@ export default function GroupDetails({
             ))}
           </div>
         </section>
-      )}
-
-      {isAdmin && onDeleteGroup && (
-        <button
-          onClick={() => setShowDeleteConfirm(true)}
-          style={{
-            width: '100%', padding: '12px', borderRadius: 12, marginBottom: 12,
-            background: 'none', border: '1.5px solid #E74C3C', color: '#E74C3C',
-            fontWeight: 700, fontSize: 15, cursor: 'pointer',
-          }}
-        >
-          Delete group
-        </button>
       )}
 
       {/* Group chat */}
