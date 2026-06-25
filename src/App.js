@@ -329,7 +329,7 @@ function App() {
           activeTab={activeTab}
           onNavigate={(tab) => {
             setActiveTab(tab);
-            if (tab !== 'group-chat') setActiveGroupId(null);
+            if (tab !== 'group-chat' && tab !== 'group') setActiveGroupId(null);
           }}
           group={groups.find(g => g.id === activeGroupId)}
           user={user}
