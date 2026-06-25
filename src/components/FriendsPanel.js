@@ -15,7 +15,7 @@ function avatarColor(name = '') {
 function Avatar({ name }) {
   const initials = (name || '?').split(' ').map(s => s[0]).slice(0, 2).join('').toUpperCase();
   return (
-    <div className="avatar" style={{ backgroundColor: avatarColor(name), color: '#fff', marginLeft: 0, flexShrink: 0 }}>
+    <div className="avatar" style={{ backgroundColor: avatarColor(name), color: '#fff', marginLeft: 0, flexShrink: 0, width: 32, height: 32, fontSize: 12 }}>
       {initials}
     </div>
   );
@@ -163,13 +163,13 @@ export default function FriendsPanel({ user }) {
           <div style={{ fontSize: 13, color: '#aaa' }}>No friends yet — search by username above.</div>
         )}
         {friends.map(f => (
-          <div key={f.id} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '8px 0', borderBottom: '1px solid #F0F0F0' }}>
+          <div key={f.id} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '5px 0', borderBottom: '1px solid #F0F0F0' }}>
             <Avatar name={f.other?.name || f.other?.username} />
             <div style={{ flex: 1, minWidth: 0 }}>
-              <div style={{ fontWeight: 700, fontSize: 14 }}>{f.other?.name || f.other?.username}</div>
-              <div style={{ fontSize: 12, color: '#888' }}>@{f.other?.username}</div>
+              <div style={{ fontWeight: 700, fontSize: 13 }}>{f.other?.name || f.other?.username}</div>
+              <div style={{ fontSize: 11, color: '#888' }}>@{f.other?.username}</div>
             </div>
-            <button className="nav-btn" style={{ borderRadius: 8, padding: '6px 12px', fontSize: 12, color: '#999' }} onClick={() => handleRemove(f.id)}>Remove</button>
+            <button className="nav-btn" style={{ borderRadius: 8, padding: '4px 10px', fontSize: 11, color: '#999' }} onClick={() => handleRemove(f.id)}>Remove</button>
           </div>
         ))}
       </div>
