@@ -12,21 +12,24 @@ export default function GroupChat({ activeTab = 'group-chat', onNavigate = () =>
   const senderName = profile?.name || profile?.username || user?.email || 'Unknown';
   const useSupabase = isSupabaseConfigured() && groupId;
 
-  // Load messages on mount
+  // Load messages on mount and poll every 4 seconds as a reliable fallback
   useEffect(() => {
     if (!useSupabase) return;
-    getGroupMessages(groupId).then(setMessages);
+    let cancelled = false;
+    const fetchMessages = () =>
+      getGroupMessages(groupId).then(msgs => {
+        if (!cancelled) setMessages(msgs);
+      });
+    fetchMessages();
+    const interval = setInterval(fetchMessages, 4000);
+    return () => { cancelled = true; clearInterval(interval); };
   }, [groupId, useSupabase]);
 
-  // Real-time subscription
+  // Real-time subscription for instant delivery on top of polling
   useEffect(() => {
     if (!useSupabase) return;
     const unsub = subscribeToGroupMessages(groupId, (msg) => {
-      setMessages(prev => {
-        // Deduplicate in case our own send already added it optimistically
-        if (prev.some(m => m.id === msg.id)) return prev;
-        return [...prev, msg];
-      });
+      setMessages(prev => prev.some(m => m.id === msg.id) ? prev : [...prev, msg]);
     });
     return unsub;
   }, [groupId, useSupabase]);
