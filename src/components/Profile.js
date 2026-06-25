@@ -214,7 +214,6 @@ export default function Profile({ user, profile = {}, onUpdateProfile = () => {}
                 <span className="category-pill" style={{ background:'var(--purple)', color:'#fff', fontSize:12, padding:'6px 10px', fontWeight:700 }}>{school}</span>
               )}
               <span className="category-pill" style={{ background:'var(--light-teal)', color:'var(--teal)', fontSize:12, padding:'6px 10px' }}>{cheers.count} cheers</span>
-              <span className="category-pill" style={{ background:'var(--light-purple)', color:'var(--purple)', fontSize:12, padding:'6px 10px' }}>{groups.length} groups</span>
             </div>
           </>
         ) : (
