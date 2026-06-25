@@ -4,7 +4,8 @@ import './HomeFeed.css';
 
 // HomeFeed now accepts `events` as a prop from App-level state
 
-export default function HomeFeed({ activeTab = 'home', onNavigate = () => {}, events = [], onAddEvent = () => {}, onUpdateEvent = () => {}, onDeleteEvent = () => {}, onOpenEvent = () => {}, user = null, onAuthRequired = () => {} }) {
+export default function HomeFeed({ activeTab = 'home', onNavigate = () => {}, events = [], onAddEvent = () => {}, onUpdateEvent = () => {}, onDeleteEvent = () => {}, onOpenEvent = () => {}, user = null, onAuthRequired = () => {}, groups = [], onOpenGroup = () => {} }) {
+  const [showAllEvents, setShowAllEvents] = React.useState(false);
   const [cheersCount, setCheersCount] = React.useState(() => {
     try {
       const stored = Number(localStorage.getItem('rally_cheers'));
@@ -81,9 +82,20 @@ export default function HomeFeed({ activeTab = 'home', onNavigate = () => {}, ev
       )}
 
       <section style={{ marginBottom: 12 }}>
-        <h3 style={{ margin: '6px 0' }}>Upcoming</h3>
+        <h3
+          style={{ margin: '6px 0', display: 'flex', alignItems: 'center', gap: 6, cursor: events.length > 3 ? 'pointer' : undefined }}
+          onClick={() => events.length > 3 && setShowAllEvents(s => !s)}
+        >
+          Upcoming
+          {events.length > 3 && (
+            <span style={{ display: 'inline-flex', alignItems: 'center', gap: 3, color: 'var(--purple)', fontSize: 11, fontWeight: 600 }}>
+              {!showAllEvents && `+${events.length - 3}`}
+              <span style={{ transition: 'transform 200ms', display: 'inline-block', transform: showAllEvents ? 'rotate(180deg)' : 'rotate(0deg)' }}>▼</span>
+            </span>
+          )}
+        </h3>
         <div className="cards">
-          {events.map((ev) => (
+          {(showAllEvents ? events : events.slice(0, 3)).map((ev) => (
             <EventCard key={ev.id} event={ev} onJoin={handleJoin} currentUserName={currentUserName} onOpenDetails={onOpenEvent} />
           ))}
         </div>
@@ -97,24 +109,26 @@ export default function HomeFeed({ activeTab = 'home', onNavigate = () => {}, ev
         </div>
       </section>
 
-      <section style={{ marginTop: 14 }}>
-        <h3 style={{ margin: '6px 0' }}>Groups</h3>
-        {validJoinedGroups.length ? (
-          <div style={{ display:'flex', flexDirection:'column', gap:8 }}>
-            {validJoinedGroups.map((g) => (
-              <div key={g.id} className="card" style={{ display:'flex', justifyContent:'space-between', alignItems:'center' }}>
-                <div>
-                  <div style={{ fontWeight:700 }}>{g.name}</div>
-                  <div style={{ color:'#666', fontSize:13 }}>{g.members} members</div>
+      {(() => {
+        const myGroups = groups.filter(g => g.members?.some(m => m.user_id && user ? m.user_id === user.id : false));
+        if (!user || myGroups.length === 0) return null;
+        return (
+          <section style={{ marginTop: 14 }}>
+            <h3 style={{ margin: '6px 0' }}>Groups</h3>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+              {myGroups.map(g => (
+                <div key={g.id} className="card" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', cursor: 'pointer' }} onClick={() => onOpenGroup(g.id)}>
+                  <div style={{ minWidth: 0 }}>
+                    <div style={{ fontWeight: 700, fontSize: 14 }}>{g.name}</div>
+                    {g.description && <div style={{ color: '#666', fontSize: 12, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{g.description}</div>}
+                  </div>
+                  <div style={{ color: '#bbb', fontSize: 18, flexShrink: 0 }}>›</div>
                 </div>
-                <button className="nav-action-btn joined">Joined</button>
-              </div>
-            ))}
-          </div>
-        ) : (
-          <div className="card">No groups joined yet.</div>
-        )}
-      </section>
+              ))}
+            </div>
+          </section>
+        );
+      })()}
 
       <nav className="bottom-nav">
         <button

@@ -7,7 +7,24 @@ import { validateUsername } from '../lib/usernameValidation';
 
 const placeholderFriendNames = new Set(['Maya', 'Leo', 'Ava', 'Jon']);
 
-export default function Profile({ user, profile = {}, onUpdateProfile = () => {}, activeTab = 'profile', onNavigate = () => {}, onOpenGroup = () => {}, events = [], onAddEvent = () => {}, onUpdateEvent = () => {}, onDeleteEvent = () => {}, onSignOut = () => {}, onAuthRequired = () => {} }) {
+const CITIES = [
+  'Atlanta, GA','Austin, TX','Baltimore, MD','Boston, MA','Charlotte, NC',
+  'Chicago, IL','Cincinnati, OH','Cleveland, OH','Columbus, OH','Dallas, TX',
+  'Denver, CO','Detroit, MI','El Paso, TX','Fort Worth, TX','Fresno, CA',
+  'Houston, TX','Indianapolis, IN','Jacksonville, FL','Kansas City, MO','Las Vegas, NV',
+  'Long Beach, CA','Los Angeles, CA','Louisville, KY','Memphis, TN','Mesa, AZ',
+  'Miami, FL','Milwaukee, WI','Minneapolis, MN','Nashville, TN','New Orleans, LA',
+  'New York, NY','Oakland, CA','Oklahoma City, OK','Omaha, NE','Philadelphia, PA',
+  'Phoenix, AZ','Portland, OR','Raleigh, NC','Sacramento, CA','San Antonio, TX',
+  'San Diego, CA','San Francisco, CA','San Jose, CA','Seattle, WA','Tampa, FL',
+  'Tucson, AZ','Tulsa, OK','Virginia Beach, VA','Washington, DC',
+  'London, UK','Paris, France','Tokyo, Japan','Sydney, Australia','Toronto, Canada',
+  'Vancouver, Canada','Mexico City, Mexico','Berlin, Germany','Amsterdam, Netherlands',
+  'Barcelona, Spain','Madrid, Spain','Rome, Italy','Dubai, UAE','Singapore',
+  'Seoul, South Korea','Mumbai, India','Bangkok, Thailand','Hong Kong',
+];
+
+export default function Profile({ user, profile = {}, onUpdateProfile = () => {}, activeTab = 'profile', onNavigate = () => {}, onOpenGroup = () => {}, events = [], onAddEvent = () => {}, onUpdateEvent = () => {}, onDeleteEvent = () => {}, onSignOut = () => {}, onAuthRequired = () => {}, darkMode = false, onToggleDark = () => {} }) {
   const [name, setName] = useState(() => profile.name || localStorage.getItem('rally_name') || '');
   const [bio, setBio] = useState(() => profile.bio || localStorage.getItem('rally_bio') || '');
   const [username, setUsername] = useState(() => profile.username || localStorage.getItem('rally_username') || '');
@@ -69,6 +86,7 @@ export default function Profile({ user, profile = {}, onUpdateProfile = () => {}
     onUpdateProfile({ name: newName, bio: newBio, username: finalUsername, friends: [] });
   };
   // `events` and handlers are provided by App (single source of truth)
+  const [showSettings, setShowSettings] = useState(false);
   const [showSignOutConfirm, setShowSignOutConfirm] = useState(false);
   const [showConfirm, setShowConfirm] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState(null);
@@ -84,7 +102,9 @@ export default function Profile({ user, profile = {}, onUpdateProfile = () => {}
     setSelectedEvent(null);
   }
   const [showForm, setShowForm] = useState(false);
-  const [form, setForm] = useState({ title: '', month: '', day: '', time: '', location: '' });
+  const [showAllEvents, setShowAllEvents] = useState(false);
+  const [form, setForm] = useState({ title: '', month: '', day: '', time: '', location: '', city: '' });
+  const [showCitySuggestions, setShowCitySuggestions] = useState(false);
 
   const [attended, setAttended] = useState([]);
   const [media, setMedia] = useState([]);
@@ -142,12 +162,13 @@ export default function Profile({ user, profile = {}, onUpdateProfile = () => {}
     const useTime = form.time && form.time.trim();
     const timeForISO = useTime ? form.time : '12:00';
     const pad = (s) => String(s).padStart(2, '0');
-    const yearForISO = String(new Date().getFullYear());
-    const dateISO = `${yearForISO}-${pad(form.month)}-${pad(form.day)}T${timeForISO}`; // YYYY-MM-DDTHH:MM
-    const next = { id: Date.now(), title: form.title.trim(), dateISO, showTime: !!useTime, location: form.location.trim(), personal: true };
-    // delegate persistence/upsert to App-level handler
+    const currentYear = new Date().getFullYear();
+    let dateISO = `${currentYear}-${pad(form.month)}-${pad(form.day)}T${timeForISO}`;
+    if (new Date(dateISO) < new Date()) dateISO = `${currentYear + 1}-${pad(form.month)}-${pad(form.day)}T${timeForISO}`;
+    const next = { id: Date.now(), title: form.title.trim(), dateISO, showTime: !!useTime, location: form.location.trim(), city: (form.city || '').trim(), personal: true };
     onAddEvent(next);
-    setForm({ title: '', month: '', day: '', time: '', location: '' });
+    setForm({ title: '', month: '', day: '', time: '', location: '', city: '' });
+    setShowCitySuggestions(false);
     setShowForm(false);
   }
 
@@ -166,11 +187,56 @@ export default function Profile({ user, profile = {}, onUpdateProfile = () => {}
           <p className="tagline" style={{ margin: 0 }}>{name || 'Set up your profile'}</p>
         </div>
         <button
-          onClick={() => setShowSignOutConfirm(true)}
-          style={{ background: 'none', border: '1px solid #DDD', borderRadius: 8, padding: '6px 12px', fontSize: 12, color: '#888', cursor: 'pointer', flexShrink: 0 }}
+          onClick={() => setShowSettings(true)}
+          aria-label="Settings"
+          style={{ background: 'none', border: 'none', padding: 6, cursor: 'pointer', color: '#888', display: 'flex', alignItems: 'center', flexShrink: 0 }}
         >
-          Sign out
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" width="22" height="22">
+            <path d="M12 15.5a3.5 3.5 0 1 1 0-7 3.5 3.5 0 0 1 0 7zm7.43-2.44c.04-.32.07-.64.07-.96s-.03-.64-.07-.97l2.11-1.63c.19-.15.24-.42.12-.64l-2-3.46c-.12-.22-.39-.3-.61-.22l-2.49 1c-.52-.4-1.08-.73-1.69-.98l-.38-2.65C14.46 2.18 14.25 2 14 2h-4c-.25 0-.46.18-.49.42l-.38 2.65c-.61.25-1.17.59-1.69.98l-2.49-1c-.23-.09-.49 0-.61.22l-2 3.46c-.13.22-.07.49.12.64l2.11 1.63c-.04.33-.07.65-.07.97s.03.64.07.97l-2.11 1.63c-.19.15-.24.42-.12.64l2 3.46c.12.22.39.3.61.22l2.49-1c.52.4 1.08.73 1.69.98l.38 2.65c.03.24.24.42.49.42h4c.25 0 .46-.18.49-.42l.38-2.65c.61-.25 1.17-.58 1.69-.98l2.49 1c.23.09.49 0 .61-.22l2-3.46c.12-.22.07-.49-.12-.64l-2.11-1.63z"/>
+          </svg>
         </button>
+
+        {showSettings && (
+          <div className="modal-overlay" onClick={() => setShowSettings(false)}>
+            <div className="modal" style={{ padding: 0, maxWidth: 340, overflow: 'hidden' }} onClick={e => e.stopPropagation()}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '16px 20px', borderBottom: '1px solid #F0F0F0' }}>
+                <span style={{ fontWeight: 700, fontSize: 17 }}>Settings</span>
+                <button onClick={() => setShowSettings(false)} style={{ background: 'none', border: 'none', fontSize: 20, cursor: 'pointer', color: '#888', lineHeight: 1, padding: '0 4px' }}>✕</button>
+              </div>
+
+              <div style={{ padding: '8px 0' }}>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '14px 20px' }}>
+                  <span style={{ fontSize: 15, fontWeight: 600 }}>Dark mode</span>
+                  <button
+                    onClick={onToggleDark}
+                    aria-label="Toggle dark mode"
+                    style={{
+                      width: 44, height: 24, borderRadius: 12,
+                      background: darkMode ? 'var(--purple)' : '#DDD',
+                      border: 'none', cursor: 'pointer', position: 'relative',
+                      transition: 'background 200ms', flexShrink: 0,
+                    }}
+                  >
+                    <div style={{
+                      width: 18, height: 18, borderRadius: 9, background: '#fff',
+                      position: 'absolute', top: 3, left: darkMode ? 23 : 3,
+                      transition: 'left 200ms', boxShadow: '0 1px 3px rgba(0,0,0,0.2)',
+                    }} />
+                  </button>
+                </div>
+
+                <div style={{ height: 1, background: '#F0F0F0', margin: '0 20px' }} />
+
+                <button
+                  onClick={() => setShowSignOutConfirm(true)}
+                  style={{ width: '100%', textAlign: 'left', padding: '14px 20px', background: 'none', border: 'none', fontSize: 15, fontWeight: 600, color: '#E74C3C', cursor: 'pointer' }}
+                >
+                  Sign out
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
 
         {showSignOutConfirm && (
           <div className="modal-overlay">
@@ -179,7 +245,7 @@ export default function Profile({ user, profile = {}, onUpdateProfile = () => {}
               <p style={{ margin: '0 0 20px', color: '#666', fontSize: 14 }}>You'll need to sign back in to join events or create groups.</p>
               <div style={{ display: 'flex', gap: 8 }}>
                 <button className="nav-btn" style={{ flex: 1 }} onClick={() => setShowSignOutConfirm(false)}>Cancel</button>
-                <button className="join" style={{ flex: 1, borderRadius: 10 }} onClick={() => { setShowSignOutConfirm(false); onSignOut(); }}>Sign out</button>
+                <button className="join" style={{ flex: 1, borderRadius: 10 }} onClick={() => { setShowSignOutConfirm(false); setShowSettings(false); onSignOut(); }}>Sign out</button>
               </div>
             </div>
           </div>
@@ -265,7 +331,7 @@ export default function Profile({ user, profile = {}, onUpdateProfile = () => {}
                 {friendNotifCount}
               </span>
             )}
-            <span style={{ fontSize: 11, color: '#999', transition: 'transform 200ms', display: 'inline-block', transform: showFriendsPanel ? 'rotate(180deg)' : 'rotate(0deg)' }}>▼</span>
+            <span style={{ fontSize: 11, color: 'var(--purple)', transition: 'transform 200ms', display: 'inline-block', transform: showFriendsPanel ? 'rotate(180deg)' : 'rotate(0deg)' }}>▼</span>
           </h3>
         </div>
         {showFriendsPanel && (
@@ -277,7 +343,18 @@ export default function Profile({ user, profile = {}, onUpdateProfile = () => {}
 
       <section style={{ marginTop: 12, overflow: 'hidden' }}>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-          <h3 style={{ margin: '6px 0' }}>Upcoming</h3>
+          <h3
+            style={{ margin: '6px 0', cursor: events.length > 3 ? 'pointer' : undefined, display: 'flex', alignItems: 'center', gap: 6 }}
+            onClick={() => events.length > 3 && setShowAllEvents(s => !s)}
+          >
+            Upcoming
+            {events.length > 3 && (
+              <span style={{ display: 'inline-flex', alignItems: 'center', gap: 3, color: 'var(--purple)', fontSize: 11, fontWeight: 600 }}>
+                {!showAllEvents && `+${events.length - 3}`}
+                <span style={{ transition: 'transform 200ms', display: 'inline-block', transform: showAllEvents ? 'rotate(180deg)' : 'rotate(0deg)' }}>▼</span>
+              </span>
+            )}
+          </h3>
           <button className="add-btn" onClick={() => setShowForm((s) => !s)}>+</button>
         </div>
 
@@ -293,7 +370,7 @@ export default function Profile({ user, profile = {}, onUpdateProfile = () => {}
                   <label style={{ fontSize: 13, color: '#888', display: 'block', marginBottom: 4 }}>Event name</label>
                   <input className="text-input" value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} placeholder="Event name" autoFocus />
                 </div>
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+                <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr 2fr', gap: 10 }}>
                   <div>
                     <label style={{ fontSize: 13, color: '#888', display: 'block', marginBottom: 4 }}>Month</label>
                     <select className="text-input" value={form.month} onChange={(e) => setForm({ ...form, month: e.target.value })}>
@@ -316,14 +393,38 @@ export default function Profile({ user, profile = {}, onUpdateProfile = () => {}
                     <label style={{ fontSize: 13, color: '#888', display: 'block', marginBottom: 4 }}>Day</label>
                     <input className="text-input" type="number" min="1" max="31" value={form.day} onChange={(e) => setForm({ ...form, day: e.target.value })} placeholder="1–31" />
                   </div>
-                </div>
-                <div>
-                  <label style={{ fontSize: 13, color: '#888', display: 'block', marginBottom: 4 }}>Time <span style={{ color: '#aaa' }}>(optional)</span></label>
-                  <input className="text-input" type="time" value={form.time} onChange={(e) => setForm({ ...form, time: e.target.value })} />
+                  <div>
+                    <label style={{ fontSize: 13, color: '#888', display: 'block', marginBottom: 4 }}>Time <span style={{ color: '#aaa' }}>(opt)</span></label>
+                    <input className="text-input" type="time" value={form.time} onChange={(e) => setForm({ ...form, time: e.target.value })} />
+                  </div>
                 </div>
                 <div>
                   <label style={{ fontSize: 13, color: '#888', display: 'block', marginBottom: 4 }}>Location</label>
-                  <input className="text-input" value={form.location} onChange={(e) => setForm({ ...form, location: e.target.value })} placeholder="Location" />
+                  <input className="text-input" value={form.location} onChange={(e) => setForm({ ...form, location: e.target.value })} placeholder="Venue or address" />
+                </div>
+                <div style={{ position: 'relative' }}>
+                  <label style={{ fontSize: 13, color: '#888', display: 'block', marginBottom: 4 }}>City <span style={{ color: '#aaa' }}>(optional)</span></label>
+                  <input
+                    className="text-input"
+                    value={form.city}
+                    onChange={(e) => { setForm({ ...form, city: e.target.value }); setShowCitySuggestions(true); }}
+                    onFocus={() => setShowCitySuggestions(true)}
+                    onBlur={() => setTimeout(() => setShowCitySuggestions(false), 150)}
+                    placeholder="Search city..."
+                  />
+                  {showCitySuggestions && form.city.length >= 1 && (() => {
+                    const matches = CITIES.filter(c => c.toLowerCase().includes(form.city.toLowerCase())).slice(0, 6);
+                    return matches.length > 0 ? (
+                      <div style={{ position: 'absolute', top: '100%', left: 0, right: 0, background: '#fff', border: '1px solid #EEE', borderRadius: 8, zIndex: 200, maxHeight: 180, overflowY: 'auto', boxShadow: '0 4px 12px rgba(0,0,0,0.1)' }}>
+                        {matches.map(city => (
+                          <div key={city} onMouseDown={() => { setForm(f => ({ ...f, city })); setShowCitySuggestions(false); }}
+                            style={{ padding: '8px 12px', cursor: 'pointer', fontSize: 13, borderBottom: '1px solid #F5F5F5' }}>
+                            {city}
+                          </div>
+                        ))}
+                      </div>
+                    ) : null;
+                  })()}
                 </div>
                 <button type="submit" className="join" style={{ marginTop: 4, width: '100%', padding: '12px', fontSize: 15 }}>Add Event</button>
               </form>
@@ -332,16 +433,17 @@ export default function Profile({ user, profile = {}, onUpdateProfile = () => {}
         )}
 
         <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginTop: 8 }}>
-          {events.map((ev) => (
+          {(showAllEvents ? events : events.slice(0, 3)).map((ev) => (
             <div key={ev.id} className="card event-card" onClick={() => openEvent(ev)}>
               <button className="delete-btn" aria-label="Delete event" onClick={(e) => { e.stopPropagation(); setDeleteTarget(ev.id); setShowConfirm(true); }}>
                 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="14" height="14" fill="currentColor"><path d="M18.3 5.71a1 1 0 0 0-1.41 0L12 10.59 7.11 5.7A1 1 0 0 0 5.7 7.11L10.59 12l-4.9 4.89a1 1 0 1 0 1.41 1.41L12 13.41l4.89 4.9a1 1 0 0 0 1.41-1.41L13.41 12l4.9-4.89a1 1 0 0 0 0-1.4z"/></svg>
               </button>
-              <div style={{ fontWeight: 700 }}>{ev.title}</div>
-              <div style={{ color: '#666', fontSize: 13 }}>
-                {ev.dateISO ? (
-                  ev.showTime ? new Date(ev.dateISO).toLocaleString(undefined, { weekday: 'short', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' }) : new Date(ev.dateISO).toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' })
-                ) : 'Date TBD'} · {ev.location}
+              <div style={{ fontWeight: 700, fontSize: 14, textAlign: 'left' }}>{ev.title}</div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 4 }}>
+                <span style={{ fontSize: 12, color: '#aaa' }}>{[ev.location, ev.city].filter(Boolean).join(', ')}</span>
+                <span style={{ fontSize: 12, color: '#888', flexShrink: 0 }}>
+                  {ev.dateISO ? (ev.showTime ? new Date(ev.dateISO).toLocaleString(undefined, { weekday: 'short', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' }) : new Date(ev.dateISO).toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' })) : 'Date TBD'}
+                </span>
               </div>
             </div>
           ))}

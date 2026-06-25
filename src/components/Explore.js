@@ -2,14 +2,25 @@ import React, { useState, useMemo } from 'react';
 import EventCard from './EventCard';
 import './HomeFeed.css';
 
-export default function Explore({ events = [], onNavigate = () => {}, onOpenEvent = () => {} }) {
+export default function Explore({ events = [], onNavigate = () => {}, onOpenEvent = () => {}, onUpdateEvent = () => {}, user = null, onAuthRequired = () => {} }) {
   const [q, setQ] = useState('');
+
+  function handleJoin(event) {
+    if (!user) { onAuthRequired('Sign in to join this event'); return; }
+    const name = localStorage.getItem('rally_name') || localStorage.getItem('rally_username') || '';
+    const initials = (name || 'You').split(' ').map(s => s[0]).slice(0, 2).join('').toUpperCase();
+    const exists = (event.attendees || []).some(a => a.name === name);
+    const attendees = exists
+      ? (event.attendees || []).filter(a => a.name !== name)
+      : [{ name, initials, color: '#FFFFFF' }, ...(event.attendees || [])];
+    onUpdateEvent({ ...event, attendees });
+  }
 
   const categories = [
     { label: 'Music', color: 'var(--purple)' },
     { label: 'Food', color: 'var(--pink)' },
     { label: 'Outdoors', color: 'var(--teal)' },
-    { label: 'Campus', color: 'var(--amber)' },
+    { label: 'On Campus', color: 'var(--amber)' },
     { label: 'Casual', color: '#667EEA' },
   ];
 
@@ -40,8 +51,8 @@ export default function Explore({ events = [], onNavigate = () => {}, onOpenEven
       <section style={{ marginTop: 8 }}>
         <h3 style={{ margin: '6px 0' }}>Trending</h3>
         <div className="cards">
-          {results.slice(0,3).map(ev => (
-            <EventCard key={`t-${ev.id}`} event={ev} onOpenDetails={onOpenEvent} />
+          {results.slice(0, 3).map(ev => (
+            <EventCard key={`t-${ev.id}`} event={ev} onJoin={handleJoin} currentUserName={localStorage.getItem('rally_name') || localStorage.getItem('rally_username') || ''} onOpenDetails={onOpenEvent} />
           ))}
         </div>
       </section>
@@ -49,8 +60,8 @@ export default function Explore({ events = [], onNavigate = () => {}, onOpenEven
       <section style={{ marginTop: 14 }}>
         <h3 style={{ margin: '6px 0' }}>Nearby</h3>
         <div className="cards">
-          {results.slice(0,5).map(ev => (
-            <EventCard key={`n-${ev.id}`} event={ev} onOpenDetails={onOpenEvent} />
+          {results.slice(3, 8).map(ev => (
+            <EventCard key={`n-${ev.id}`} event={ev} onJoin={handleJoin} currentUserName={localStorage.getItem('rally_name') || localStorage.getItem('rally_username') || ''} onOpenDetails={onOpenEvent} />
           ))}
         </div>
       </section>

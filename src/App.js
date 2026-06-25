@@ -73,7 +73,8 @@ function App() {
       if (!mounted) return;
       if (rows && rows.length > 0) {
         // Supabase is authoritative once it has data
-        setEvents(rows.map(r => ({ id: r.id, title: r.title, dateISO: r.date_iso || r.dateISO, showTime: r.show_time ?? r.showTime ?? true, location: r.location, attendees: r.attendees || [], personal: r.personal ?? false })));
+        const fallbackHost = localStorage.getItem('rally_username') || localStorage.getItem('rally_name') || '';
+        setEvents(rows.map(r => ({ id: r.id, title: r.title, dateISO: r.date_iso || r.dateISO, showTime: r.show_time ?? r.showTime ?? true, location: r.location, city: r.city || '', host: r.host || (r.personal ? undefined : fallbackHost), attendees: r.attendees || [], personal: r.personal ?? false })));
       } else {
         // Supabase empty — migrate any localStorage events up
         const local = (() => { try { return JSON.parse(localStorage.getItem('rally_events') || '[]'); } catch(e) { return []; } })();
@@ -188,7 +189,8 @@ function App() {
 
   const addEvent = useCallback(async (evt) => {
     // optimistic add locally
-    const temp = { ...evt, id: Date.now() };
+    const hostName = localStorage.getItem('rally_username') || localStorage.getItem('rally_name') || 'Unknown';
+    const temp = { ...evt, id: Date.now(), host: evt.personal ? undefined : (evt.host || hostName) };
     setEvents(s => {
       const merged = [temp, ...s];
       merged.sort((a,b)=> new Date(a.dateISO||0)-new Date(b.dateISO||0));
@@ -196,9 +198,9 @@ function App() {
     });
 
     if (isSupabaseConfigured()){
-      const created = await sbInsertEvent({ title: evt.title, date_iso: evt.dateISO, show_time: evt.showTime, location: evt.location, attendees: evt.attendees || [], personal: evt.personal ?? false });
+      const created = await sbInsertEvent({ title: evt.title, date_iso: evt.dateISO, show_time: evt.showTime, location: evt.location, city: evt.city || '', host: evt.host || '', attendees: evt.attendees || [], personal: evt.personal ?? false });
       if (created) {
-        setEvents(s => s.map(x => x.id === temp.id ? ({ id: created.id, title: created.title, dateISO: created.date_iso || created.dateISO, showTime: created.show_time ?? created.showTime, location: created.location, attendees: created.attendees || [], personal: created.personal ?? false }) : x));
+        setEvents(s => s.map(x => x.id === temp.id ? ({ id: created.id, title: created.title, dateISO: created.date_iso || created.dateISO, showTime: created.show_time ?? created.showTime, location: created.location, city: evt.city || '', host: evt.host || '', attendees: created.attendees || [], personal: created.personal ?? false }) : x));
       }
     }
   }, []);
@@ -264,18 +266,6 @@ function App() {
 
   return (
     <div className={`App${darkMode ? ' dark-theme' : ''}`}>
-      {/* TEMPORARY dark mode preview toggle — remove before shipping */}
-      <button
-        onClick={() => setDarkMode(d => !d)}
-        style={{
-          position: 'fixed', top: 10, right: 'calc(50% - 248px)', zIndex: 99999,
-          background: darkMode ? '#9D8FFF' : '#222', color: '#fff',
-          border: 'none', borderRadius: 8, padding: '6px 12px',
-          fontSize: 12, fontWeight: 700, cursor: 'pointer', opacity: 0.85,
-        }}
-      >
-        {darkMode ? '☀ Light' : '🌙 Dark'}
-      </button>
       {authModalMessage !== null && (
         <AuthModal message={authModalMessage} onClose={() => setAuthModalMessage(null)} />
       )}
@@ -283,10 +273,10 @@ function App() {
         <UsernamePrompt user={user} onComplete={handleUsernameChosen} />
       )}
       {activeTab === 'home' && (
-        <HomeFeed activeTab={activeTab} onNavigate={setActiveTab} events={events} onAddEvent={addEvent} onUpdateEvent={updateEvent} onDeleteEvent={deleteEvent} onOpenEvent={openEvent} user={user} onAuthRequired={onAuthRequired} />
+        <HomeFeed activeTab={activeTab} onNavigate={setActiveTab} events={events} onAddEvent={addEvent} onUpdateEvent={updateEvent} onDeleteEvent={deleteEvent} onOpenEvent={openEvent} user={user} onAuthRequired={onAuthRequired} groups={groups} onOpenGroup={(id) => { setActiveGroupId(id); setActiveTab('group'); }} />
       )}
       {activeTab === 'explore' && (
-        <Explore activeTab={activeTab} onNavigate={setActiveTab} events={events} onOpenEvent={openEvent} />
+        <Explore activeTab={activeTab} onNavigate={setActiveTab} events={events} onOpenEvent={openEvent} onUpdateEvent={updateEvent} user={user} onAuthRequired={onAuthRequired} />
       )}
       {activeTab === 'groups' && (
         <Groups
@@ -308,10 +298,10 @@ function App() {
         />
       )}
       {activeTab === 'profile' && (
-        <Profile user={user} profile={profile} onUpdateProfile={handleUpdateProfile} activeTab={activeTab} onNavigate={setActiveTab} onOpenGroup={(id) => { setActiveGroupId(id); setActiveTab('group'); }} events={events} onAddEvent={addEvent} onUpdateEvent={updateEvent} onDeleteEvent={deleteEvent} onSignOut={() => { signOut(); setUser(null); }} onAuthRequired={onAuthRequired} />
+        <Profile user={user} profile={profile} onUpdateProfile={handleUpdateProfile} activeTab={activeTab} onNavigate={setActiveTab} onOpenGroup={(id) => { setActiveGroupId(id); setActiveTab('group'); }} events={events} onAddEvent={addEvent} onUpdateEvent={updateEvent} onDeleteEvent={deleteEvent} onSignOut={() => { signOut(); setUser(null); }} onAuthRequired={onAuthRequired} darkMode={darkMode} onToggleDark={() => setDarkMode(d => !d)} />
       )}
       {activeTab === 'post' && (
-        <Create activeTab={activeTab} onNavigate={setActiveTab} onCreateGroup={openCreateGroup} user={user} onAuthRequired={onAuthRequired} />
+        <Create activeTab={activeTab} onNavigate={setActiveTab} onCreateGroup={openCreateGroup} onAddEvent={addEvent} user={user} onAuthRequired={onAuthRequired} />
       )}
       {activeTab === 'group' && (activeGroupId || previewGroup) && (
         <GroupDetails
