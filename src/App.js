@@ -104,15 +104,23 @@ function App() {
         setGroups(rows);
       } else {
         const local = (() => { try { return JSON.parse(localStorage.getItem('rally_groups') || '[]'); } catch(e) { return []; } })();
-        if (local.length > 0) {
+        // Only migrate groups that don't already have a real UUID — those already exist in Supabase
+        // and re-inserting them would create clones with different IDs (breaking group chat)
+        const isUUID = id => typeof id === 'string' && /^[0-9a-f]{8}-[0-9a-f]{4}-/.test(id);
+        const toMigrate = local.filter(g => !isUUID(g.id));
+        if (toMigrate.length > 0) {
           const uploaded = await Promise.all(
-            local.map(g => sbInsertGroup({
+            toMigrate.map(g => sbInsertGroup({
               ...g,
               members: (g.members || []).map(m => m.role === 'admin' ? { ...m, user_id: user.id } : m),
             }))
           );
           const migrated = uploaded.filter(Boolean);
           if (mounted && migrated.length > 0) setGroups(migrated);
+        } else if (local.length > 0) {
+          // UUID groups exist locally but Supabase returned empty — likely a transient auth
+          // race condition. Keep local state; Supabase will be in sync on next load.
+          setGroups(local);
         }
       }
     }
