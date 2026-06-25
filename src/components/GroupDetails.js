@@ -145,18 +145,19 @@ export default function GroupDetails({
   return (
     <main className="feed-root" style={{ overflowY: 'auto' }}>
       {/* Header */}
-      <header style={{ display: 'flex', alignItems: 'flex-start', gap: 12, marginBottom: 16 }}>
+      <header style={{ position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: 16, minHeight: 40 }}>
         <button
           onClick={onBack}
           style={{
+            position: 'absolute', left: 0,
             background: 'rgba(83,74,183,0.1)', border: 'none', borderRadius: 10,
-            padding: '8px 12px', color: 'var(--purple)', fontWeight: 700, cursor: 'pointer', flexShrink: 0, marginTop: 2,
+            padding: '8px 12px', color: 'var(--purple)', fontWeight: 700, cursor: 'pointer',
           }}
         >
           ← Back
         </button>
-        <div style={{ flex: 1, minWidth: 0 }}>
-          <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: 6 }}>
+        <div style={{ textAlign: 'center' }}>
+          <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', justifyContent: 'center', marginBottom: 6 }}>
             <span className="category-pill" style={{ background: bg, color }}>{TYPE_LABELS[type]}</span>
             {isPreview && (
               <span className="category-pill" style={{ background: 'var(--light-amber)', color: 'var(--amber)' }}>Preview</span>
@@ -165,7 +166,7 @@ export default function GroupDetails({
               <span className="category-pill" style={{ background: '#F5F5F5', color: '#777' }}>{privacy === 'private' ? 'Private' : 'Friends Only'}</span>
             )}
           </div>
-          <h2 style={{ margin: 0, fontSize: 22, color: '#111', lineHeight: 1.2, textAlign: 'center' }}>{name}</h2>
+          <h2 style={{ margin: 0, fontSize: 22, color: '#111', lineHeight: 1.2 }}>{name}</h2>
         </div>
       </header>
 
@@ -322,13 +323,26 @@ export default function GroupDetails({
         </section>
       )}
 
+      {isAdmin && onDeleteGroup && (
+        <button
+          onClick={() => setShowDeleteConfirm(true)}
+          style={{
+            width: '100%', padding: '12px', borderRadius: 12, marginBottom: 12,
+            background: 'none', border: '1.5px solid #E74C3C', color: '#E74C3C',
+            fontWeight: 700, fontSize: 15, cursor: 'pointer',
+          }}
+        >
+          Delete group
+        </button>
+      )}
+
       {/* Group chat */}
       {!isPreview && (
         <>
           <div
             className="group-chat-panel group-chat-preview"
             onClick={onOpenChat}
-            style={{ marginBottom: 12 }}
+            style={{ marginBottom: 12, flex: 'none' }}
           >
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
               <h3>💬 Group chat</h3>
@@ -350,23 +364,10 @@ export default function GroupDetails({
               <div style={{ marginTop: 8, color: '#888', fontSize: 13 }}>No messages yet. Tap to open chat.</div>
             )}
           </div>
-          <button className="join" onClick={onOpenChat} style={{ width: '100%', padding: '12px', borderRadius: 12, marginBottom: 12, display: 'block', fontSize: 15 }}>
+          <button className="join" onClick={onOpenChat} style={{ width: '100%', padding: '12px', borderRadius: 12, marginBottom: 20, display: 'block', fontSize: 15 }}>
             Open group chat
           </button>
         </>
-      )}
-
-      {isAdmin && onDeleteGroup && (
-        <button
-          onClick={() => setShowDeleteConfirm(true)}
-          style={{
-            width: '100%', padding: '12px', borderRadius: 12, marginBottom: 12,
-            background: 'none', border: '1.5px solid #E74C3C', color: '#E74C3C',
-            fontWeight: 700, fontSize: 15, cursor: 'pointer',
-          }}
-        >
-          Delete group
-        </button>
       )}
 
       {showDeleteConfirm && (
