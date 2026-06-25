@@ -94,33 +94,51 @@ export default function GroupChat({ activeTab = 'group-chat', onNavigate = () =>
         </header>
 
         {/* Message thread */}
-        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 10, paddingBottom: 8 }}>
+        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 8, paddingBottom: 8 }}>
           {messages.length === 0 ? (
             <div style={{ textAlign: 'center', color: '#aaa', fontSize: 14, marginTop: 32 }}>
               No messages yet. Say hello!
             </div>
           ) : (
-            messages.map((msg) => {
-              const isMe = msg.userId === user?.id;
-              return (
-                <div key={msg.id} style={{ display: 'flex', flexDirection: 'column', alignItems: isMe ? 'flex-end' : 'flex-start' }}>
-                  {!isMe && (
-                    <span style={{ fontSize: 11, fontWeight: 700, color: '#555', marginBottom: 3, marginLeft: 4 }}>{msg.sender}</span>
-                  )}
-                  <div style={{
-                    maxWidth: '75%', padding: '10px 14px', borderRadius: isMe ? '18px 18px 4px 18px' : '18px 18px 18px 4px',
-                    background: isMe ? 'var(--purple)' : '#fff',
-                    color: isMe ? '#fff' : '#111',
-                    border: isMe ? 'none' : '1px solid #e8e8ee',
-                    fontSize: 14, lineHeight: 1.4,
-                    boxShadow: '0 2px 8px rgba(0,0,0,0.06)',
+            (() => {
+              // Pre-group consecutive messages from same user within 2 minutes
+              const groups = [];
+              messages.forEach((msg) => {
+                const last = groups[groups.length - 1];
+                const lastMsg = last?.[last.length - 1];
+                const isContinuation = lastMsg &&
+                  lastMsg.userId === msg.userId &&
+                  msg.createdAt && lastMsg.createdAt &&
+                  (new Date(msg.createdAt) - new Date(lastMsg.createdAt)) < 2 * 60 * 1000;
+                if (isContinuation) last.push(msg);
+                else groups.push([msg]);
+              });
+
+              return groups.map((group) => {
+                const isMe = group[0].userId === user?.id;
+                const lastMsg = group[group.length - 1];
+                return (
+                  <div key={group[0].id} style={{
+                    display: 'flex',
+                    flexDirection: 'column',
+                    alignSelf: isMe ? 'flex-end' : 'flex-start',
+                    alignItems: isMe ? 'flex-end' : 'flex-start',
+                    border: `1.5px solid ${isMe ? 'var(--purple)' : '#CCC'}`,
+                    borderRadius: 8,
+                    padding: '4px 8px',
+                    maxWidth: '85%',
                   }}>
-                    {msg.text}
+                    <span style={{ fontSize: 12, fontWeight: 700, color: 'var(--purple)', marginBottom: 2 }}>{isMe ? 'Me' : group[0].sender}</span>
+                    {group.map((msg) => (
+                      <div key={msg.id} style={{ fontSize: 14, lineHeight: 1.5, color: '#111' }}>
+                        {msg.text}
+                      </div>
+                    ))}
+                    <span style={{ fontSize: 10, color: '#bbb', marginTop: 2 }}>{lastMsg.time}</span>
                   </div>
-                  <span style={{ fontSize: 10, color: '#bbb', marginTop: 3, marginLeft: 4, marginRight: 4 }}>{msg.time}</span>
-                </div>
-              );
-            })
+                );
+              });
+            })()
           )}
           <div ref={bottomRef} />
         </div>

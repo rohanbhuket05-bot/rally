@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { getFriendships, searchUsersByUsername, sendGroupInvite, getOutgoingGroupInvites, isSupabaseConfigured } from '../lib/supabaseClient';
+import { getFriendships, searchUsersByUsername, sendGroupInvite, getOutgoingGroupInvites, isSupabaseConfigured, getGroupMessages, subscribeToGroupMessages } from '../lib/supabaseClient';
 import './HomeFeed.css';
 
 const TYPE_LABELS = { club: 'Club / Org', friend: 'Friend Group', event: 'Event Rally' };
@@ -48,6 +48,7 @@ export default function GroupDetails({
 }) {
   const [showInvite, setShowInvite] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [lastReadCount, setLastReadCount] = useState(0);
   const [friends, setFriends] = useState([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [searchResults, setSearchResults] = useState([]);
@@ -60,6 +61,27 @@ export default function GroupDetails({
   useEffect(() => {
     if (user) getFriendships(user.id).then(setFriends);
   }, [user]);
+
+  // Load last-read count from localStorage when group changes
+  useEffect(() => {
+    if (!group?.id) return;
+    setLastReadCount(parseInt(localStorage.getItem(`rally_chat_read_${group.id}`) || '0'));
+  }, [group?.id]);
+
+  // Fetch messages + subscribe for real-time new-message count
+  const [liveMessages, setLiveMessages] = useState(messages);
+  useEffect(() => {
+    if (!group?.id || !isSupabaseConfigured()) return;
+    let cancelled = false;
+    getGroupMessages(group.id).then(msgs => { if (!cancelled) setLiveMessages(msgs); });
+    const interval = setInterval(() => {
+      getGroupMessages(group.id).then(msgs => { if (!cancelled) setLiveMessages(msgs); });
+    }, 5000);
+    const unsub = subscribeToGroupMessages(group.id, msg => {
+      if (!cancelled) setLiveMessages(prev => [...prev, msg]);
+    });
+    return () => { cancelled = true; clearInterval(interval); unsub(); };
+  }, [group?.id]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Load outgoing invites when invite panel opens
   useEffect(() => {
@@ -130,6 +152,12 @@ export default function GroupDetails({
     setInviting(s => { const next = new Set(s); next.delete(profileId); return next; });
   }
 
+  function handleOpenChat() {
+    localStorage.setItem(`rally_chat_read_${group.id}`, String(liveMessages.length));
+    setLastReadCount(liveMessages.length);
+    onOpenChat();
+  }
+
   function handleRemoveMember(memberName) {
     if (!isAdmin) return;
     const updated = { ...group, members: members.filter(m => m.name !== memberName) };
@@ -156,6 +184,17 @@ export default function GroupDetails({
         >
           ← Back
         </button>
+        {isAdmin && onDeleteGroup && (
+          <button
+            onClick={() => setShowDeleteConfirm(true)}
+            style={{ position: 'absolute', right: 6, top: '50%', transform: 'translateY(calc(-50% + 15px))', background: '#F0F0F0', border: 'none', borderRadius: 8, cursor: 'pointer', padding: 6, color: '#E74C3C', display: 'flex', alignItems: 'center' }}
+            aria-label="Delete group"
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="currentColor">
+              <path d="M9 3v1H4v2h16V4h-5V3H9zm-2 4l1 13h8l1-13H7zm2 2h2l.5 9H9.5L9 9zm4 0h2l-.5 9h-2L13 9z"/>
+            </svg>
+          </button>
+        )}
         <div style={{ textAlign: 'center' }}>
           <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', justifyContent: 'center', marginBottom: 6 }}>
             <span className="category-pill" style={{ background: bg, color }}>{TYPE_LABELS[type]}</span>
@@ -166,20 +205,7 @@ export default function GroupDetails({
               <span className="category-pill" style={{ background: '#F5F5F5', color: '#777' }}>{privacy === 'private' ? 'Private' : 'Friends Only'}</span>
             )}
           </div>
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
-            <h2 style={{ margin: 0, fontSize: 22, color: '#111', lineHeight: 1.2 }}>{name}</h2>
-            {isAdmin && onDeleteGroup && (
-              <button
-                onClick={() => setShowDeleteConfirm(true)}
-                style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 4, color: '#E74C3C', display: 'flex', alignItems: 'center', flexShrink: 0 }}
-                aria-label="Delete group"
-              >
-                <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
-                  <path d="M9 3v1H4v2h16V4h-5V3H9zm-2 4l1 13h8l1-13H7zm2 2h2l.5 9H9.5L9 9zm4 0h2l-.5 9h-2L13 9z"/>
-                </svg>
-              </button>
-            )}
-          </div>
+          <h2 style={{ margin: 0, fontSize: 22, color: '#111', lineHeight: 1.2 }}>{name}</h2>
         </div>
       </header>
 
@@ -341,30 +367,55 @@ export default function GroupDetails({
         <>
           <div
             className="group-chat-panel group-chat-preview"
-            onClick={onOpenChat}
+            onClick={handleOpenChat}
             style={{ marginBottom: 12 }}
           >
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
               <h3>💬 Group chat</h3>
-              <span className="category-pill" style={{ background: 'var(--light-teal)', color: 'var(--teal)' }}>{messages.length} messages</span>
+              {(() => {
+                const newCount = Math.max(0, liveMessages.length - lastReadCount);
+                return newCount > 0
+                  ? <span className="category-pill" style={{ background: 'var(--light-pink)', color: 'var(--pink)' }}>{newCount} new</span>
+                  : <span className="category-pill" style={{ background: '#F0F0F0', color: '#999' }}>up to date</span>;
+              })()}
             </div>
-            {messages.length > 0 ? (
-              <div className="message-thread" style={{ marginTop: 12 }}>
-                {messages.slice(-2).map((msg) => (
-                  <div key={msg.id} className={`message-bubble ${msg.me ? 'me' : ''}`}>
-                    <div style={{ display: 'flex', gap: 8, marginBottom: 4, alignItems: 'center' }}>
-                      <span style={{ fontWeight: 700, fontSize: 13 }}>{msg.sender}</span>
-                      <span style={{ color: '#999', fontSize: 11 }}>{msg.time}</span>
-                    </div>
-                    <div>{msg.text}</div>
-                  </div>
-                ))}
+            {liveMessages.length > 0 ? (
+              <div style={{ marginTop: 12, display: 'flex', flexDirection: 'column', gap: 5 }}>
+                {(() => {
+                  const recent = liveMessages.slice(-5);
+                  const groups = [];
+                  recent.forEach((msg) => {
+                    const last = groups[groups.length - 1];
+                    const lastMsg = last?.[last.length - 1];
+                    const isCont = lastMsg &&
+                      lastMsg.userId === msg.userId &&
+                      msg.createdAt && lastMsg.createdAt &&
+                      (new Date(msg.createdAt) - new Date(lastMsg.createdAt)) < 2 * 60 * 1000;
+                    if (isCont) last.push(msg);
+                    else groups.push([msg]);
+                  });
+                  return groups.map((group) => {
+                    const isMe = user && group[0].userId === user.id;
+                    const lastMsg = group[group.length - 1];
+                    return (
+                      <div key={group[0].id} style={{ border: `1.5px solid ${isMe ? 'var(--purple)' : '#CCC'}`, borderRadius: 8, padding: '4px 8px', alignSelf: 'flex-start', maxWidth: '90%' }}>
+                        {group.map((msg, i) => (
+                          <div key={msg.id} style={{ fontSize: 13, padding: '1px 0', display: 'flex', gap: 6, alignItems: 'baseline', overflow: 'hidden' }}>
+                            <span style={{ fontWeight: 700, flexShrink: 0, visibility: i === 0 ? 'visible' : 'hidden' }}>{isMe ? 'Me' : group[0].sender}</span>
+                            <span style={{ color: '#555', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{msg.text}</span>
+                            {msg === lastMsg && <span style={{ color: '#bbb', fontSize: 11, flexShrink: 0 }}>{msg.time}</span>}
+                          </div>
+                        ))}
+                      </div>
+                    );
+                  });
+                })()}
               </div>
             ) : (
               <div style={{ marginTop: 8, color: '#888', fontSize: 13 }}>No messages yet. Tap to open chat.</div>
             )}
           </div>
-          <button className="join" onClick={onOpenChat} style={{ width: '100%', padding: '12px', borderRadius: 12, marginBottom: 20, display: 'block', fontSize: 15 }}>
+          <button className="join" onClick={handleOpenChat} style={{ width: '100%', padding: '12px', borderRadius: 12, marginBottom: 20, display: 'block', fontSize: 15 }}>
             Open group chat
           </button>
         </>

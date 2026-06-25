@@ -148,7 +148,7 @@ export default function FriendsPanel({ user }) {
                 <div style={{ fontSize: 12, color: '#888' }}>@{req.requester?.username}</div>
               </div>
               <button className="join" style={{ borderRadius: 8, padding: '6px 12px', fontSize: 13 }} onClick={() => handleAccept(req.id)}>Accept</button>
-              <button className="nav-btn" style={{ borderRadius: 8, padding: '6px 12px', fontSize: 13 }} onClick={() => handleDecline(req.id)}>Decline</button>
+              <button style={{ borderRadius: 8, padding: '6px 12px', fontSize: 13, background: 'none', border: '1px solid #DDD', color: '#666', fontWeight: 600, cursor: 'pointer' }} onClick={() => handleDecline(req.id)}>Decline</button>
             </div>
           ))}
         </div>
@@ -169,7 +169,7 @@ export default function FriendsPanel({ user }) {
               <div style={{ fontWeight: 700, fontSize: 13 }}>{f.other?.name || f.other?.username}</div>
               <div style={{ fontSize: 11, color: '#888' }}>@{f.other?.username}</div>
             </div>
-            <button className="nav-btn" style={{ borderRadius: 8, padding: '4px 10px', fontSize: 11, color: '#999' }} onClick={() => handleRemove(f.id)}>Remove</button>
+            <button style={{ borderRadius: 8, padding: '4px 10px', fontSize: 11, color: '#999', background: 'none', border: '1px solid #DDD', fontWeight: 600, cursor: 'pointer' }} onClick={() => handleRemove(f.id)}>Remove</button>
           </div>
         ))}
       </div>
@@ -185,7 +185,7 @@ export default function FriendsPanel({ user }) {
                 <div style={{ fontWeight: 700, fontSize: 14 }}>{req.addressee?.name || req.addressee?.username}</div>
                 <div style={{ fontSize: 12, color: '#888' }}>@{req.addressee?.username}</div>
               </div>
-              <button className="nav-btn" style={{ borderRadius: 8, padding: '6px 12px', fontSize: 12, color: '#999' }} onClick={() => handleDecline(req.id)}>Cancel</button>
+              <button style={{ borderRadius: 8, padding: '6px 12px', fontSize: 12, color: '#999', background: 'none', border: '1px solid #DDD', fontWeight: 600, cursor: 'pointer' }} onClick={() => handleDecline(req.id)}>Cancel</button>
             </div>
           ))}
         </div>
