@@ -186,6 +186,9 @@ export default function Profile({ user, profile = {}, onUpdateProfile = () => {}
         )}
       </header>
 
+      {/* Scrollable content — everything below the top header */}
+      <div style={{ flex: 1, overflowY: 'auto', minHeight: 0, paddingBottom: 'calc(var(--bottom-nav-height) + 16px)' }}>
+
       <section className="card" style={{ textAlign: 'center' }}>
         <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 12 }}>
           <div style={{ width: 96, height: 96, borderRadius: 48, background: 'linear-gradient(180deg,var(--light-purple),#fff)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 36, color: 'var(--purple)', fontWeight: 800 }}>
@@ -247,8 +250,6 @@ export default function Profile({ user, profile = {}, onUpdateProfile = () => {}
         )}
       </section>
 
-      {/* Scrollable content — everything below the profile card */}
-      <div style={{ flex: 1, overflowY: 'auto', minHeight: 0, paddingBottom: 'calc(var(--bottom-nav-height) + 16px)' }}>
 
       <section style={{ marginTop: 14 }}>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
