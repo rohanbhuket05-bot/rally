@@ -217,7 +217,7 @@ function GroupRow({ group, user, onOpen, onLeave }) {
         style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12, cursor: 'pointer' }}
         onClick={onOpen}
       >
-        <div style={{ flex: 1, minWidth: 0 }}>
+        <div style={{ flex: 1, minWidth: 0, textAlign: 'left' }}>
           <div style={{ fontWeight: 700, fontSize: 15, marginBottom: 4 }}>{name}</div>
           {description && <div style={{ color: '#666', fontSize: 13, marginBottom: 6, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{description}</div>}
           {eventTitle && <div style={{ color: 'var(--teal)', fontSize: 12, fontWeight: 600, marginBottom: 4 }}>🎯 {eventTitle}</div>}
