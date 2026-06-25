@@ -145,6 +145,9 @@ export async function deleteGroup(id) {
       (group.members || []).some(m => m.user_id === user.id && m.role === 'admin');
     if (!isAdmin) throw new Error('Only group admins can delete a group');
 
+    // Delete pending invites first (in case FK cascade isn't set)
+    await supabase.from('group_invites').delete().eq('group_id', id);
+
     const { error } = await supabase.from('groups').delete().eq('id', id);
     if (error) throw error;
     return true;
