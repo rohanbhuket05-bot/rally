@@ -13,7 +13,7 @@ import CreateGroup from './components/CreateGroup';
 import AuthModal from './components/AuthModal';
 import UsernamePrompt from './components/UsernamePrompt';
 import { groupsData } from './data/groups';
-import { isSupabaseConfigured, signOut, getUser, onAuthStateChange, getEvents as sbGetEvents, insertEvent as sbInsertEvent, updateEvent as sbUpdateEvent, deleteEvent as sbDeleteEvent, getGroups as sbGetGroups, insertGroup as sbInsertGroup, updateGroup as sbUpdateGroup, deleteGroup as sbDeleteGroup, mapGroupRow, getProfile, upsertProfile } from './lib/supabaseClient';
+import { isSupabaseConfigured, signOut, getUser, onAuthStateChange, getEvents as sbGetEvents, insertEvent as sbInsertEvent, updateEvent as sbUpdateEvent, deleteEvent as sbDeleteEvent, getGroups as sbGetGroups, insertGroup as sbInsertGroup, updateGroup as sbUpdateGroup, deleteGroup as sbDeleteGroup, leaveGroup as sbLeaveGroup, mapGroupRow, getProfile, upsertProfile } from './lib/supabaseClient';
 
 function App() {
   const [user, setUser] = useState(null);
@@ -257,6 +257,11 @@ function App() {
     if (isSupabaseConfigured()) sbDeleteGroup(id);
   }, []);
 
+  const handleLeaveGroup = useCallback((id) => {
+    setGroups(s => s.filter(g => g.id !== id));
+    if (isSupabaseConfigured()) sbLeaveGroup(id);
+  }, []);
+
   return (
     <div className={`App${darkMode ? ' dark-theme' : ''}`}>
       {/* TEMPORARY dark mode preview toggle — remove before shipping */}
@@ -290,6 +295,7 @@ function App() {
           groups={groups}
           onOpenGroup={(id) => { setActiveGroupId(id); setActiveTab('group'); }}
           onCreateGroup={openCreateGroup}
+          onLeaveGroup={handleLeaveGroup}
           user={user}
           onAuthRequired={onAuthRequired}
           onGroupJoined={(group) => {

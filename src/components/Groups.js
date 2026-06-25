@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { isSupabaseConfigured, getGroupInvites, acceptGroupInvite, declineGroupInvite } from '../lib/supabaseClient';
+import { isSupabaseConfigured, getGroupInvites, acceptGroupInvite, declineGroupInvite, leaveGroup } from '../lib/supabaseClient';
 import './HomeFeed.css';
 
 const TYPE_COLORS = {
@@ -23,6 +23,7 @@ export default function Groups({
   onCreateGroup = () => {},
   onGroupJoined = () => {},
   onViewGroup = () => {},
+  onLeaveGroup = () => {},
   groups = [],
   user,
 }) {
@@ -156,7 +157,7 @@ export default function Groups({
         <h3 style={{ margin: '6px 0' }}>Your groups</h3>
         <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
           {myGroups.length > 0 ? myGroups.map(g => (
-            <GroupRow key={g.id} group={g} onOpen={() => onOpenGroup(g.id)} />
+            <GroupRow key={g.id} group={g} user={user} onOpen={() => onOpenGroup(g.id)} onLeave={() => onLeaveGroup(g.id)} />
           )) : (
             <div className="card" style={{ color: '#888', fontSize: 14 }}>
               No groups yet. Create one or join a public group below.
@@ -198,27 +199,69 @@ export default function Groups({
   );
 }
 
-function GroupRow({ group, onOpen }) {
+function GroupRow({ group, user, onOpen, onLeave }) {
   const { type = 'club', privacy = 'public', members = [], name, description, eventTitle } = group;
   const { color, bg } = TYPE_COLORS[type] || TYPE_COLORS.club;
+  const [showConfirm, setShowConfirm] = useState(false);
+
+  const isAdmin = user && (
+    group.createdBy === user.id ||
+    members.some(m => m.user_id === user.id && m.role === 'admin')
+  );
+  const isMember = user && members.some(m => m.user_id === user.id);
 
   return (
-    <div
-      className="card"
-      style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12, cursor: 'pointer' }}
-      onClick={onOpen}
-    >
-      <div style={{ flex: 1, minWidth: 0 }}>
-        <div style={{ fontWeight: 700, fontSize: 15, marginBottom: 4 }}>{name}</div>
-        {description && <div style={{ color: '#666', fontSize: 13, marginBottom: 6, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{description}</div>}
-        {eventTitle && <div style={{ color: 'var(--teal)', fontSize: 12, fontWeight: 600, marginBottom: 4 }}>🎯 {eventTitle}</div>}
-        <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', alignItems: 'center' }}>
-          <span className="category-pill" style={{ background: bg, color, fontSize: 11 }}>{TYPE_LABELS[type]}</span>
-          <span style={{ color: '#888', fontSize: 12 }}>{members.length} {members.length === 1 ? 'member' : 'members'}</span>
-          {privacy !== 'public' && <span className="category-pill" style={{ background: '#F5F5F5', color: '#777', fontSize: 11 }}>{privacy === 'private' ? 'Private' : 'Friends Only'}</span>}
+    <>
+      <div
+        className="card"
+        style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12, cursor: 'pointer' }}
+        onClick={onOpen}
+      >
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <div style={{ fontWeight: 700, fontSize: 15, marginBottom: 4 }}>{name}</div>
+          {description && <div style={{ color: '#666', fontSize: 13, marginBottom: 6, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{description}</div>}
+          {eventTitle && <div style={{ color: 'var(--teal)', fontSize: 12, fontWeight: 600, marginBottom: 4 }}>🎯 {eventTitle}</div>}
+          <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', alignItems: 'center' }}>
+            <span className="category-pill" style={{ background: bg, color, fontSize: 11 }}>{TYPE_LABELS[type]}</span>
+            <span style={{ color: '#888', fontSize: 12 }}>{members.length} {members.length === 1 ? 'member' : 'members'}</span>
+            {privacy !== 'public' && <span className="category-pill" style={{ background: '#F5F5F5', color: '#777', fontSize: 11 }}>{privacy === 'private' ? 'Private' : 'Friends Only'}</span>}
+          </div>
+        </div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0 }}>
+          {isMember && !isAdmin && (
+            <button
+              onClick={e => { e.stopPropagation(); setShowConfirm(true); }}
+              style={{ background: 'none', border: '1px solid #E74C3C', color: '#E74C3C', borderRadius: 8, padding: '5px 10px', fontSize: 12, fontWeight: 600, cursor: 'pointer' }}
+            >
+              Leave
+            </button>
+          )}
+          <div style={{ color: '#bbb', fontSize: 18 }}>›</div>
         </div>
       </div>
-      <div style={{ color: '#bbb', fontSize: 18, flexShrink: 0 }}>›</div>
-    </div>
+
+      {showConfirm && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.45)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 9999 }}>
+          <div style={{ background: '#fff', borderRadius: 16, padding: 28, maxWidth: 320, width: '90%', boxShadow: '0 8px 32px rgba(0,0,0,0.18)' }}>
+            <h3 style={{ margin: '0 0 10px', fontSize: 18 }}>Leave "{name}"?</h3>
+            <p style={{ margin: '0 0 20px', fontSize: 14, color: '#555', lineHeight: 1.5 }}>You'll be removed from this group and will need an invite to rejoin.</p>
+            <div style={{ display: 'flex', gap: 10 }}>
+              <button
+                onClick={() => setShowConfirm(false)}
+                style={{ flex: 1, padding: '11px', borderRadius: 10, border: '1.5px solid #ddd', background: '#fff', color: '#444', fontWeight: 600, fontSize: 14, cursor: 'pointer' }}
+              >
+                Cancel
+              </button>
+              <button
+                onClick={() => { setShowConfirm(false); onLeave(); }}
+                style={{ flex: 1, padding: '11px', borderRadius: 10, border: 'none', background: '#E74C3C', color: '#fff', fontWeight: 700, fontSize: 14, cursor: 'pointer' }}
+              >
+                Leave
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </>
   );
 }

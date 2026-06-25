@@ -129,6 +129,24 @@ export async function updateGroup(id, payload) {
   }
 }
 
+export async function leaveGroup(groupId) {
+  try {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) throw new Error('Not authenticated');
+    const { data: group, error: fetchError } = await supabase
+      .from('groups').select('members').eq('id', groupId).single();
+    if (fetchError) throw fetchError;
+    const updatedMembers = (group.members || []).filter(m => m.user_id !== user.id);
+    const { error } = await supabase
+      .from('groups').update({ members: updatedMembers }).eq('id', groupId);
+    if (error) throw error;
+    return true;
+  } catch (e) {
+    console.warn('leaveGroup error', e.message || e);
+    return false;
+  }
+}
+
 export async function deleteGroup(id) {
   try {
     const { data: { user } } = await supabase.auth.getUser();
