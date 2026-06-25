@@ -28,19 +28,24 @@ function App() {
   });
   const [authModalMessage, setAuthModalMessage] = useState(null); // null = hidden, string = shown
   const MAIN_TABS = ['home', 'explore', 'groups', 'profile', 'post'];
+  const PERSISTENT_TABS = [...MAIN_TABS, 'group', 'group-chat'];
   const [activeTab, setActiveTabRaw] = useState(() => {
     const saved = localStorage.getItem('rally_active_tab');
-    return MAIN_TABS.includes(saved) ? saved : 'home';
+    return PERSISTENT_TABS.includes(saved) ? saved : 'home';
   });
   const setActiveTab = useCallback((tabOrFn) => {
     setActiveTabRaw(prev => {
       const next = typeof tabOrFn === 'function' ? tabOrFn(prev) : tabOrFn;
-      if (MAIN_TABS.includes(next)) localStorage.setItem('rally_active_tab', next);
+      if (PERSISTENT_TABS.includes(next)) localStorage.setItem('rally_active_tab', next);
       return next;
     });
   }, []);
   const [previousTab, setPreviousTab] = useState('home');
-  const [activeGroupId, setActiveGroupId] = useState(null);
+  const [activeGroupId, setActiveGroupId] = useState(() => localStorage.getItem('rally_active_group_id') || null);
+  useEffect(() => {
+    if (activeGroupId) localStorage.setItem('rally_active_group_id', activeGroupId);
+    else localStorage.removeItem('rally_active_group_id');
+  }, [activeGroupId]);
   const [activeEventId, setActiveEventId] = useState(null);
   const [createGroupContext, setCreateGroupContext] = useState(null);
   const [events, setEvents] = useState(() => {
