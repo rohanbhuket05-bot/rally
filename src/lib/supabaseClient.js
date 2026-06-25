@@ -131,6 +131,20 @@ export async function updateGroup(id, payload) {
 
 export async function deleteGroup(id) {
   try {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) throw new Error('Not authenticated');
+
+    const { data: group, error: fetchError } = await supabase
+      .from('groups')
+      .select('members, created_by')
+      .eq('id', id)
+      .single();
+    if (fetchError) throw fetchError;
+
+    const isAdmin = group.created_by === user.id ||
+      (group.members || []).some(m => m.user_id === user.id && m.role === 'admin');
+    if (!isAdmin) throw new Error('Only group admins can delete a group');
+
     const { error } = await supabase.from('groups').delete().eq('id', id);
     if (error) throw error;
     return true;

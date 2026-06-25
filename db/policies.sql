@@ -12,6 +12,20 @@ CREATE POLICY "insert_own_events" ON public.events FOR INSERT WITH CHECK (user_i
 -- Allow users to update or delete their own events
 CREATE POLICY "modify_own_events" ON public.events FOR UPDATE, DELETE USING (user_id = auth.uid()) WITH CHECK (user_id = auth.uid());
 
+-- Only group admins (or creator) can delete a group
+ALTER TABLE IF EXISTS public.groups ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "admin_delete_group" ON public.groups
+  FOR DELETE
+  USING (
+    created_by = auth.uid()
+    OR EXISTS (
+      SELECT 1 FROM jsonb_array_elements(members) AS m
+      WHERE (m->>'user_id') = auth.uid()::text
+        AND (m->>'role') = 'admin'
+    )
+  );
+
 -- Create a users row when a new auth user is created
 -- This function runs as SECURITY DEFINER
 CREATE OR REPLACE FUNCTION public.handle_auth_user_created()
