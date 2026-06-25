@@ -457,12 +457,12 @@ export async function getGroupMessages(groupId) {
     const { data, error } = await supabase
       .from('group_messages')
       .select('*')
-      .eq('group_id', groupId)
+      .eq('group_id', String(groupId))
       .order('created_at', { ascending: true });
-    if (error) throw error;
+    if (error) { console.error('getGroupMessages error', error); return []; }
     return (data || []).map(mapMessageRow);
   } catch (e) {
-    console.warn('getGroupMessages error', e.message || e);
+    console.error('getGroupMessages exception', e.message || e);
     return [];
   }
 }
@@ -473,13 +473,13 @@ export async function sendGroupMessage(groupId, text, senderName) {
     if (!user) throw new Error('Not authenticated');
     const { data, error } = await supabase
       .from('group_messages')
-      .insert({ group_id: groupId, user_id: user.id, sender_name: senderName, text })
+      .insert({ group_id: String(groupId), user_id: user.id, sender_name: senderName, text })
       .select()
       .single();
-    if (error) throw error;
+    if (error) { console.error('sendGroupMessage error', error); return null; }
     return mapMessageRow(data);
   } catch (e) {
-    console.warn('sendGroupMessage error', e.message || e);
+    console.error('sendGroupMessage exception', e.message || e);
     return null;
   }
 }
