@@ -284,11 +284,11 @@ export async function getProfile(userId) {
   }
 }
 
-export async function upsertProfile(userId, { name, bio, username, friends }) {
+export async function upsertProfile(userId, { name, bio, username, friends, school, school_verified }) {
   try {
     const { data, error } = await supabase
       .from('profiles')
-      .upsert({ id: userId, name, bio, username, friends: friends || [], updated_at: new Date().toISOString() })
+      .upsert({ id: userId, name, bio, username, friends: friends || [], school: school || '', school_verified: !!school_verified, updated_at: new Date().toISOString() })
       .select()
       .single();
     if (error) throw error;

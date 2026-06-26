@@ -54,6 +54,8 @@ export default function Profile({ user, profile = {}, onUpdateProfile = () => {}
     if (profile.name !== undefined) setName(profile.name);
     if (profile.bio !== undefined) setBio(profile.bio);
     if (profile.username !== undefined) setUsername(profile.username);
+    if (profile.school) { setSchool(profile.school); localStorage.setItem('rally_school', profile.school); }
+    if (profile.school_verified) { localStorage.setItem('rally_school_verified', profile.school); }
   }, [profile]);
 
   // Live username validation + availability check while editing
@@ -341,6 +343,7 @@ export default function Profile({ user, profile = {}, onUpdateProfile = () => {}
                           localStorage.setItem('rally_school', s);
                           setShowSchoolPicker(false);
                           setSchoolSearch('');
+                          onUpdateProfile({ name, bio, username, friends: [], school: s, school_verified: detectedSchool === s });
                         }}
                         style={{
                           background: s === school ? 'rgba(83,74,183,0.12)' : 'transparent',
@@ -378,7 +381,7 @@ export default function Profile({ user, profile = {}, onUpdateProfile = () => {}
                   )}
                   {school && (
                     <button
-                      onClick={() => { setSchool(''); localStorage.removeItem('rally_school'); localStorage.removeItem('rally_school_verified'); setShowSchoolPicker(false); setSchoolSearch(''); }}
+                      onClick={() => { setSchool(''); localStorage.removeItem('rally_school'); localStorage.removeItem('rally_school_verified'); setShowSchoolPicker(false); setSchoolSearch(''); onUpdateProfile({ name, bio, username, friends: [], school: '', school_verified: false }); }}
                       style={{ marginTop:8, background:'none', border:'none', color:'#888', fontSize:13, cursor:'pointer', textAlign:'center' }}
                     >
                       Remove university

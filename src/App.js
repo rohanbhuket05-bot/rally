@@ -143,12 +143,16 @@ function App() {
       bio: (data?.bio) || '',
       username: (data?.username) || '',
       friends: Array.isArray(data?.friends) ? data.friends : [],
+      school: (data?.school) || '',
+      school_verified: !!(data?.school_verified),
     };
     setProfile(loaded);
     localStorage.setItem('rally_name', loaded.name);
     localStorage.setItem('rally_bio', loaded.bio);
     localStorage.setItem('rally_username', loaded.username);
     localStorage.setItem('rally_friends', JSON.stringify(loaded.friends));
+    if (loaded.school) localStorage.setItem('rally_school', loaded.school);
+    if (loaded.school_verified) localStorage.setItem('rally_school_verified', loaded.school);
     if (!loaded.username) setShowUsernamePrompt(true);
   }, []);
 
@@ -358,6 +362,7 @@ function App() {
           onAuthRequired={onAuthRequired}
         />
       )}
+      <div className="nav-fade" />
       <BottomNav
         activeTab={activeTab}
         onNavigate={(tab) => {

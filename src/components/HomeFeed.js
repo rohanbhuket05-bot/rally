@@ -90,11 +90,13 @@ export default function HomeFeed({ activeTab = 'home', onNavigate = () => {}, ev
             <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
               {myGroups.map(g => (
                 <div key={g.id} className="card" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', cursor: 'pointer' }} onClick={() => onOpenGroup(g.id)}>
-                  <div style={{ minWidth: 0 }}>
+                  <div style={{ minWidth: 0, textAlign: 'left' }}>
                     <div style={{ fontWeight: 700, fontSize: 14 }}>{g.name}</div>
                     {g.description && <div style={{ color: '#666', fontSize: 12, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{g.description}</div>}
                   </div>
-                  <div style={{ color: '#bbb', fontSize: 18, flexShrink: 0 }}>›</div>
+                  <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="#bbb" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0 }}>
+                    <polyline points="9 18 15 12 9 6"/>
+                  </svg>
                 </div>
               ))}
             </div>

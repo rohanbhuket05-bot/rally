@@ -1,5 +1,6 @@
 .dark-theme {
   --purple: #9D8FFF;
+  --page-bg-solid: #080810;
   --light-purple: rgba(157,143,255,0.15);
   --pink: #FF6BA8;
   --light-pink: rgba(255,107,168,0.15);
@@ -74,7 +75,7 @@
 }
 
 .dark-theme .bottom-nav {
-  background: rgba(10, 10, 22, 0.88);
+  background: rgba(28, 28, 42, 0.94);
   border-color: rgba(255, 255, 255, 0.1);
   box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5), 0 2px 8px rgba(0, 0, 0, 0.3);
 }
