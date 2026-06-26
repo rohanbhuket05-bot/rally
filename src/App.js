@@ -30,7 +30,7 @@ function App() {
   });
   const [authModalMessage, setAuthModalMessage] = useState(null); // null = hidden, string = shown
   const MAIN_TABS = ['home', 'explore', 'groups', 'profile', 'post'];
-  const PERSISTENT_TABS = [...MAIN_TABS, 'group', 'group-chat'];
+  const PERSISTENT_TABS = [...MAIN_TABS, 'group', 'group-chat', 'friend-profile'];
   const [activeTab, setActiveTabRaw] = useState(() => {
     const saved = localStorage.getItem('rally_active_tab');
     // Reloading on group-chat causes a blank screen — redirect to groups until fixed
@@ -51,7 +51,11 @@ function App() {
     else localStorage.removeItem('rally_active_group_id');
   }, [activeGroupId]);
   const [activeEventId, setActiveEventId] = useState(null);
-  const [viewingFriendId, setViewingFriendId] = useState(null);
+  const [viewingFriendId, setViewingFriendId] = useState(() => localStorage.getItem('rally_viewing_friend_id') || null);
+  useEffect(() => {
+    if (viewingFriendId) localStorage.setItem('rally_viewing_friend_id', viewingFriendId);
+    else localStorage.removeItem('rally_viewing_friend_id');
+  }, [viewingFriendId]);
   const [createGroupContext, setCreateGroupContext] = useState(null);
   const [events, setEvents] = useState(() => {
     try { return JSON.parse(localStorage.getItem('rally_events') || '[]'); } catch(e) { return []; }
@@ -312,7 +316,7 @@ function App() {
       {activeTab === 'profile' && (
         <Profile user={user} profile={profile} onUpdateProfile={handleUpdateProfile} activeTab={activeTab} onNavigate={setActiveTab} onOpenGroup={(id) => { setActiveGroupId(id); setActiveTab('group'); }} events={events} groups={groups} onAddEvent={addEvent} onUpdateEvent={updateEvent} onDeleteEvent={deleteEvent} onSignOut={() => { signOut(); setUser(null); }} onAuthRequired={onAuthRequired} darkMode={darkMode} onToggleDark={() => setDarkMode(d => !d)} onViewFriend={(id) => { setViewingFriendId(id); setActiveTab('friend-profile'); }} />
       )}
-      {activeTab === 'friend-profile' && viewingFriendId && (
+      {activeTab === 'friend-profile' && (
         <FriendProfilePage
           friendId={viewingFriendId}
           groups={groups}

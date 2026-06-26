@@ -9,17 +9,36 @@ function avatarColor(name = '') {
   return AVATAR_COLORS[Math.abs(h) % AVATAR_COLORS.length];
 }
 
+function formatDate(dateISO, showTime) {
+  if (!dateISO) return 'Date TBD';
+  return showTime
+    ? new Date(dateISO).toLocaleString(undefined, { weekday: 'short', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })
+    : new Date(dateISO).toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' });
+}
+
 export default function FriendProfilePage({ friendId, onBack, groups = [] }) {
   const [profile, setProfile] = useState(null);
   const [events, setEvents] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [notFound, setNotFound] = useState(false);
+  const [showAllUpcoming, setShowAllUpcoming] = useState(false);
 
   useEffect(() => {
-    if (!friendId) return;
+    if (!friendId) { setNotFound(true); setLoading(false); return; }
     setLoading(true);
+    setNotFound(false);
     Promise.all([getProfile(friendId), getEventsByUserId(friendId)]).then(([p, evs]) => {
+      if (!p) { setNotFound(true); setLoading(false); return; }
       setProfile(p);
-      setEvents(evs || []);
+      setEvents((evs || []).map(r => ({
+        id: r.id,
+        title: r.title,
+        dateISO: r.date_iso || r.dateISO,
+        showTime: r.show_time ?? r.showTime ?? true,
+        location: r.location,
+        city: r.city || '',
+        personal: r.personal ?? false,
+      })));
       setLoading(false);
     });
   }, [friendId]);
@@ -28,13 +47,13 @@ export default function FriendProfilePage({ friendId, onBack, groups = [] }) {
   const initials = name.split(' ').map(s => s[0]).slice(0, 2).join('').toUpperCase();
 
   const now = new Date();
-  const hostedCount = events.filter(e => !e.personal && e.date_iso && new Date(e.date_iso) < now).length;
-  const attendedCount = events.filter(e => e.date_iso && new Date(e.date_iso) < now).length;
-  const cheersCount = profile?.cheers || 0;
+  const upcomingEvents = events.filter(e => !e.personal && (!e.dateISO || new Date(e.dateISO) >= now));
+  const attendedEvents = events.filter(e => !e.personal && e.dateISO && new Date(e.dateISO) < now);
 
-  const friendGroups = groups.filter(g =>
-    (g.members || []).some(m => m.user_id === friendId)
-  );
+  const friendGroups = groups.filter(g => (g.members || []).some(m => m.user_id === friendId));
+
+  const hostedCount = attendedEvents.length;
+  const cheersCount = profile?.cheers || 0;
 
   return (
     <main className="feed-root">
@@ -53,9 +72,21 @@ export default function FriendProfilePage({ friendId, onBack, groups = [] }) {
       <div className="hide-scrollbar" style={{ flex: 1, overflowY: 'auto', minHeight: 0, paddingBottom: 'calc(var(--bottom-nav-height) + 16px)' }}>
         {loading ? (
           <div style={{ textAlign: 'center', padding: '60px 0', color: '#888', fontSize: 14 }}>Loading...</div>
+        ) : notFound ? (
+          <div style={{ textAlign: 'center', padding: '60px 20px' }}>
+            <div style={{ fontSize: 40, marginBottom: 16 }}>
+              <svg viewBox="0 0 24 24" width="48" height="48" fill="none" stroke="#555" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                <circle cx="12" cy="7" r="4"/><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/>
+                <line x1="18" y1="6" x2="22" y2="10"/><line x1="22" y1="6" x2="18" y2="10"/>
+              </svg>
+            </div>
+            <div style={{ fontWeight: 700, fontSize: 17, color: '#EEEEFF', marginBottom: 8 }}>User not found</div>
+            <div style={{ fontSize: 13, color: '#666', marginBottom: 24 }}>This profile may have been deleted or doesn't exist.</div>
+            <button onClick={onBack} style={{ background: 'rgba(83,74,183,0.15)', border: 'none', borderRadius: 10, padding: '10px 20px', color: 'var(--purple)', fontWeight: 700, fontSize: 14, cursor: 'pointer' }}>← Back</button>
+          </div>
         ) : (
           <>
-            {/* Profile hero card — matches personal profile layout */}
+            {/* Profile hero card */}
             <section className="card">
               <div style={{ display: 'flex', alignItems: 'center', gap: 14, marginBottom: 10 }}>
                 {profile?.avatar_url ? (
@@ -79,7 +110,10 @@ export default function FriendProfilePage({ friendId, onBack, groups = [] }) {
                   <h2 style={{ margin: 0, fontSize: 20, textAlign: 'left' }}>
                     {profile?.username ? `@${profile.username}` : name}
                   </h2>
-                  <div className="username" style={{ textAlign: 'left', margin: '3px 0 0' }}>{name}</div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 3 }}>
+                    <div className="username" style={{ textAlign: 'left', margin: 0 }}>{name}</div>
+                    {profile?.pronouns && <span style={{ fontSize: 11, color: '#999', fontWeight: 500 }}>{profile.pronouns}</span>}
+                  </div>
                 </div>
               </div>
 
@@ -115,14 +149,13 @@ export default function FriendProfilePage({ friendId, onBack, groups = [] }) {
                     {hostedCount} hosted
                   </span>
                 )}
-                {attendedCount > 0 && (
+                {attendedEvents.length > 0 && (
                   <span className="category-pill" style={{ background: 'var(--light-pink)', color: 'var(--pink)', fontSize: 12, padding: '6px 10px' }}>
-                    {attendedCount} attended
+                    {attendedEvents.length} attended
                   </span>
                 )}
               </div>
 
-              {/* Bio below pills */}
               {profile?.bio && (
                 <p style={{ margin: '10px 0 0', color: '#EEEEFF', textAlign: 'left', fontSize: 14, lineHeight: 1.5 }}>
                   {profile.bio}
@@ -130,25 +163,76 @@ export default function FriendProfilePage({ friendId, onBack, groups = [] }) {
               )}
             </section>
 
+            {/* Upcoming events */}
+            <section style={{ marginTop: 12, overflow: 'hidden' }}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                <h3
+                  style={{ margin: '6px 0', cursor: upcomingEvents.length > 3 ? 'pointer' : undefined, display: 'flex', alignItems: 'center', gap: 6 }}
+                  onClick={() => upcomingEvents.length > 3 && setShowAllUpcoming(s => !s)}
+                >
+                  Upcoming
+                  {upcomingEvents.length > 3 && (
+                    <span style={{ display: 'inline-flex', alignItems: 'center', gap: 3, color: 'var(--purple)', fontSize: 11, fontWeight: 600 }}>
+                      {!showAllUpcoming && `+${upcomingEvents.length - 3}`}
+                      <span style={{ transition: 'transform 200ms', display: 'inline-block', transform: showAllUpcoming ? 'rotate(180deg)' : 'rotate(0deg)' }}>▼</span>
+                    </span>
+                  )}
+                </h3>
+              </div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginTop: 8 }}>
+                {(showAllUpcoming ? upcomingEvents : upcomingEvents.slice(0, 3)).map(ev => (
+                  <div key={ev.id} className="card event-card">
+                    <div style={{ fontWeight: 700, fontSize: 14, textAlign: 'left' }}>{ev.title}</div>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 4 }}>
+                      <span style={{ fontSize: 12, color: '#aaa' }}>{[ev.location, ev.city].filter(Boolean).join(', ')}</span>
+                      <span style={{ fontSize: 12, color: '#888', flexShrink: 0 }}>{formatDate(ev.dateISO, ev.showTime)}</span>
+                    </div>
+                  </div>
+                ))}
+                {upcomingEvents.length === 0 && (
+                  <div style={{ fontSize: 13, color: '#888' }}>No upcoming events.</div>
+                )}
+              </div>
+            </section>
+
+            {/* Attended events */}
+            <section style={{ marginTop: 14, width: '100%' }}>
+              <h3 style={{ margin: '6px 0', textAlign: 'left' }}>Attended</h3>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                {attendedEvents.map(ev => (
+                  <div key={ev.id} className="card event-card">
+                    <div style={{ fontWeight: 700, fontSize: 14, textAlign: 'left' }}>{ev.title}</div>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 4 }}>
+                      <span style={{ fontSize: 12, color: '#aaa' }}>{[ev.location, ev.city].filter(Boolean).join(', ')}</span>
+                      <span style={{ fontSize: 12, color: '#888', flexShrink: 0 }}>{formatDate(ev.dateISO, ev.showTime)}</span>
+                    </div>
+                  </div>
+                ))}
+                {attendedEvents.length === 0 && (
+                  <div style={{ fontSize: 13, color: '#888' }}>No attended events yet.</div>
+                )}
+              </div>
+            </section>
+
             {/* Groups */}
-            {friendGroups.length > 0 && (
-              <section style={{ marginTop: 14 }}>
-                <h3 style={{ margin: '0 0 10px', fontSize: 15 }}>Groups</h3>
+            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start' }}>
+              <section style={{ marginTop: 14, width: '100%' }}>
+                <h3 style={{ margin: '6px 0', textAlign: 'left' }}>Groups</h3>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
                   {friendGroups.map(g => (
-                    <div key={g.id} style={{
-                      padding: '12px 14px', borderRadius: 12,
-                      background: 'rgba(255,255,255,0.04)',
-                      border: '1px solid rgba(255,255,255,0.07)',
-                      fontWeight: 700, fontSize: 14, color: '#EEEEFF', textAlign: 'left',
-                    }}>
-                      {g.name}
-                      {g.members && <div style={{ fontSize: 12, color: '#666', fontWeight: 400, marginTop: 2 }}>{g.members.length} members</div>}
+                    <div key={g.id} className="card" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <div>
+                        <div style={{ fontWeight: 700, display: 'flex', alignItems: 'center', gap: 6 }}>{g.name}</div>
+                        <div style={{ color: '#666', fontSize: 13, textAlign: 'left' }}>{(g.members || []).length} members</div>
+                      </div>
                     </div>
                   ))}
+                  {friendGroups.length === 0 && (
+                    <div style={{ fontSize: 13, color: '#888' }}>No shared groups.</div>
+                  )}
                 </div>
               </section>
-            )}
+            </div>
           </>
         )}
       </div>
