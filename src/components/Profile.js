@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import './HomeFeed.css';
+
 import { getSchoolFromEmail } from '../data/schools';
 import FriendsPanel from './FriendsPanel';
 import { isSupabaseConfigured, signInWithOtp, signInWithProvider, checkUsernameAvailable, getFriendNotifications } from '../lib/supabaseClient';
@@ -253,7 +254,7 @@ export default function Profile({ user, profile = {}, onUpdateProfile = () => {}
       </header>
 
       {/* Scrollable content — everything below the top header */}
-      <div style={{ flex: 1, overflowY: 'auto', minHeight: 0, paddingBottom: 'calc(var(--bottom-nav-height) + 16px)' }}>
+      <div className="hide-scrollbar" style={{ flex: 1, overflowY: 'auto', minHeight: 0, paddingBottom: 'calc(var(--bottom-nav-height) + 16px)' }}>
 
       <section className="card" style={{ textAlign: 'center' }}>
         <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 12 }}>
@@ -280,6 +281,8 @@ export default function Profile({ user, profile = {}, onUpdateProfile = () => {}
                 <span className="category-pill" style={{ background:'var(--purple)', color:'#fff', fontSize:12, padding:'6px 10px', fontWeight:700 }}>{school}</span>
               )}
               <span className="category-pill" style={{ background:'var(--light-teal)', color:'var(--teal)', fontSize:12, padding:'6px 10px' }}>{cheers.count} cheers</span>
+              <span className="category-pill" style={{ background:'var(--light-purple)', color:'var(--purple)', fontSize:12, padding:'6px 10px' }}>{events.filter(e => !e.personal && e.dateISO && new Date(e.dateISO) < new Date()).length} hosted</span>
+              <span className="category-pill" style={{ background:'var(--light-pink)', color:'var(--pink)', fontSize:12, padding:'6px 10px' }}>{events.filter(e => e.dateISO && new Date(e.dateISO) < new Date()).length} attended</span>
             </div>
           </>
         ) : (
@@ -341,16 +344,21 @@ export default function Profile({ user, profile = {}, onUpdateProfile = () => {}
         )}
       </section>
 
+      {(() => {
+        const now = new Date();
+        const upcomingEvents = events.filter(e => !e.dateISO || new Date(e.dateISO) >= now);
+        const attendedEvents = events.filter(e => e.dateISO && new Date(e.dateISO) < now);
+        return (<>
       <section style={{ marginTop: 12, overflow: 'hidden' }}>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
           <h3
-            style={{ margin: '6px 0', cursor: events.length > 3 ? 'pointer' : undefined, display: 'flex', alignItems: 'center', gap: 6 }}
-            onClick={() => events.length > 3 && setShowAllEvents(s => !s)}
+            style={{ margin: '6px 0', cursor: upcomingEvents.length > 3 ? 'pointer' : undefined, display: 'flex', alignItems: 'center', gap: 6 }}
+            onClick={() => upcomingEvents.length > 3 && setShowAllEvents(s => !s)}
           >
             Upcoming
-            {events.length > 3 && (
+            {upcomingEvents.length > 3 && (
               <span style={{ display: 'inline-flex', alignItems: 'center', gap: 3, color: 'var(--purple)', fontSize: 11, fontWeight: 600 }}>
-                {!showAllEvents && `+${events.length - 3}`}
+                {!showAllEvents && `+${upcomingEvents.length - 3}`}
                 <span style={{ transition: 'transform 200ms', display: 'inline-block', transform: showAllEvents ? 'rotate(180deg)' : 'rotate(0deg)' }}>▼</span>
               </span>
             )}
@@ -433,7 +441,7 @@ export default function Profile({ user, profile = {}, onUpdateProfile = () => {}
         )}
 
         <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginTop: 8 }}>
-          {(showAllEvents ? events : events.slice(0, 3)).map((ev) => (
+          {(showAllEvents ? upcomingEvents : upcomingEvents.slice(0, 3)).map((ev) => (
             <div key={ev.id} className="card event-card" onClick={() => openEvent(ev)}>
               <button className="delete-btn" aria-label="Delete event" onClick={(e) => { e.stopPropagation(); setDeleteTarget(ev.id); setShowConfirm(true); }}>
                 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="14" height="14" fill="currentColor"><path d="M18.3 5.71a1 1 0 0 0-1.41 0L12 10.59 7.11 5.7A1 1 0 0 0 5.7 7.11L10.59 12l-4.9 4.89a1 1 0 1 0 1.41 1.41L12 13.41l4.89 4.9a1 1 0 0 0 1.41-1.41L13.41 12l4.9-4.89a1 1 0 0 0 0-1.4z"/></svg>
@@ -506,18 +514,29 @@ export default function Profile({ user, profile = {}, onUpdateProfile = () => {}
         </div>
       </section>
 
-      <div style={{ display:'flex', flexDirection:'column', alignItems:'flex-start' }}>
-        <section style={{ marginTop: 14, width: '100%' }}>
-          <h3 style={{ margin: '6px 0', textAlign: 'left' }}>Attended</h3>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-            {attended.map(a => (
-              <div key={a.id} className="card">
-                <div style={{ fontWeight:700 }}>{a.title}</div>
-                <div style={{ color:'#666', fontSize:13 }}>{new Date(a.date).toLocaleDateString()} · {a.location}</div>
+      <section style={{ marginTop: 14, width: '100%' }}>
+        <h3 style={{ margin: '6px 0', textAlign: 'left' }}>Attended</h3>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+          {attendedEvents.map(ev => (
+            <div key={ev.id} className="card event-card" onClick={() => openEvent(ev)}>
+              <button className="delete-btn" aria-label="Delete event" onClick={(e) => { e.stopPropagation(); setDeleteTarget(ev.id); setShowConfirm(true); }}>
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="14" height="14" fill="currentColor"><path d="M18.3 5.71a1 1 0 0 0-1.41 0L12 10.59 7.11 5.7A1 1 0 0 0 5.7 7.11L10.59 12l-4.9 4.89a1 1 0 1 0 1.41 1.41L12 13.41l4.89 4.9a1 1 0 0 0 1.41-1.41L13.41 12l4.9-4.89a1 1 0 0 0 0-1.4z"/></svg>
+              </button>
+              <div style={{ fontWeight: 700, fontSize: 14, textAlign: 'left' }}>{ev.title}</div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 4 }}>
+                <span style={{ fontSize: 12, color: '#aaa' }}>{[ev.location, ev.city].filter(Boolean).join(', ')}</span>
+                <span style={{ fontSize: 12, color: '#888', flexShrink: 0 }}>
+                  {ev.dateISO ? (ev.showTime ? new Date(ev.dateISO).toLocaleString(undefined, { weekday: 'short', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' }) : new Date(ev.dateISO).toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' })) : 'Date TBD'}
+                </span>
               </div>
-            ))}
-          </div>
-        </section>
+            </div>
+          ))}
+          {attendedEvents.length === 0 && <div style={{ fontSize: 13, color: '#888' }}>Events you've attended will appear here.</div>}
+        </div>
+      </section>
+      </>); })()}
+
+      <div style={{ display:'flex', flexDirection:'column', alignItems:'flex-start' }}>
 
         <section style={{ marginTop: 14, width: '100%' }}>
           <h3 style={{ margin: '6px 0', textAlign: 'left' }}>Media</h3>
@@ -557,29 +576,6 @@ export default function Profile({ user, profile = {}, onUpdateProfile = () => {}
       </div>
 
       </div>{/* end scrollable content */}
-
-      <nav className="bottom-nav">
-        <button className={`nav-btn ${activeTab === 'home' ? 'active' : ''}`} onClick={() => onNavigate('home')}>
-          <span className="nav-btn-icon">🏠</span>
-          <span className="nav-btn-label">Home</span>
-        </button>
-        <button className={`nav-btn ${activeTab === 'explore' ? 'active' : ''}`} onClick={() => onNavigate('explore')}>
-          <span className="nav-btn-icon">🔍</span>
-          <span className="nav-btn-label">Explore</span>
-        </button>
-        <button className={`nav-btn ${activeTab === 'post' ? 'active' : ''}`} onClick={() => onNavigate('post')}>
-          <span className="nav-btn-icon">➕</span>
-          <span className="nav-btn-label">Create</span>
-        </button>
-        <button className={`nav-btn ${activeTab === 'groups' ? 'active' : ''}`} onClick={() => onNavigate('groups')}>
-          <span className="nav-btn-icon">💬</span>
-          <span className="nav-btn-label">Groups</span>
-        </button>
-        <button className={`nav-btn ${activeTab === 'profile' ? 'active' : ''}`} onClick={() => onNavigate('profile')}>
-          <span className="nav-btn-icon">👤</span>
-          <span className="nav-btn-label">Profile</span>
-        </button>
-      </nav>
     </main>
   );
 }
@@ -649,14 +645,6 @@ export default function Profile({ user, profile = {}, onUpdateProfile = () => {}
               </>
             )}
           </div>
-
-          <nav className="bottom-nav">
-            <button className="nav-btn" onClick={() => onNavigate('home')}><span className="nav-btn-icon">🏠</span><span className="nav-btn-label">Home</span></button>
-            <button className="nav-btn" onClick={() => onNavigate('explore')}><span className="nav-btn-icon">🔍</span><span className="nav-btn-label">Explore</span></button>
-            <button className="nav-btn" onClick={() => onNavigate('post')}><span className="nav-btn-icon">➕</span><span className="nav-btn-label">Create</span></button>
-            <button className="nav-btn" onClick={() => onNavigate('groups')}><span className="nav-btn-icon">💬</span><span className="nav-btn-label">Groups</span></button>
-            <button className={`nav-btn ${activeTab === 'profile' ? 'active' : ''}`} onClick={() => onNavigate('profile')}><span className="nav-btn-icon">👤</span><span className="nav-btn-label">Profile</span></button>
-          </nav>
         </main>
       );
     }

@@ -12,13 +12,14 @@ import EventDetails from './components/EventDetails';
 import CreateGroup from './components/CreateGroup';
 import AuthModal from './components/AuthModal';
 import UsernamePrompt from './components/UsernamePrompt';
+import BottomNav from './components/BottomNav';
 import { groupsData } from './data/groups';
 import { isSupabaseConfigured, signOut, getUser, onAuthStateChange, getEvents as sbGetEvents, insertEvent as sbInsertEvent, updateEvent as sbUpdateEvent, deleteEvent as sbDeleteEvent, getGroups as sbGetGroups, insertGroup as sbInsertGroup, updateGroup as sbUpdateGroup, deleteGroup as sbDeleteGroup, leaveGroup as sbLeaveGroup, mapGroupRow, getProfile, upsertProfile } from './lib/supabaseClient';
 
 function App() {
   const [user, setUser] = useState(null);
   const [showUsernamePrompt, setShowUsernamePrompt] = useState(false);
-  const [darkMode, setDarkMode] = useState(() => localStorage.getItem('rally_dark_mode') === 'true');
+  const [darkMode, setDarkMode] = useState(() => localStorage.getItem('rally_dark_mode') !== 'false');
   useEffect(() => { localStorage.setItem('rally_dark_mode', darkMode); }, [darkMode]);
   const [profile, setProfile] = useState({
     name: localStorage.getItem('rally_name') || '',
@@ -357,6 +358,16 @@ function App() {
           onAuthRequired={onAuthRequired}
         />
       )}
+      <BottomNav
+        activeTab={activeTab}
+        onNavigate={(tab) => {
+          setActiveTab(tab);
+          if (tab !== 'group' && tab !== 'group-chat') {
+            setActiveGroupId(null);
+            setPreviewGroup(null);
+          }
+        }}
+      />
     </div>
   );
 }

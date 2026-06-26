@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import './HomeFeed.css';
 
+
 const CITIES = [
   'Atlanta, GA','Austin, TX','Baltimore, MD','Boston, MA','Charlotte, NC',
   'Chicago, IL','Cincinnati, OH','Cleveland, OH','Columbus, OH','Dallas, TX',
@@ -186,14 +187,6 @@ export default function Create({ onNavigate = () => {}, onCreateGroup = () => {}
           </div>
         </div>
       )}
-
-      <nav className="bottom-nav">
-        <button className="nav-btn" onClick={() => onNavigate('home')}><span className="nav-btn-icon">🏠</span><span className="nav-btn-label">Home</span></button>
-        <button className="nav-btn" onClick={() => onNavigate('explore')}><span className="nav-btn-icon">🔍</span><span className="nav-btn-label">Explore</span></button>
-        <button className="nav-btn active" onClick={() => onNavigate('post')}><span className="nav-btn-icon">➕</span><span className="nav-btn-label">Create</span></button>
-        <button className="nav-btn" onClick={() => onNavigate('groups')}><span className="nav-btn-icon">💬</span><span className="nav-btn-label">Groups</span></button>
-        <button className="nav-btn" onClick={() => onNavigate('profile')}><span className="nav-btn-icon">👤</span><span className="nav-btn-label">Profile</span></button>
-      </nav>
     </main>
   );
 }

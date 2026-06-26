@@ -25,7 +25,7 @@
 
 .dark-theme .card {
   background: rgba(255, 255, 255, 0.04);
-  border-color: rgba(255, 180, 32, 0.35);
+  border-color: rgba(255, 255, 255, 0.08);
   color: #EEEEFF;
   box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
 }
@@ -54,7 +54,7 @@
 
 .dark-theme .nav-btn {
   background: rgba(255, 255, 255, 0.06);
-  border-color: rgba(255, 180, 32, 0.3);
+  border-color: rgba(255, 255, 255, 0.08);
   color: #8888AA;
 }
 
@@ -74,14 +74,22 @@
 }
 
 .dark-theme .bottom-nav {
-  background: #07070F;
-  box-shadow: 0 -4px 30px rgba(0, 0, 0, 0.6);
-  border-top: 1px solid rgba(255, 180, 32, 0.25);
+  background: rgba(10, 10, 22, 0.88);
+  border-color: rgba(255, 255, 255, 0.1);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5), 0 2px 8px rgba(0, 0, 0, 0.3);
+}
+
+.dark-theme .nav-pill-btn {
+  color: rgba(255, 255, 255, 0.35);
+}
+
+.dark-theme .nav-pill-btn.active {
+  color: var(--purple);
 }
 
 .dark-theme .text-input {
   background: rgba(255, 255, 255, 0.06);
-  border-color: rgba(255, 180, 32, 0.35);
+  border-color: rgba(255, 255, 255, 0.08);
   color: #EEEEFF;
 }
 
@@ -120,14 +128,14 @@
 
 .dark-theme .modal {
   background: #12112A;
-  border-color: rgba(255, 180, 32, 0.4);
+  border-color: rgba(255, 255, 255, 0.08);
   color: #EEEEFF;
-  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.6), 0 0 40px rgba(255, 180, 32, 0.1);
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.6), 0 0 0 rgba(0, 0, 0, 0);
 }
 
 .dark-theme .nav-action-btn {
   background: rgba(255, 255, 255, 0.06);
-  border-color: rgba(255, 180, 32, 0.3);
+  border-color: rgba(255, 255, 255, 0.08);
   color: #EEEEFF;
 }
 
@@ -139,7 +147,7 @@
 
 .dark-theme .create-card {
   background: rgba(255, 255, 255, 0.04);
-  border-color: rgba(255, 180, 32, 0.35);
+  border-color: rgba(255, 255, 255, 0.08);
   color: #EEEEFF;
 }
 
@@ -168,4 +176,15 @@
   border-color: var(--purple);
   color: var(--purple);
   background: rgba(157, 143, 255, 0.08);
+}
+
+.dark-theme .group-chat-panel {
+  background: rgba(157, 143, 255, 0.06);
+  border-color: rgba(157, 143, 255, 0.2);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+}
+
+.dark-theme .group-chat-panel h3,
+.dark-theme .group-chat-panel span {
+  color: #EEEEFF;
 }

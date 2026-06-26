@@ -138,29 +138,6 @@ export default function EventDetails({ event, onBack, onUpdateEvent, activeTab, 
           + Form a Group
         </button>
       </div>
-
-      <nav className="bottom-nav">
-        <button className={`nav-btn ${activeTab === 'home' ? 'active' : ''}`} onClick={() => onNavigate('home')}>
-          <span className="nav-btn-icon">🏠</span>
-          <span className="nav-btn-label">Home</span>
-        </button>
-        <button className={`nav-btn ${activeTab === 'explore' ? 'active' : ''}`} onClick={() => onNavigate('explore')}>
-          <span className="nav-btn-icon">🔍</span>
-          <span className="nav-btn-label">Explore</span>
-        </button>
-        <button className={`nav-btn ${activeTab === 'post' ? 'active' : ''}`} onClick={() => onNavigate('post')}>
-          <span className="nav-btn-icon">➕</span>
-          <span className="nav-btn-label">Create</span>
-        </button>
-        <button className={`nav-btn ${activeTab === 'groups' ? 'active' : ''}`} onClick={() => onNavigate('groups')}>
-          <span className="nav-btn-icon">💬</span>
-          <span className="nav-btn-label">Groups</span>
-        </button>
-        <button className={`nav-btn ${activeTab === 'profile' ? 'active' : ''}`} onClick={() => onNavigate('profile')}>
-          <span className="nav-btn-icon">👤</span>
-          <span className="nav-btn-label">Profile</span>
-        </button>
-      </nav>
     </main>
   );
 }

@@ -177,24 +177,6 @@ export default function Groups({
           </div>
         </section>
       )}
-
-      <nav className="bottom-nav">
-        <button className={`nav-btn`} onClick={() => onNavigate('home')}>
-          <span className="nav-btn-icon">🏠</span><span className="nav-btn-label">Home</span>
-        </button>
-        <button className={`nav-btn`} onClick={() => onNavigate('explore')}>
-          <span className="nav-btn-icon">🔍</span><span className="nav-btn-label">Explore</span>
-        </button>
-        <button className={`nav-btn`} onClick={() => onNavigate('post')}>
-          <span className="nav-btn-icon">➕</span><span className="nav-btn-label">Create</span>
-        </button>
-        <button className={`nav-btn active`} onClick={() => onNavigate('groups')}>
-          <span className="nav-btn-icon">💬</span><span className="nav-btn-label">Groups</span>
-        </button>
-        <button className={`nav-btn`} onClick={() => onNavigate('profile')}>
-          <span className="nav-btn-icon">👤</span><span className="nav-btn-label">Profile</span>
-        </button>
-      </nav>
     </main>
   );
 }

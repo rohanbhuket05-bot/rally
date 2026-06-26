@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { getFriendships, searchUsersByUsername, sendGroupInvite, getOutgoingGroupInvites, isSupabaseConfigured, getGroupMessages, subscribeToGroupMessages } from '../lib/supabaseClient';
 import './HomeFeed.css';
 
+
 const TYPE_LABELS = { club: 'Club / Org', friend: 'Friend Group', event: 'Event Rally' };
 const TYPE_COLORS = {
   club:   { color: 'var(--purple)', bg: 'var(--light-purple)' },
@@ -368,51 +369,72 @@ export default function GroupDetails({
           <div
             className="group-chat-panel group-chat-preview"
             onClick={handleOpenChat}
-            style={{ marginBottom: 12 }}
+            style={{ marginBottom: 12, cursor: 'pointer' }}
           >
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <h3>💬 Group chat</h3>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: liveMessages.length > 0 ? 14 : 0 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" width="16" height="16" style={{ color: 'var(--purple)', flexShrink: 0 }}>
+                  <path d="M20 2H4c-1.1 0-2 .9-2 2v18l4-4h14c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2z"/>
+                </svg>
+                <span style={{ fontWeight: 700, fontSize: 14 }}>Chat</span>
+              </div>
               {(() => {
                 const newCount = Math.max(0, liveMessages.length - lastReadCount);
                 return newCount > 0
-                  ? <span className="category-pill" style={{ background: 'var(--light-pink)', color: 'var(--pink)' }}>{newCount} new</span>
-                  : <span className="category-pill" style={{ background: '#F0F0F0', color: '#999' }}>up to date</span>;
+                  ? (
+                    <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--pink)', background: 'var(--light-pink)', borderRadius: 20, padding: '3px 9px', letterSpacing: '0.02em' }}>
+                      {newCount} new
+                    </span>
+                  ) : (
+                    <span style={{ fontSize: 11, color: '#666', fontWeight: 500 }}>up to date</span>
+                  );
               })()}
             </div>
+
             {liveMessages.length > 0 ? (
-              <div style={{ marginTop: 12, display: 'flex', flexDirection: 'column', gap: 5 }}>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
                 {(() => {
                   const recent = liveMessages.slice(-5);
-                  const groups = [];
+                  const grps = [];
                   recent.forEach((msg) => {
-                    const last = groups[groups.length - 1];
+                    const last = grps[grps.length - 1];
                     const lastMsg = last?.[last.length - 1];
                     const isCont = lastMsg &&
                       lastMsg.userId === msg.userId &&
                       msg.createdAt && lastMsg.createdAt &&
-                      (new Date(msg.createdAt) - new Date(lastMsg.createdAt)) < 2 * 60 * 1000;
+                      (new Date(msg.createdAt) - new Date(lastMsg.createdAt)) < 5 * 60 * 1000;
                     if (isCont) last.push(msg);
-                    else groups.push([msg]);
+                    else grps.push([msg]);
                   });
-                  return groups.map((group) => {
-                    const isMe = user && group[0].userId === user.id;
-                    const lastMsg = group[group.length - 1];
+                  return grps.map((grp) => {
+                    const isMe = user && grp[0].userId === user.id;
+                    const senderColor = isMe ? 'var(--purple)' : avatarColor(grp[0].sender || '');
+                    const senderName = isMe ? 'You' : (grp[0].sender || 'Unknown');
+                    const initials = senderName.split(' ').map(s => s[0]).slice(0, 2).join('').toUpperCase();
+                    const lastMsg = grp[grp.length - 1];
                     return (
-                      <div key={group[0].id} style={{ border: `1.5px solid ${isMe ? 'var(--purple)' : '#CCC'}`, borderRadius: 8, padding: '4px 8px', alignSelf: 'flex-start', maxWidth: '90%' }}>
-                        {group.map((msg, i) => (
-                          <div key={msg.id} style={{ fontSize: 13, padding: '1px 0', display: 'flex', gap: 6, alignItems: 'baseline', overflow: 'hidden' }}>
-                            <span style={{ fontWeight: 700, flexShrink: 0, visibility: i === 0 ? 'visible' : 'hidden' }}>{isMe ? 'Me' : group[0].sender}</span>
-                            <span style={{ color: '#555', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{msg.text}</span>
-                            {msg === lastMsg && <span style={{ color: '#bbb', fontSize: 11, flexShrink: 0 }}>{msg.time}</span>}
+                      <div key={grp[0].id} style={{ display: 'flex', gap: 10 }}>
+                        <div style={{ width: 30, height: 30, borderRadius: '50%', background: senderColor, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 11, fontWeight: 700, color: '#fff', flexShrink: 0, alignSelf: 'flex-start' }}>
+                          {initials}
+                        </div>
+                        <div style={{ flex: 1, minWidth: 0 }}>
+                          <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, marginBottom: 2 }}>
+                            <span style={{ fontSize: 13, fontWeight: 700, color: senderColor }}>{senderName}</span>
+                            <span style={{ fontSize: 11, color: '#555577' }}>{lastMsg.time}</span>
                           </div>
-                        ))}
+                          {grp.map((msg) => (
+                            <div key={msg.id} style={{ fontSize: 13, color: '#BBBBDD', lineHeight: 1.5, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', textAlign: 'left' }}>
+                              {msg.text}
+                            </div>
+                          ))}
+                        </div>
                       </div>
                     );
                   });
                 })()}
               </div>
             ) : (
-              <div style={{ marginTop: 8, color: '#888', fontSize: 13 }}>No messages yet. Tap to open chat.</div>
+              <div style={{ color: '#555577', fontSize: 13 }}>No messages yet — tap to start the conversation.</div>
             )}
           </div>
           <button className="join" onClick={handleOpenChat} style={{ width: '100%', padding: '12px', borderRadius: 12, marginBottom: 20, display: 'block', fontSize: 15 }}>
@@ -459,23 +481,6 @@ export default function GroupDetails({
       )}
 
       </div>{/* end scroll-area */}
-      <nav className="bottom-nav">
-        <button className={`nav-btn ${activeTab === 'home' ? 'active' : ''}`} onClick={() => onNavigate('home')}>
-          <span className="nav-btn-icon">🏠</span><span className="nav-btn-label">Home</span>
-        </button>
-        <button className={`nav-btn ${activeTab === 'explore' ? 'active' : ''}`} onClick={() => onNavigate('explore')}>
-          <span className="nav-btn-icon">🔍</span><span className="nav-btn-label">Explore</span>
-        </button>
-        <button className={`nav-btn ${activeTab === 'post' ? 'active' : ''}`} onClick={() => onNavigate('post')}>
-          <span className="nav-btn-icon">➕</span><span className="nav-btn-label">Create</span>
-        </button>
-        <button className={`nav-btn ${activeTab === 'groups' || activeTab === 'group' ? 'active' : ''}`} onClick={() => onNavigate('groups')}>
-          <span className="nav-btn-icon">💬</span><span className="nav-btn-label">Groups</span>
-        </button>
-        <button className={`nav-btn ${activeTab === 'profile' ? 'active' : ''}`} onClick={() => onNavigate('profile')}>
-          <span className="nav-btn-icon">👤</span><span className="nav-btn-label">Profile</span>
-        </button>
-      </nav>
     </main>
   );
 }

@@ -2,6 +2,14 @@ import React, { useState, useEffect, useRef } from 'react';
 import { getGroupMessages, sendGroupMessage, subscribeToGroupMessages, isSupabaseConfigured } from '../lib/supabaseClient';
 import './HomeFeed.css';
 
+
+const AVATAR_COLORS = ['#534AB7','#D4537E','#1D9E75','#EF9F27','#667EEA','#9B59B6'];
+function avatarColor(name = '') {
+  let h = 0;
+  for (let i = 0; i < name.length; i++) h = name.charCodeAt(i) + ((h << 5) - h);
+  return AVATAR_COLORS[Math.abs(h) % AVATAR_COLORS.length];
+}
+
 export default function GroupChat({ activeTab = 'group-chat', onNavigate = () => {}, group, user, profile }) {
   const [messages, setMessages] = useState([]);
   const [draft, setDraft] = useState('');
@@ -96,45 +104,45 @@ export default function GroupChat({ activeTab = 'group-chat', onNavigate = () =>
         {/* Message thread */}
         <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 8, paddingBottom: 8 }}>
           {messages.length === 0 ? (
-            <div style={{ textAlign: 'center', color: '#aaa', fontSize: 14, marginTop: 32 }}>
+            <div style={{ textAlign: 'center', color: '#555577', fontSize: 14, marginTop: 40 }}>
               No messages yet. Say hello!
             </div>
           ) : (
             (() => {
-              // Pre-group consecutive messages from same user within 2 minutes
-              const groups = [];
+              const grps = [];
               messages.forEach((msg) => {
-                const last = groups[groups.length - 1];
+                const last = grps[grps.length - 1];
                 const lastMsg = last?.[last.length - 1];
                 const isContinuation = lastMsg &&
                   lastMsg.userId === msg.userId &&
                   msg.createdAt && lastMsg.createdAt &&
-                  (new Date(msg.createdAt) - new Date(lastMsg.createdAt)) < 2 * 60 * 1000;
+                  (new Date(msg.createdAt) - new Date(lastMsg.createdAt)) < 5 * 60 * 1000;
                 if (isContinuation) last.push(msg);
-                else groups.push([msg]);
+                else grps.push([msg]);
               });
 
-              return groups.map((group) => {
-                const isMe = group[0].userId === user?.id;
-                const lastMsg = group[group.length - 1];
+              return grps.map((grp) => {
+                const isMe = grp[0].userId === user?.id;
+                const displayName = isMe ? (profile?.name || profile?.username || 'You') : (grp[0].sender || 'Unknown');
+                const initials = displayName.split(' ').map(s => s[0]).slice(0, 2).join('').toUpperCase();
+                const color = isMe ? 'var(--purple)' : avatarColor(grp[0].sender || '');
+                const lastMsg = grp[grp.length - 1];
                 return (
-                  <div key={group[0].id} style={{
-                    display: 'flex',
-                    flexDirection: 'column',
-                    alignSelf: isMe ? 'flex-end' : 'flex-start',
-                    alignItems: isMe ? 'flex-end' : 'flex-start',
-                    border: `1.5px solid ${isMe ? 'var(--purple)' : '#CCC'}`,
-                    borderRadius: 8,
-                    padding: '4px 8px',
-                    maxWidth: '85%',
-                  }}>
-                    <span style={{ fontSize: 12, fontWeight: 700, color: 'var(--purple)', marginBottom: 2 }}>{isMe ? 'Me' : group[0].sender}</span>
-                    {group.map((msg) => (
-                      <div key={msg.id} style={{ fontSize: 14, lineHeight: 1.5, color: '#111' }}>
-                        {msg.text}
+                  <div key={grp[0].id} style={{ display: 'flex', gap: 12, marginBottom: 14 }}>
+                    <div style={{ width: 36, height: 36, borderRadius: '50%', background: color, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 13, fontWeight: 700, color: '#fff', flexShrink: 0, alignSelf: 'flex-start' }}>
+                      {initials}
+                    </div>
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, marginBottom: 4 }}>
+                        <span style={{ fontSize: 14, fontWeight: 700, color }}>{displayName}</span>
+                        <span style={{ fontSize: 11, color: '#555577' }}>{lastMsg.time}</span>
                       </div>
-                    ))}
-                    <span style={{ fontSize: 10, color: '#bbb', marginTop: 2 }}>{lastMsg.time}</span>
+                      {grp.map((msg) => (
+                        <div key={msg.id} style={{ fontSize: 14, color: '#CCCCEE', lineHeight: 1.6, textAlign: 'left' }}>
+                          {msg.text}
+                        </div>
+                      ))}
+                    </div>
                   </div>
                 );
               });
@@ -166,24 +174,6 @@ export default function GroupChat({ activeTab = 'group-chat', onNavigate = () =>
           </button>
         </div>
       </div>
-
-      <nav className="bottom-nav">
-        <button className={`nav-btn ${activeTab === 'home' ? 'active' : ''}`} onClick={() => onNavigate('home')}>
-          <span className="nav-btn-icon">🏠</span><span className="nav-btn-label">Home</span>
-        </button>
-        <button className={`nav-btn ${activeTab === 'explore' ? 'active' : ''}`} onClick={() => onNavigate('explore')}>
-          <span className="nav-btn-icon">🔍</span><span className="nav-btn-label">Explore</span>
-        </button>
-        <button className={`nav-btn ${activeTab === 'post' ? 'active' : ''}`} onClick={() => onNavigate('post')}>
-          <span className="nav-btn-icon">➕</span><span className="nav-btn-label">Create</span>
-        </button>
-        <button className={`nav-btn ${activeTab === 'groups' || activeTab === 'group' || activeTab === 'group-chat' ? 'active' : ''}`} onClick={() => onNavigate('groups')}>
-          <span className="nav-btn-icon">💬</span><span className="nav-btn-label">Groups</span>
-        </button>
-        <button className={`nav-btn ${activeTab === 'profile' ? 'active' : ''}`} onClick={() => onNavigate('profile')}>
-          <span className="nav-btn-icon">👤</span><span className="nav-btn-label">Profile</span>
-        </button>
-      </nav>
     </main>
   );
 }
