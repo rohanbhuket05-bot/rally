@@ -22,6 +22,21 @@ export async function getEvents() {
   }
 }
 
+export async function getPublicEvents() {
+  try {
+    const { data, error } = await supabase
+      .from('events')
+      .select('*')
+      .eq('personal', false)
+      .order('date_iso', { ascending: true });
+    if (error) throw error;
+    return data || [];
+  } catch (e) {
+    console.warn('getPublicEvents error', e.message || e);
+    return [];
+  }
+}
+
 export async function getEventsByUserId(userId) {
   try {
     const { data, error } = await supabase.from('events').select('*').eq('user_id', userId).order('date_iso', { ascending: true });

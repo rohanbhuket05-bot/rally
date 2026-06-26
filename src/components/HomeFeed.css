@@ -9,7 +9,7 @@
   --light-teal: #E1F5EE;
   --bottom-nav-height: 88px;
   --nav-bg: rgba(255,255,255,0.92);
-  --page-bg-solid: #eef4ff;
+  --page-bg-solid: #F2F2F6;
 }
 
 .nav-fade {
@@ -29,7 +29,7 @@
   margin: 0 auto;
   padding: 16px;
   font-family: 'Plus Jakarta Sans', system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial;
-  background: linear-gradient(180deg, #eef4ff 0%, #efe8ff 100%);
+  background: linear-gradient(180deg, #F5F5F9 0%, #EFEFF5 100%);
   color: #111;
   height: 100vh;
   box-sizing: border-box;
@@ -177,4 +177,8 @@ button, .nav-btn, .join, .add-btn, .edit-btn, .icon-btn, .delete-btn { cursor: p
 
 .hide-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
 .hide-scrollbar::-webkit-scrollbar { display: none; }
+
+.city-suggestions { position: absolute; top: 100%; left: 0; right: 0; background: #fff; border: 1px solid #EEE; border-radius: 8px; z-index: 200; max-height: 180px; overflow-y: auto; box-shadow: 0 4px 12px rgba(0,0,0,0.1); }
+.city-suggestions-item { padding: 8px 12px; cursor: pointer; font-size: 13px; border-bottom: 1px solid #F5F5F5; color: #111; }
+.city-suggestions-item:hover { background: #f5f5ff; }
 

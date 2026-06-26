@@ -562,10 +562,9 @@ export default function Profile({ user, profile = {}, onUpdateProfile = () => {}
                   {showCitySuggestions && form.city.length >= 1 && (() => {
                     const matches = CITIES.filter(c => c.toLowerCase().includes(form.city.toLowerCase())).slice(0, 6);
                     return matches.length > 0 ? (
-                      <div style={{ position: 'absolute', top: '100%', left: 0, right: 0, background: '#fff', border: '1px solid #EEE', borderRadius: 8, zIndex: 200, maxHeight: 180, overflowY: 'auto', boxShadow: '0 4px 12px rgba(0,0,0,0.1)' }}>
+                      <div className="city-suggestions">
                         {matches.map(city => (
-                          <div key={city} onMouseDown={() => { setForm(f => ({ ...f, city })); setShowCitySuggestions(false); }}
-                            style={{ padding: '8px 12px', cursor: 'pointer', fontSize: 13, borderBottom: '1px solid #F5F5F5' }}>
+                          <div key={city} className="city-suggestions-item" onMouseDown={() => { setForm(f => ({ ...f, city })); setShowCitySuggestions(false); }}>
                             {city}
                           </div>
                         ))}

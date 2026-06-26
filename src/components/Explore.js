@@ -1,5 +1,6 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import EventCard from './EventCard';
+import { getPublicEvents } from '../lib/supabaseClient';
 import './HomeFeed.css';
 
 const CATEGORIES = [
@@ -89,6 +90,32 @@ const CATEGORIES = [
 export default function Explore({ events = [], onNavigate = () => {}, onOpenEvent = () => {}, onUpdateEvent = () => {}, user = null, onAuthRequired = () => {} }) {
   const [q, setQ] = useState('');
   const [selectedCategory, setSelectedCategory] = useState(null);
+  const [dbPublicEvents, setDbPublicEvents] = useState([]);
+
+  useEffect(() => {
+    getPublicEvents().then(rows => {
+      setDbPublicEvents(rows.map(r => ({
+        id: r.id,
+        title: r.title,
+        dateISO: r.date_iso || r.dateISO,
+        showTime: r.show_time ?? r.showTime ?? true,
+        location: r.location || '',
+        city: r.city || '',
+        category: r.category || '',
+        tags: r.tags || [],
+        personal: false,
+        attendees: r.attendees || [],
+        description: r.description || '',
+        user_id: r.user_id,
+      })));
+    });
+  }, []);
+
+  const allPublicEvents = useMemo(() => {
+    const dbIds = new Set(dbPublicEvents.map(e => e.id));
+    const localOnly = events.filter(e => !e.personal && !dbIds.has(e.id));
+    return [...dbPublicEvents, ...localOnly];
+  }, [dbPublicEvents, events]);
 
   function handleJoin(event) {
     if (!user) { onAuthRequired('Sign in to join this event'); return; }
@@ -102,12 +129,17 @@ export default function Explore({ events = [], onNavigate = () => {}, onOpenEven
   }
 
   const results = useMemo(() => {
-    const publicEvents = events.filter(e => !e.personal);
     const term = (q || '').trim().toLowerCase();
-    const catFiltered = selectedCategory ? publicEvents.filter(e => e.category === selectedCategory) : publicEvents;
+    const catFiltered = selectedCategory
+      ? allPublicEvents.filter(e => e.category === selectedCategory || (e.tags || []).includes(selectedCategory))
+      : allPublicEvents;
     if (!term) return catFiltered;
-    return catFiltered.filter(e => (e.title || '').toLowerCase().includes(term) || (e.location || '').toLowerCase().includes(term));
-  }, [q, events, selectedCategory]);
+    return catFiltered.filter(e =>
+      (e.title || '').toLowerCase().includes(term) ||
+      (e.location || '').toLowerCase().includes(term) ||
+      (e.city || '').toLowerCase().includes(term)
+    );
+  }, [q, allPublicEvents, selectedCategory]);
 
   return (
     <main className="feed-root">
@@ -148,7 +180,7 @@ export default function Explore({ events = [], onNavigate = () => {}, onOpenEven
         <h3 style={{ margin: '0 0 14px', fontSize: 17, fontWeight: 800 }}>Browse by Category</h3>
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 10 }}>
           {CATEGORIES.map(c => {
-            const count = events.filter(e => !e.personal && e.category === c.label).length;
+            const count = allPublicEvents.filter(e => e.category === c.label || (e.tags || []).includes(c.label)).length;
             const isSelected = selectedCategory === c.label;
             return (
               <button
