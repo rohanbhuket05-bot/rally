@@ -22,6 +22,17 @@ export async function getEvents() {
   }
 }
 
+export async function getEventsByUserId(userId) {
+  try {
+    const { data, error } = await supabase.from('events').select('*').eq('user_id', userId).order('date_iso', { ascending: true });
+    if (error) throw error;
+    return data || [];
+  } catch (e) {
+    console.warn('getEventsByUserId error', e.message || e);
+    return [];
+  }
+}
+
 export async function insertEvent(event) {
   try {
     const { data: { user } } = await supabase.auth.getUser();
@@ -284,11 +295,11 @@ export async function getProfile(userId) {
   }
 }
 
-export async function upsertProfile(userId, { name, bio, username, friends, school, school_verified }) {
+export async function upsertProfile(userId, { name, bio, username, friends, school, school_verified, avatar_url, pronouns }) {
   try {
     const { data, error } = await supabase
       .from('profiles')
-      .upsert({ id: userId, name, bio, username, friends: friends || [], school: school || '', school_verified: !!school_verified, updated_at: new Date().toISOString() })
+      .upsert({ id: userId, name, bio, username, friends: friends || [], school: school || '', school_verified: !!school_verified, avatar_url: avatar_url || '', pronouns: pronouns || '', updated_at: new Date().toISOString() })
       .select()
       .single();
     if (error) throw error;
@@ -317,7 +328,7 @@ export async function searchUsersByUsername(query, currentUserId) {
   try {
     const { data, error } = await supabase
       .from('profiles')
-      .select('id, username, name')
+      .select('id, username, name, avatar_url')
       .ilike('username', `${query}%`)
       .neq('id', currentUserId)
       .limit(8);
@@ -349,7 +360,7 @@ export async function getFriendships(userId) {
   try {
     const { data, error } = await supabase
       .from('friendships')
-      .select('id, requester_id, addressee_id, requester:profiles!requester_id(id, username, name), addressee:profiles!addressee_id(id, username, name)')
+      .select('id, requester_id, addressee_id, requester:profiles!requester_id(id, username, name, avatar_url), addressee:profiles!addressee_id(id, username, name, avatar_url)')
       .or(`requester_id.eq.${userId},addressee_id.eq.${userId}`)
       .eq('status', 'accepted');
     if (error) throw error;
@@ -367,7 +378,7 @@ export async function getIncomingFriendRequests(userId) {
   try {
     const { data, error } = await supabase
       .from('friendships')
-      .select('id, requester_id, requester:profiles!requester_id(id, username, name)')
+      .select('id, requester_id, requester:profiles!requester_id(id, username, name, avatar_url)')
       .eq('addressee_id', userId)
       .eq('status', 'pending');
     if (error) throw error;
@@ -382,7 +393,7 @@ export async function getOutgoingFriendRequests(userId) {
   try {
     const { data, error } = await supabase
       .from('friendships')
-      .select('id, addressee_id, addressee:profiles!addressee_id(id, username, name)')
+      .select('id, addressee_id, addressee:profiles!addressee_id(id, username, name, avatar_url)')
       .eq('requester_id', userId)
       .eq('status', 'pending');
     if (error) throw error;

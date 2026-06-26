@@ -25,10 +25,11 @@ const CITIES = [
   'Seoul, South Korea','Mumbai, India','Bangkok, Thailand','Hong Kong',
 ];
 
-export default function Profile({ user, profile = {}, onUpdateProfile = () => {}, activeTab = 'profile', onNavigate = () => {}, onOpenGroup = () => {}, events = [], groups: allGroups = [], onAddEvent = () => {}, onUpdateEvent = () => {}, onDeleteEvent = () => {}, onSignOut = () => {}, onAuthRequired = () => {}, darkMode = false, onToggleDark = () => {} }) {
+export default function Profile({ user, profile = {}, onUpdateProfile = () => {}, activeTab = 'profile', onNavigate = () => {}, onOpenGroup = () => {}, events = [], groups: allGroups = [], onAddEvent = () => {}, onUpdateEvent = () => {}, onDeleteEvent = () => {}, onSignOut = () => {}, onAuthRequired = () => {}, darkMode = false, onToggleDark = () => {}, onViewFriend = () => {} }) {
   const [name, setName] = useState(() => profile.name || localStorage.getItem('rally_name') || '');
   const [bio, setBio] = useState(() => profile.bio || localStorage.getItem('rally_bio') || '');
   const [username, setUsername] = useState(() => profile.username || localStorage.getItem('rally_username') || '');
+  const [pronouns, setPronouns] = useState(() => profile.pronouns || localStorage.getItem('rally_pronouns') || '');
   const [editingProfile, setEditingProfile] = useState(false);
   const [usernameStatus, setUsernameStatus] = useState('idle'); // idle | checking | available | taken | invalid
   const [usernameError, setUsernameError] = useState(null);
@@ -54,6 +55,7 @@ export default function Profile({ user, profile = {}, onUpdateProfile = () => {}
     if (profile.name !== undefined) setName(profile.name);
     if (profile.bio !== undefined) setBio(profile.bio);
     if (profile.username !== undefined) setUsername(profile.username);
+    if (profile.pronouns !== undefined) setPronouns(profile.pronouns || '');
     if (profile.school) { setSchool(profile.school); localStorage.setItem('rally_school', profile.school); }
     if (profile.school_verified) { localStorage.setItem('rally_school_verified', profile.school); }
   }, [profile]);
@@ -85,8 +87,9 @@ export default function Profile({ user, profile = {}, onUpdateProfile = () => {}
     localStorage.setItem('rally_name', newName);
     localStorage.setItem('rally_bio', newBio);
     localStorage.setItem('rally_username', finalUsername);
+    localStorage.setItem('rally_pronouns', pronouns);
     setEditingProfile(false);
-    onUpdateProfile({ name: newName, bio: newBio, username: finalUsername, friends: [] });
+    onUpdateProfile({ name: newName, bio: newBio, username: finalUsername, friends: [], pronouns });
   };
   // `events` and handlers are provided by App (single source of truth)
   const [showSettings, setShowSettings] = useState(false);
@@ -268,27 +271,41 @@ export default function Profile({ user, profile = {}, onUpdateProfile = () => {}
       {/* Scrollable content — everything below the top header */}
       <div className="hide-scrollbar" style={{ flex: 1, overflowY: 'auto', minHeight: 0, paddingBottom: 'calc(var(--bottom-nav-height) + 16px)' }}>
 
-      <section className="card" style={{ textAlign: 'center' }}>
-        <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 12 }}>
-          <div style={{ width: 96, height: 96, borderRadius: 48, background: 'linear-gradient(180deg,var(--light-purple),#fff)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 36, color: 'var(--purple)', fontWeight: 800 }}>
-            {getInitials(name)}
-          </div>
-        </div>
+      <section className="card" style={{ position: 'relative' }}>
         {!editingProfile ? (
           <>
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, flexDirection: 'column' }}>
-              <div className="username">{username ? `@${username}` : 'Set your handle'}</div>
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
-                <h2 style={{ margin: '8px 0 4px' }}>{name || 'Your name'}</h2>
-                <button className="edit-btn icon-btn" onClick={()=>setEditingProfile(true)} aria-label="Edit profile">
-                  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" width="16" height="16" aria-hidden="true">
-                    <path d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04a1.003 1.003 0 0 0 0-1.42l-2.34-2.34a1.003 1.003 0 0 0-1.42 0l-1.83 1.83 3.75 3.75 1.84-1.82z"/>
-                  </svg>
-                </button>
+            {/* Pencil in top-right corner */}
+            <button className="edit-btn icon-btn" onClick={() => setEditingProfile(true)} aria-label="Edit profile" style={{ position: 'absolute', top: 12, right: 12 }}>
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" width="14" height="14" aria-hidden="true">
+                <path d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04a1.003 1.003 0 0 0 0-1.42l-2.34-2.34a1.003 1.003 0 0 0-1.42 0l-1.83 1.83 3.75 3.75 1.84-1.82z"/>
+              </svg>
+            </button>
+
+            {/* Avatar + username + real name */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: 14, marginBottom: 10 }}>
+              {user?.user_metadata?.avatar_url ? (
+                <img
+                  src={user.user_metadata.avatar_url}
+                  alt={name}
+                  referrerPolicy="no-referrer"
+                  style={{ width: 56, height: 56, borderRadius: '50%', objectFit: 'cover', flexShrink: 0, border: '2px solid rgba(255,255,255,0.1)' }}
+                />
+              ) : (
+                <div style={{ width: 56, height: 56, borderRadius: '50%', background: 'linear-gradient(180deg,var(--light-purple),#fff)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 20, color: 'var(--purple)', fontWeight: 800, flexShrink: 0 }}>
+                  {getInitials(name)}
+                </div>
+              )}
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <h2 style={{ margin: 0, fontSize: 20, textAlign: 'left' }}>{username ? `@${username}` : 'Set your handle'}</h2>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 3 }}>
+                  <div className="username" style={{ textAlign: 'left', margin: 0 }}>{name || 'Your name'}</div>
+                  {pronouns && <span style={{ fontSize: 11, color: '#999', fontWeight: 500 }}>{pronouns}</span>}
+                </div>
               </div>
             </div>
-            <p style={{ margin: 0, color: '#666' }}>{bio || 'Add a short bio to tell people what you’re about.'}</p>
-            <div style={{ display:'flex', justifyContent:'center', gap:8, flexWrap:'wrap', marginTop:12 }}>
+
+            {/* Pills */}
+            <div style={{ display:'flex', justifyContent:'flex-start', gap:8, flexWrap:'wrap', marginBottom: bio ? 10 : 0 }}>
               {school ? (
                 <button
                   onClick={() => setShowSchoolPicker(true)}
@@ -315,6 +332,8 @@ export default function Profile({ user, profile = {}, onUpdateProfile = () => {}
               <span className="category-pill" style={{ background:'var(--light-purple)', color:'var(--purple)', fontSize:12, padding:'6px 10px' }}>{events.filter(e => !e.personal && e.dateISO && new Date(e.dateISO) < new Date()).length} hosted</span>
               <span className="category-pill" style={{ background:'var(--light-pink)', color:'var(--pink)', fontSize:12, padding:'6px 10px' }}>{events.filter(e => e.dateISO && new Date(e.dateISO) < new Date()).length} attended</span>
             </div>
+
+            {bio && <p style={{ margin: '10px 0 0', color: '#EEEEFF', textAlign: 'left', fontSize: 14, lineHeight: 1.5 }}>{bio}</p>}
 
             {showSchoolPicker && (
               <div className="modal-overlay" onClick={() => { setShowSchoolPicker(false); setSchoolSearch(''); }}>
@@ -407,8 +426,22 @@ export default function Profile({ user, profile = {}, onUpdateProfile = () => {}
             {usernameStatus === 'checking' && <div style={{ fontSize: 12, color: '#999' }}>Checking availability...</div>}
             {usernameStatus === 'available' && <div style={{ fontSize: 12, color: 'var(--teal)' }}>✓ Available</div>}
             {(usernameStatus === 'taken' || usernameStatus === 'invalid') && <div style={{ fontSize: 12, color: '#E74C3C' }}>{usernameError}</div>}
-            <label style={{ fontSize: 13, color: '#666' }}>Full name</label>
-            <input className="text-input" value={name} onChange={(e)=>setName(e.target.value)} />
+            <div style={{ display: 'flex', gap: 8, alignItems: 'flex-end' }}>
+              <div style={{ flex: 2 }}>
+                <label style={{ fontSize: 13, color: '#666', display: 'block', marginBottom: 4 }}>Full name</label>
+                <input className="text-input" value={name} onChange={(e)=>setName(e.target.value)} style={{ width: '100%', boxSizing: 'border-box' }} />
+              </div>
+              <div style={{ flex: 1 }}>
+                <label style={{ fontSize: 13, color: '#666', display: 'block', marginBottom: 4 }}>Pronouns</label>
+                <input
+                  className="text-input"
+                  value={pronouns}
+                  onChange={(e) => setPronouns(e.target.value)}
+                  placeholder="e.g. she/her"
+                  style={{ width: '100%', boxSizing: 'border-box' }}
+                />
+              </div>
+            </div>
             <label style={{ fontSize: 13, color: '#666' }}>Bio</label>
             <textarea className="text-input textarea" value={bio} onChange={(e)=>setBio(e.target.value)} />
             <div style={{ display:'flex', gap:8, justifyContent:'center' }}>
@@ -418,7 +451,7 @@ export default function Profile({ user, profile = {}, onUpdateProfile = () => {}
                 disabled={usernameStatus === 'invalid' || usernameStatus === 'taken' || usernameStatus === 'checking'}
                 style={{ opacity: (usernameStatus === 'invalid' || usernameStatus === 'taken' || usernameStatus === 'checking') ? 0.45 : 1 }}
               >Save</button>
-              <button className="nav-btn" onClick={()=>{ setUsername(localStorage.getItem('rally_username')||''); setName(localStorage.getItem('rally_name')||''); setBio(localStorage.getItem('rally_bio')||''); setEditingProfile(false); }}>Cancel</button>
+              <button className="nav-btn" onClick={()=>{ setUsername(localStorage.getItem('rally_username')||''); setName(localStorage.getItem('rally_name')||''); setBio(localStorage.getItem('rally_bio')||''); setPronouns(localStorage.getItem('rally_pronouns')||''); setEditingProfile(false); }}>Cancel</button>
             </div>
           </div>
         )}
@@ -445,7 +478,7 @@ export default function Profile({ user, profile = {}, onUpdateProfile = () => {}
         </div>
         {showFriendsPanel && (
           <div className="card" style={{ padding: 16 }}>
-            <FriendsPanel user={user} />
+            <FriendsPanel user={user} onViewFriend={onViewFriend} />
         </div>
         )}
       </section>

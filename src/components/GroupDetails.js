@@ -174,46 +174,52 @@ export default function GroupDetails({
     <main className="feed-root">
       <div className="scroll-area">
       {/* Header */}
-      <header style={{ position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: 16, minHeight: 40 }}>
-        <button
-          onClick={onBack}
-          style={{
-            position: 'absolute', left: 0,
-            background: 'rgba(83,74,183,0.1)', border: 'none', borderRadius: 10,
-            padding: '8px 12px', color: 'var(--purple)', fontWeight: 700, cursor: 'pointer',
-          }}
-        >
-          ← Back
-        </button>
-        {isAdmin && onDeleteGroup && (
+      <header style={{ marginBottom: 16 }}>
+        {/* Back + Delete row */}
+        <div style={{ position: 'relative', display: 'flex', alignItems: 'center', minHeight: 40 }}>
           <button
-            onClick={() => setShowDeleteConfirm(true)}
-            style={{ position: 'absolute', right: 6, top: '50%', transform: 'translateY(calc(-50% + 15px))', background: '#F0F0F0', border: 'none', borderRadius: 8, cursor: 'pointer', padding: 6, color: '#E74C3C', display: 'flex', alignItems: 'center' }}
-            aria-label="Delete group"
+            onClick={onBack}
+            style={{
+              background: 'rgba(83,74,183,0.1)', border: 'none', borderRadius: 10,
+              padding: '8px 12px', color: 'var(--purple)', fontWeight: 700, cursor: 'pointer',
+            }}
           >
-            <svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="currentColor">
-              <path d="M9 3v1H4v2h16V4h-5V3H9zm-2 4l1 13h8l1-13H7zm2 2h2l.5 9H9.5L9 9zm4 0h2l-.5 9h-2L13 9z"/>
-            </svg>
+            ← Back
           </button>
-        )}
-        <div style={{ textAlign: 'center' }}>
-          <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', justifyContent: 'center', marginBottom: 6 }}>
+          {isAdmin && onDeleteGroup && (
+            <button
+              onClick={() => setShowDeleteConfirm(true)}
+              style={{ position: 'absolute', right: 6, background: 'rgba(231,76,60,0.1)', border: 'none', borderRadius: 8, cursor: 'pointer', padding: 6, color: '#E74C3C', display: 'flex', alignItems: 'center' }}
+              aria-label="Delete group"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="currentColor">
+                <path d="M9 3v1H4v2h16V4h-5V3H9zm-2 4l1 13h8l1-13H7zm2 2h2l.5 9H9.5L9 9zm4 0h2l-.5 9h-2L13 9z"/>
+              </svg>
+            </button>
+          )}
+        </div>
+
+        {/* Title + pills + bio */}
+        <div style={{ marginTop: 20, textAlign: 'left' }}>
+          <h2 style={{ margin: '0 0 8px', fontSize: 24, fontWeight: 800, color: '#FFFFFF', lineHeight: 1.2 }}>{name}</h2>
+          <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: description ? 10 : 0 }}>
             <span className="category-pill" style={{ background: bg, color }}>{TYPE_LABELS[type]}</span>
             {isPreview && (
               <span className="category-pill" style={{ background: 'var(--light-amber)', color: 'var(--amber)' }}>Preview</span>
             )}
             {privacy !== 'public' && (
-              <span className="category-pill" style={{ background: '#F5F5F5', color: '#777' }}>{privacy === 'private' ? 'Private' : 'Friends Only'}</span>
+              <span className="category-pill" style={{ background: 'rgba(255,255,255,0.08)', color: '#aaa' }}>{privacy === 'private' ? 'Private' : 'Friends Only'}</span>
             )}
           </div>
-          <h2 style={{ margin: 0, fontSize: 22, color: '#111', lineHeight: 1.2 }}>{name}</h2>
+          {description && (
+            <p style={{ margin: '10px 0 0', color: '#BBBBD0', fontSize: 14, lineHeight: 1.6, textAlign: 'left' }}>{description}</p>
+          )}
         </div>
       </header>
 
-      {/* About */}
-      {(description || eventTitle || icebreaker) && (
+      {/* About (eventTitle / icebreaker only) */}
+      {(eventTitle || icebreaker) && (
         <div className="card" style={{ marginBottom: 12 }}>
-          {description && <p style={{ margin: '0 0 10px', color: '#333', fontSize: 14, lineHeight: 1.5 }}>{description}</p>}
           {eventTitle && (
             <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '8px 10px', background: 'var(--light-teal)', borderRadius: 8, marginBottom: icebreaker ? 10 : 0 }}>
               <span>🎯</span>
@@ -221,9 +227,9 @@ export default function GroupDetails({
             </div>
           )}
           {icebreaker && (
-            <div style={{ padding: '10px', background: 'var(--light-purple)', borderRadius: 8, marginTop: description || eventTitle ? 10 : 0 }}>
+            <div style={{ padding: '10px', background: 'var(--light-purple)', borderRadius: 8 }}>
               <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--purple)', marginBottom: 4, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Icebreaker</div>
-              <div style={{ fontSize: 13, color: '#333' }}>{icebreaker}</div>
+              <div style={{ fontSize: 13, color: '#BBBBD0' }}>{icebreaker}</div>
             </div>
           )}
         </div>
@@ -322,24 +328,35 @@ export default function GroupDetails({
           {members.map((m, i) => {
             const mc = m.color && m.color !== '#FFFFFF' ? m.color : avatarColor(m.name);
             const isFriend = isMemberFriend(m);
+            const initials = (m.name || '?').split(' ').map(s => s[0]).slice(0, 2).join('').toUpperCase();
             return (
-              <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+              <div key={i} style={{
+                display: 'flex', alignItems: 'center', gap: 12,
+                padding: '10px 14px', borderRadius: 12,
+                background: 'rgba(255,255,255,0.04)',
+                border: '1px solid rgba(255,255,255,0.07)',
+              }}>
                 <div style={{ position: 'relative', flexShrink: 0 }}>
-                  <div className="avatar" style={{ backgroundColor: mc, color: '#fff', marginLeft: 0 }}>
-                    {m.initials || m.name?.[0] || '?'}
-                  </div>
+                  {m.avatar_url ? (
+                    <img src={m.avatar_url} alt={m.name} referrerPolicy="no-referrer"
+                      style={{ width: 38, height: 38, borderRadius: '50%', objectFit: 'cover' }} />
+                  ) : (
+                    <div style={{ width: 38, height: 38, borderRadius: '50%', background: mc, color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 700, fontSize: 13 }}>
+                      {initials}
+                    </div>
+                  )}
                   {isFriend && <FriendBadge />}
                 </div>
-                <span style={{ fontWeight: 600, fontSize: 14, flex: 1 }}>{m.name}</span>
+                <div style={{ flex: 1, minWidth: 0, textAlign: 'left' }}>
+                  <div style={{ fontWeight: 700, fontSize: 14 }}>{m.name}</div>
+                </div>
                 {m.role === 'admin'
                   ? <span className="category-pill" style={{ background: 'var(--light-purple)', color: 'var(--purple)', fontSize: 11 }}>Admin</span>
                   : isAdmin && (
                     <button
                       onClick={() => handleRemoveMember(m.name)}
-                      style={{ background: 'none', border: '1px solid #E74C3C', color: '#E74C3C', borderRadius: 7, padding: '3px 10px', fontSize: 12, cursor: 'pointer' }}
-                    >
-                      Remove
-                    </button>
+                      style={{ borderRadius: 8, padding: '5px 12px', fontSize: 12, background: 'rgba(231,76,60,0.08)', border: '1px solid rgba(231,76,60,0.2)', color: '#E74C3C', fontWeight: 600, cursor: 'pointer' }}
+                    >Remove</button>
                   )
                 }
               </div>

@@ -20,11 +20,13 @@ function avatarColor(name = '') {
 export default function Groups({
   onNavigate = () => {},
   onOpenGroup = () => {},
+  onOpenDm = () => {},
   onCreateGroup = () => {},
   onGroupJoined = () => {},
   onViewGroup = () => {},
   onLeaveGroup = () => {},
   groups = [],
+  dms = [],
   user,
 }) {
   const myName = localStorage.getItem('rally_name') || localStorage.getItem('rally_username') || '';
@@ -93,10 +95,65 @@ export default function Groups({
         </div>
       </section>
 
+      {/* Your groups */}
+      <section style={{ marginTop: 8 }}>
+        <h3 style={{ margin: '6px 0', textAlign: 'left' }}>Your groups</h3>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+          {myGroups.length > 0 ? myGroups.map(g => (
+            <GroupRow key={g.id} group={g} user={user} onOpen={() => onOpenGroup(g.id)} onLeave={() => onLeaveGroup(g.id)} />
+          )) : (
+            <div className="card" style={{ color: '#888', fontSize: 14, textAlign: 'left' }}>
+              No groups yet. Create one or join a public group below.
+            </div>
+          )}
+        </div>
+      </section>
+
+      {/* DMs */}
+      <section style={{ marginTop: 14 }}>
+        <h3 style={{ margin: '0 0 8px', textAlign: 'left' }}>DMs</h3>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+          {dms.length > 0 ? dms.map(dm => {
+            const other = dm.participants?.find(p => p.user_id !== user?.id) || {};
+            const initials = (other.name || '?').split(' ').map(s => s[0]).slice(0, 2).join('').toUpperCase();
+            const col = avatarColor(other.name || '');
+            return (
+              <div
+                key={dm.id}
+                className="card"
+                style={{ display: 'flex', alignItems: 'center', gap: 12, cursor: 'pointer', padding: '12px 14px' }}
+                onClick={() => onOpenDm(dm.id)}
+              >
+                <div style={{ width: 40, height: 40, borderRadius: '50%', background: col, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontWeight: 700, fontSize: 14, flexShrink: 0 }}>
+                  {initials}
+                </div>
+                <div style={{ flex: 1, minWidth: 0, textAlign: 'left' }}>
+                  <div style={{ fontWeight: 700, fontSize: 14 }}>{other.name || 'Unknown'}</div>
+                  {dm.lastMessage && (
+                    <div style={{ fontSize: 12, color: '#888', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', marginTop: 2 }}>
+                      {dm.lastMessage}
+                    </div>
+                  )}
+                </div>
+                {dm.lastAt && (
+                  <div style={{ fontSize: 11, color: '#888', flexShrink: 0 }}>
+                    {new Date(dm.lastAt).toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' })}
+                  </div>
+                )}
+              </div>
+            );
+          }) : (
+            <div className="card" style={{ color: '#888', fontSize: 14, textAlign: 'left' }}>
+              No DMs yet. Message a friend from their profile.
+            </div>
+          )}
+        </div>
+      </section>
+
       {/* Pending invites */}
       {invites.length > 0 && (
         <section style={{ marginTop: 8 }}>
-          <h3 style={{ margin: '6px 0' }}>Invites</h3>
+          <h3 style={{ margin: '6px 0', textAlign: 'left' }}>Invites</h3>
           {acceptError && (
             <div style={{ fontSize: 12, color: '#E74C3C', background: 'rgba(231,76,60,0.08)', borderRadius: 8, padding: '8px 10px', marginBottom: 8 }}>
               ⚠ {acceptError}
@@ -152,24 +209,10 @@ export default function Groups({
         </section>
       )}
 
-      {/* Your groups */}
-      <section style={{ marginTop: 8 }}>
-        <h3 style={{ margin: '6px 0' }}>Your groups</h3>
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-          {myGroups.length > 0 ? myGroups.map(g => (
-            <GroupRow key={g.id} group={g} user={user} onOpen={() => onOpenGroup(g.id)} onLeave={() => onLeaveGroup(g.id)} />
-          )) : (
-            <div className="card" style={{ color: '#888', fontSize: 14 }}>
-              No groups yet. Create one or join a public group below.
-            </div>
-          )}
-        </div>
-      </section>
-
       {/* Recommended / Discover */}
       {recommended.length > 0 && (
         <section style={{ marginTop: 14 }}>
-          <h3 style={{ margin: '6px 0' }}>Discover</h3>
+          <h3 style={{ margin: '6px 0', textAlign: 'left' }}>Discover</h3>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
             {recommended.map(g => (
               <GroupRow key={g.id} group={g} onOpen={() => onOpenGroup(g.id)} />
@@ -218,7 +261,7 @@ function GroupRow({ group, user, onOpen, onLeave }) {
               Leave
             </button>
           )}
-          <div style={{ color: '#bbb', fontSize: 18 }}>›</div>
+          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="#bbb" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
         </div>
       </div>
 

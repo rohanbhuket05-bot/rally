@@ -8,6 +8,7 @@ import Groups from './components/Groups';
 import Create from './components/Create';
 import GroupDetails from './components/GroupDetails';
 import GroupChat from './components/GroupChat';
+import FriendProfilePage from './components/FriendProfilePage';
 import EventDetails from './components/EventDetails';
 import CreateGroup from './components/CreateGroup';
 import AuthModal from './components/AuthModal';
@@ -50,6 +51,7 @@ function App() {
     else localStorage.removeItem('rally_active_group_id');
   }, [activeGroupId]);
   const [activeEventId, setActiveEventId] = useState(null);
+  const [viewingFriendId, setViewingFriendId] = useState(null);
   const [createGroupContext, setCreateGroupContext] = useState(null);
   const [events, setEvents] = useState(() => {
     try { return JSON.parse(localStorage.getItem('rally_events') || '[]'); } catch(e) { return []; }
@@ -136,7 +138,7 @@ function App() {
     try { localStorage.setItem('rally_groups', JSON.stringify(groups)); } catch(e){}
   }, [groups]);
 
-  const loadUserProfile = useCallback(async (userId) => {
+  const loadUserProfile = useCallback(async (userId, u) => {
     const data = await getProfile(userId);
     const loaded = {
       name: (data?.name) || '',
@@ -145,6 +147,7 @@ function App() {
       friends: Array.isArray(data?.friends) ? data.friends : [],
       school: (data?.school) || '',
       school_verified: !!(data?.school_verified),
+      avatar_url: (data?.avatar_url) || u?.user_metadata?.avatar_url || '',
     };
     setProfile(loaded);
     localStorage.setItem('rally_name', loaded.name);
@@ -153,6 +156,10 @@ function App() {
     localStorage.setItem('rally_friends', JSON.stringify(loaded.friends));
     if (loaded.school) localStorage.setItem('rally_school', loaded.school);
     if (loaded.school_verified) localStorage.setItem('rally_school_verified', loaded.school);
+    // Persist Google avatar to profiles table on first sign-in
+    if (!data?.avatar_url && loaded.avatar_url) {
+      upsertProfile(userId, loaded);
+    }
     if (!loaded.username) setShowUsernamePrompt(true);
   }, []);
 
@@ -179,11 +186,11 @@ function App() {
     let mounted = true;
     (async () => {
       const u = await getUser();
-      if (mounted) { setUser(u); if (u) loadUserProfile(u.id); }
+      if (mounted) { setUser(u); if (u) loadUserProfile(u.id, u); }
     })();
     const unsub = onAuthStateChange((event, session) => {
       setUser(session?.user ?? null);
-      if (session?.user) loadUserProfile(session.user.id);
+      if (session?.user) loadUserProfile(session.user.id, session.user);
     });
     return () => { mounted = false; unsub(); };
   }, [loadUserProfile]);
@@ -303,7 +310,14 @@ function App() {
         />
       )}
       {activeTab === 'profile' && (
-        <Profile user={user} profile={profile} onUpdateProfile={handleUpdateProfile} activeTab={activeTab} onNavigate={setActiveTab} onOpenGroup={(id) => { setActiveGroupId(id); setActiveTab('group'); }} events={events} groups={groups} onAddEvent={addEvent} onUpdateEvent={updateEvent} onDeleteEvent={deleteEvent} onSignOut={() => { signOut(); setUser(null); }} onAuthRequired={onAuthRequired} darkMode={darkMode} onToggleDark={() => setDarkMode(d => !d)} />
+        <Profile user={user} profile={profile} onUpdateProfile={handleUpdateProfile} activeTab={activeTab} onNavigate={setActiveTab} onOpenGroup={(id) => { setActiveGroupId(id); setActiveTab('group'); }} events={events} groups={groups} onAddEvent={addEvent} onUpdateEvent={updateEvent} onDeleteEvent={deleteEvent} onSignOut={() => { signOut(); setUser(null); }} onAuthRequired={onAuthRequired} darkMode={darkMode} onToggleDark={() => setDarkMode(d => !d)} onViewFriend={(id) => { setViewingFriendId(id); setActiveTab('friend-profile'); }} />
+      )}
+      {activeTab === 'friend-profile' && viewingFriendId && (
+        <FriendProfilePage
+          friendId={viewingFriendId}
+          groups={groups}
+          onBack={() => { setViewingFriendId(null); setActiveTab('profile'); }}
+        />
       )}
       {activeTab === 'post' && (
         <Create activeTab={activeTab} onNavigate={setActiveTab} onCreateGroup={openCreateGroup} onAddEvent={addEvent} user={user} onAuthRequired={onAuthRequired} />
