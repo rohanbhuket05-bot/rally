@@ -72,6 +72,20 @@ export async function updateEvent({ id, ...rest }) {
   }
 }
 
+export async function updateEventAttendees(eventId, attendees) {
+  try {
+    const { error } = await supabase.rpc('update_event_attendees', {
+      p_event_id: eventId,
+      p_attendees: attendees,
+    });
+    if (error) throw error;
+    return true;
+  } catch (e) {
+    console.warn('updateEventAttendees error', e.message || e);
+    return false;
+  }
+}
+
 export async function deleteEvent(id) {
   try {
     const { error } = await supabase.from('events').delete().eq('id', id);

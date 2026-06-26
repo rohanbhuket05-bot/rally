@@ -10,12 +10,13 @@ import GroupDetails from './components/GroupDetails';
 import GroupChat from './components/GroupChat';
 import FriendProfilePage from './components/FriendProfilePage';
 import EventDetails from './components/EventDetails';
+import EventChat from './components/EventChat';
 import CreateGroup from './components/CreateGroup';
 import AuthModal from './components/AuthModal';
 import UsernamePrompt from './components/UsernamePrompt';
 import BottomNav from './components/BottomNav';
 import { groupsData } from './data/groups';
-import { isSupabaseConfigured, signOut, getUser, onAuthStateChange, getEvents as sbGetEvents, insertEvent as sbInsertEvent, updateEvent as sbUpdateEvent, deleteEvent as sbDeleteEvent, getGroups as sbGetGroups, insertGroup as sbInsertGroup, updateGroup as sbUpdateGroup, deleteGroup as sbDeleteGroup, leaveGroup as sbLeaveGroup, mapGroupRow, getProfile, upsertProfile } from './lib/supabaseClient';
+import { isSupabaseConfigured, signOut, getUser, onAuthStateChange, getEvents as sbGetEvents, insertEvent as sbInsertEvent, updateEvent as sbUpdateEvent, updateEventAttendees as sbUpdateEventAttendees, deleteEvent as sbDeleteEvent, getGroups as sbGetGroups, insertGroup as sbInsertGroup, updateGroup as sbUpdateGroup, deleteGroup as sbDeleteGroup, leaveGroup as sbLeaveGroup, mapGroupRow, getProfile, upsertProfile } from './lib/supabaseClient';
 
 function App() {
   const [user, setUser] = useState(null);
@@ -51,6 +52,7 @@ function App() {
     else localStorage.removeItem('rally_active_group_id');
   }, [activeGroupId]);
   const [activeEventId, setActiveEventId] = useState(null);
+  const [activeEventData, setActiveEventData] = useState(null);
   const [viewingFriendId, setViewingFriendId] = useState(() => localStorage.getItem('rally_viewing_friend_id') || null);
   useEffect(() => {
     if (viewingFriendId) localStorage.setItem('rally_viewing_friend_id', viewingFriendId);
@@ -81,7 +83,7 @@ function App() {
       if (rows && rows.length > 0) {
         // Supabase is authoritative once it has data
         const fallbackHost = localStorage.getItem('rally_username') || localStorage.getItem('rally_name') || '';
-        setEvents(rows.map(r => ({ id: r.id, title: r.title, dateISO: r.date_iso || r.dateISO, showTime: r.show_time ?? r.showTime ?? true, location: r.location, city: r.city || '', host: r.host || (r.personal ? undefined : fallbackHost), attendees: r.attendees || [], personal: r.personal ?? false })));
+        setEvents(rows.map(r => ({ id: r.id, title: r.title, dateISO: r.date_iso || r.dateISO, showTime: r.show_time ?? r.showTime ?? true, location: r.location, city: r.city || '', host: r.host || (r.personal ? undefined : fallbackHost), attendees: r.attendees || [], personal: r.personal ?? false, tags: r.tags || [], visibility: r.visibility || 'public', user_id: r.user_id })));
       } else {
         // Supabase empty — migrate any localStorage events up
         const local = (() => { try { return JSON.parse(localStorage.getItem('rally_events') || '[]'); } catch(e) { return []; } })();
@@ -214,19 +216,25 @@ function App() {
     });
 
     if (isSupabaseConfigured()){
-      const created = await sbInsertEvent({ title: evt.title, date_iso: evt.dateISO, show_time: evt.showTime, location: evt.location, city: evt.city || '', host: evt.host || '', attendees: evt.attendees || [], personal: evt.personal ?? false });
+      const created = await sbInsertEvent({ title: evt.title, date_iso: evt.dateISO, show_time: evt.showTime, location: evt.location, city: evt.city || '', host: temp.host || '', attendees: evt.attendees || [], personal: evt.personal ?? false, tags: evt.tags || [], visibility: evt.visibility || 'public' });
       if (created) {
-        setEvents(s => s.map(x => x.id === temp.id ? ({ id: created.id, title: created.title, dateISO: created.date_iso || created.dateISO, showTime: created.show_time ?? created.showTime, location: created.location, city: evt.city || '', host: evt.host || '', attendees: created.attendees || [], personal: created.personal ?? false }) : x));
+        setEvents(s => s.map(x => x.id === temp.id ? ({ id: created.id, title: created.title, dateISO: created.date_iso || created.dateISO, showTime: created.show_time ?? created.showTime, location: created.location, city: evt.city || '', host: temp.host || '', attendees: created.attendees || [], personal: created.personal ?? false, tags: created.tags || evt.tags || [], visibility: created.visibility || evt.visibility || 'public', user_id: created.user_id }) : x));
       }
     }
   }, []);
 
   const updateEvent = useCallback(async (updated) => {
     setEvents(s => s.some(x => x.id === updated.id) ? s.map(x => x.id === updated.id ? updated : x) : [...s, updated]);
-    if (isSupabaseConfigured()){
-      await sbUpdateEvent({ id: updated.id, date_iso: updated.dateISO, show_time: updated.showTime, title: updated.title, location: updated.location, attendees: updated.attendees || [] });
+    setActiveEventData(prev => prev?.id === updated.id ? updated : prev);
+    if (isSupabaseConfigured()) {
+      const isOwner = updated.user_id && user ? updated.user_id === user.id : true;
+      if (isOwner) {
+        await sbUpdateEvent({ id: updated.id, date_iso: updated.dateISO, show_time: updated.showTime, title: updated.title, location: updated.location, attendees: updated.attendees || [], tags: updated.tags || [], visibility: updated.visibility || 'public' });
+      } else {
+        await sbUpdateEventAttendees(updated.id, updated.attendees || []);
+      }
     }
-  }, []);
+  }, [user]);
 
   const deleteEvent = useCallback(async (id) => {
     setEvents(s => s.filter(x => x.id !== id));
@@ -237,6 +245,7 @@ function App() {
 
   const openEvent = useCallback((event) => {
     setActiveEventId(event.id);
+    setActiveEventData(event);
     setActiveTab(current => { setPreviousTab(current); return 'event-details'; });
   }, []);
 
@@ -289,10 +298,10 @@ function App() {
         <UsernamePrompt user={user} onComplete={handleUsernameChosen} />
       )}
       {activeTab === 'home' && (
-        <HomeFeed activeTab={activeTab} onNavigate={setActiveTab} events={events} onAddEvent={addEvent} onUpdateEvent={updateEvent} onDeleteEvent={deleteEvent} onOpenEvent={openEvent} user={user} onAuthRequired={onAuthRequired} groups={groups} onOpenGroup={(id) => { setActiveGroupId(id); setActiveTab('group'); }} />
+        <HomeFeed activeTab={activeTab} onNavigate={setActiveTab} events={events} onAddEvent={addEvent} onUpdateEvent={updateEvent} onDeleteEvent={deleteEvent} onOpenEvent={openEvent} user={user} profile={profile} onAuthRequired={onAuthRequired} groups={groups} onOpenGroup={(id) => { setActiveGroupId(id); setActiveTab('group'); }} />
       )}
       {activeTab === 'explore' && (
-        <Explore activeTab={activeTab} onNavigate={setActiveTab} events={events} onOpenEvent={openEvent} onUpdateEvent={updateEvent} user={user} onAuthRequired={onAuthRequired} />
+        <Explore activeTab={activeTab} onNavigate={setActiveTab} events={events} onOpenEvent={openEvent} onUpdateEvent={updateEvent} user={user} profile={profile} onAuthRequired={onAuthRequired} />
       )}
       {activeTab === 'groups' && (
         <Groups
@@ -357,14 +366,24 @@ function App() {
       )}
       {activeTab === 'event-details' && activeEventId && (
         <EventDetails
-          event={events.find(e => e.id === activeEventId)}
+          event={activeEventData || events.find(e => e.id === activeEventId)}
           onBack={() => setActiveTab(previousTab)}
           onUpdateEvent={updateEvent}
           activeTab={previousTab}
           onNavigate={setActiveTab}
           onCreateGroup={openCreateGroup}
+          onOpenChat={() => setActiveTab('event-chat')}
           user={user}
+          profile={profile}
           onAuthRequired={onAuthRequired}
+        />
+      )}
+      {activeTab === 'event-chat' && activeEventId && (
+        <EventChat
+          event={activeEventData || events.find(e => e.id === activeEventId)}
+          user={user}
+          profile={profile}
+          onBack={() => setActiveTab('event-details')}
         />
       )}
       {activeTab === 'create-group' && (

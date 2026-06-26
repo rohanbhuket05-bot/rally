@@ -5,7 +5,7 @@ import './HomeFeed.css';
 
 // HomeFeed now accepts `events` as a prop from App-level state
 
-export default function HomeFeed({ activeTab = 'home', onNavigate = () => {}, events = [], onAddEvent = () => {}, onUpdateEvent = () => {}, onDeleteEvent = () => {}, onOpenEvent = () => {}, user = null, onAuthRequired = () => {}, groups = [], onOpenGroup = () => {} }) {
+export default function HomeFeed({ activeTab = 'home', onNavigate = () => {}, events = [], onAddEvent = () => {}, onUpdateEvent = () => {}, onDeleteEvent = () => {}, onOpenEvent = () => {}, user = null, profile = null, onAuthRequired = () => {}, groups = [], onOpenGroup = () => {} }) {
   const [showAllEvents, setShowAllEvents] = React.useState(false);
   const [groupsJoined, setGroupsJoined] = React.useState(() => {
     try {
@@ -25,7 +25,7 @@ export default function HomeFeed({ activeTab = 'home', onNavigate = () => {}, ev
     const name = currentUserName;
     const initials = (name || 'You').split(' ').map(s=>s[0]).slice(0,2).join('').toUpperCase();
     const exists = (event.attendees || []).some(a=>a.name === name);
-    const attendees = exists ? (event.attendees || []).filter(a=>a.name !== name) : [{ name, initials, color: '#FFFFFF', user_id: user?.id }, ...(event.attendees || [])];
+    const attendees = exists ? (event.attendees || []).filter(a=>a.name !== name) : [{ name, initials, color: '#FFFFFF', user_id: user?.id, avatar_url: profile?.avatar_url || '' }, ...(event.attendees || [])];
     const updated = { ...event, attendees };
     onUpdateEvent(updated);
   }

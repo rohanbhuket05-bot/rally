@@ -87,7 +87,7 @@ const CATEGORIES = [
   },
 ];
 
-export default function Explore({ events = [], onNavigate = () => {}, onOpenEvent = () => {}, onUpdateEvent = () => {}, user = null, onAuthRequired = () => {} }) {
+export default function Explore({ events = [], onNavigate = () => {}, onOpenEvent = () => {}, onUpdateEvent = () => {}, user = null, profile = null, onAuthRequired = () => {} }) {
   const [q, setQ] = useState('');
   const [selectedCategory, setSelectedCategory] = useState(null);
   const [dbPublicEvents, setDbPublicEvents] = useState([]);
@@ -125,8 +125,10 @@ export default function Explore({ events = [], onNavigate = () => {}, onOpenEven
     const exists = (event.attendees || []).some(a => a.name === name);
     const attendees = exists
       ? (event.attendees || []).filter(a => a.name !== name)
-      : [{ name, initials, color: '#FFFFFF', user_id: user?.id }, ...(event.attendees || [])];
-    onUpdateEvent({ ...event, attendees });
+      : [{ name, initials, color: '#FFFFFF', user_id: user?.id, avatar_url: profile?.avatar_url || '' }, ...(event.attendees || [])];
+    const updated = { ...event, attendees };
+    setDbPublicEvents(s => s.map(e => e.id === updated.id ? updated : e));
+    onUpdateEvent(updated);
   }
 
   const results = useMemo(() => {
@@ -160,7 +162,7 @@ export default function Explore({ events = [], onNavigate = () => {}, onOpenEven
       </section>
 
       <section style={{ marginTop: 8 }}>
-        <h3 style={{ margin: '6px 0' }}>Trending</h3>
+        <h3 style={{ margin: '6px 0', textAlign: 'left' }}>Trending</h3>
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 10 }}>
           {results.slice(0, 4).map(ev => (
             <EventCard key={`t-${ev.id}`} event={ev} onJoin={handleJoin} currentUserName={localStorage.getItem('rally_name') || localStorage.getItem('rally_username') || ''} currentUserId={user?.id} onOpenDetails={onOpenEvent} compact />
@@ -169,7 +171,7 @@ export default function Explore({ events = [], onNavigate = () => {}, onOpenEven
       </section>
 
       <section style={{ marginTop: 14 }}>
-        <h3 style={{ margin: '6px 0' }}>Nearby</h3>
+        <h3 style={{ margin: '6px 0', textAlign: 'left' }}>Nearby</h3>
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 10 }}>
           {results.slice(4, 10).map(ev => (
             <EventCard key={`n-${ev.id}`} event={ev} onJoin={handleJoin} currentUserName={localStorage.getItem('rally_name') || localStorage.getItem('rally_username') || ''} currentUserId={user?.id} onOpenDetails={onOpenEvent} compact />
@@ -178,7 +180,7 @@ export default function Explore({ events = [], onNavigate = () => {}, onOpenEven
       </section>
 
       <section style={{ marginTop: 20, marginBottom: 24 }}>
-        <h3 style={{ margin: '0 0 14px', fontSize: 17, fontWeight: 800 }}>Browse by Category</h3>
+        <h3 style={{ margin: '0 0 14px', fontSize: 17, fontWeight: 800, textAlign: 'left' }}>Browse by Category</h3>
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 10 }}>
           {CATEGORIES.map(c => {
             const count = allPublicEvents.filter(e => e.category === c.label || (e.tags || []).includes(c.label)).length;
