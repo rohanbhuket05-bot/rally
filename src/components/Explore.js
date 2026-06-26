@@ -125,7 +125,7 @@ export default function Explore({ events = [], onNavigate = () => {}, onOpenEven
     const exists = (event.attendees || []).some(a => a.name === name);
     const attendees = exists
       ? (event.attendees || []).filter(a => a.name !== name)
-      : [{ name, initials, color: '#FFFFFF' }, ...(event.attendees || [])];
+      : [{ name, initials, color: '#FFFFFF', user_id: user?.id }, ...(event.attendees || [])];
     onUpdateEvent({ ...event, attendees });
   }
 

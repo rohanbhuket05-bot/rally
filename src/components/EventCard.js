@@ -42,6 +42,11 @@ export default function EventCard({ event, onJoin, currentUserName, currentUserI
           <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 4, flexShrink: 0 }}>
             {isHost && <span className="category-pill" style={{ background: 'var(--light-purple)', color: 'var(--purple)', fontSize: 10, fontWeight: 700, padding: '2px 7px' }}>My Event</span>}
             {trending && <span className="badge" style={{ fontSize: 10 }}>Trending</span>}
+            {!isHost && (
+              <button className={`nav-action-btn ${joined ? 'joined' : 'join'}`} style={{ fontSize: 11, padding: '4px 10px', height: 'auto', minWidth: 0, display: 'inline-flex', alignItems: 'center', gap: 4, transition: 'all 200ms ease' }} onClick={e => { e.stopPropagation(); onJoin && onJoin(event); }}>
+                {joined ? (<><svg viewBox="0 0 12 12" width="10" height="10" fill="none"><path d="M1.5 6l3 3 6-6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></svg>Joined</>) : 'Join'}
+              </button>
+            )}
           </div>
         </div>
 
@@ -70,7 +75,7 @@ export default function EventCard({ event, onJoin, currentUserName, currentUserI
           </div>
         </div>
 
-        <div className="card-footer" style={{ marginTop: 4 }}>
+        <div style={{ display: 'flex', alignItems: 'center', marginTop: 4 }}>
           <div className="avatars">
             {attendees.slice(0, 3).map((a, i) => (
               <div key={i} className="avatar" title={a.name} style={{ backgroundColor: a.color || '#DDD', zIndex: 10 - i, width: 28, height: 28, fontSize: 11 }}>
@@ -79,9 +84,6 @@ export default function EventCard({ event, onJoin, currentUserName, currentUserI
             ))}
             {attendees.length > 3 && <div className="avatar extra" style={{ width: 28, height: 28, fontSize: 11 }}>+{attendees.length - 3}</div>}
           </div>
-          {!isHost && (
-            <button className={`nav-action-btn ${joined ? 'joined' : 'join'}`} style={{ fontSize: 11, padding: '4px 10px', height: 'auto', minWidth: 0 }} onClick={e => { e.stopPropagation(); onJoin && onJoin(event); }}>{joined ? 'Joined' : "I'm in"}</button>
-          )}
         </div>
       </article>
     );
@@ -101,6 +103,11 @@ export default function EventCard({ event, onJoin, currentUserName, currentUserI
         <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
           {isHost && <span className="category-pill" style={{ background: 'var(--light-purple)', color: 'var(--purple)', fontSize: 11, fontWeight: 700 }}>My Event</span>}
           {trending && <span className="badge">Trending</span>}
+          {!isHost && (
+            <button className={`nav-action-btn ${joined ? 'joined' : 'join'}`} style={{ display: 'inline-flex', alignItems: 'center', gap: 5, transition: 'all 200ms ease' }} onClick={e => { e.stopPropagation(); onJoin && onJoin(event); }}>
+              {joined ? (<><svg viewBox="0 0 12 12" width="11" height="11" fill="none"><path d="M1.5 6l3 3 6-6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></svg>Joined</>) : 'Join'}
+            </button>
+          )}
         </div>
       </div>
       {event.host && <div style={{ fontSize: 12, color: '#888', marginBottom: 6, textAlign: 'left' }}>Hosted by: {event.host}</div>}
@@ -128,7 +135,6 @@ export default function EventCard({ event, onJoin, currentUserName, currentUserI
           ))}
           {attendees.length > 5 && <div className="avatar extra">+{attendees.length - 5}</div>}
         </div>
-        {!isHost && <button className={`nav-action-btn ${joined ? 'joined' : 'join'}`} onClick={e => { e.stopPropagation(); onJoin && onJoin(event); }}>{joined ? 'Joined' : "I'm in"}</button>}
       </div>
     </article>
   );

@@ -61,9 +61,8 @@ export async function insertEvent(event) {
   }
 }
 
-export async function updateEvent(event) {
+export async function updateEvent({ id, ...rest }) {
   try {
-    const { id, ...rest } = event;
     const { data, error } = await supabase.from('events').update(rest).eq('id', id).select();
     if (error) throw error;
     return data?.[0] ?? null;

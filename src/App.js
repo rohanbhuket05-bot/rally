@@ -222,9 +222,9 @@ function App() {
   }, []);
 
   const updateEvent = useCallback(async (updated) => {
-    setEvents(s => s.map(x => x.id === updated.id ? updated : x));
+    setEvents(s => s.some(x => x.id === updated.id) ? s.map(x => x.id === updated.id ? updated : x) : [...s, updated]);
     if (isSupabaseConfigured()){
-      await sbUpdateEvent(updated.id, { title: updated.title, date_iso: updated.dateISO, show_time: updated.showTime, location: updated.location, attendees: updated.attendees || [] });
+      await sbUpdateEvent({ id: updated.id, date_iso: updated.dateISO, show_time: updated.showTime, title: updated.title, location: updated.location, attendees: updated.attendees || [] });
     }
   }, []);
 
