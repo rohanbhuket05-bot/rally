@@ -76,7 +76,7 @@ export default function HomeFeed({ activeTab = 'home', onNavigate = () => {}, ev
         </h3>
         <div className="cards">
           {(showAllEvents ? events : events.slice(0, 3)).map((ev) => (
-            <EventCard key={ev.id} event={ev} onJoin={handleJoin} currentUserName={currentUserName} onOpenDetails={onOpenEvent} />
+            <EventCard key={ev.id} event={ev} onJoin={handleJoin} currentUserName={currentUserName} currentUserId={user?.id} onOpenDetails={onOpenEvent} />
           ))}
         </div>
       </section>

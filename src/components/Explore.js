@@ -103,6 +103,7 @@ export default function Explore({ events = [], onNavigate = () => {}, onOpenEven
         city: r.city || '',
         category: r.category || '',
         tags: r.tags || [],
+        host: r.host || '',
         personal: false,
         attendees: r.attendees || [],
         description: r.description || '',
@@ -162,7 +163,7 @@ export default function Explore({ events = [], onNavigate = () => {}, onOpenEven
         <h3 style={{ margin: '6px 0' }}>Trending</h3>
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 10 }}>
           {results.slice(0, 4).map(ev => (
-            <EventCard key={`t-${ev.id}`} event={ev} onJoin={handleJoin} currentUserName={localStorage.getItem('rally_name') || localStorage.getItem('rally_username') || ''} onOpenDetails={onOpenEvent} compact />
+            <EventCard key={`t-${ev.id}`} event={ev} onJoin={handleJoin} currentUserName={localStorage.getItem('rally_name') || localStorage.getItem('rally_username') || ''} currentUserId={user?.id} onOpenDetails={onOpenEvent} compact />
           ))}
         </div>
       </section>
@@ -171,7 +172,7 @@ export default function Explore({ events = [], onNavigate = () => {}, onOpenEven
         <h3 style={{ margin: '6px 0' }}>Nearby</h3>
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 10 }}>
           {results.slice(4, 10).map(ev => (
-            <EventCard key={`n-${ev.id}`} event={ev} onJoin={handleJoin} currentUserName={localStorage.getItem('rally_name') || localStorage.getItem('rally_username') || ''} onOpenDetails={onOpenEvent} compact />
+            <EventCard key={`n-${ev.id}`} event={ev} onJoin={handleJoin} currentUserName={localStorage.getItem('rally_name') || localStorage.getItem('rally_username') || ''} currentUserId={user?.id} onOpenDetails={onOpenEvent} compact />
           ))}
         </div>
       </section>

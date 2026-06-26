@@ -14,11 +14,11 @@ const CATEGORY_COLORS = {
   Other:       '#999999',
 };
 
-export default function EventCard({ event, onJoin, currentUserName, onOpenDetails, compact = false }) {
+export default function EventCard({ event, onJoin, currentUserName, currentUserId, onOpenDetails, compact = false }) {
   const { title, date, dateISO, showTime, location, attendees = [], trending, personal } = event;
   const dateDisplay = date || (dateISO ? (showTime ? new Date(dateISO).toLocaleString(undefined, { weekday: 'short', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' }) : new Date(dateISO).toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' })) : 'Date TBD');
   const joined = currentUserName && attendees.some(a => a.name === currentUserName);
-  const isHost = event.host && event.host === localStorage.getItem('rally_username');
+  const isHost = currentUserId ? event.user_id === currentUserId : event.host === localStorage.getItem('rally_username');
 
   if (personal) {
     return (
