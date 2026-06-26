@@ -76,7 +76,7 @@ export default function BottomNav({ activeTab = '', onNavigate = () => {} }) {
             borderRadius: 999,
             transform: 'translateY(-50%)',
             background: 'rgba(83,74,183,0.14)',
-            transition: 'left 320ms cubic-bezier(0.34, 1.4, 0.64, 1)',
+            transition: 'left 320ms cubic-bezier(0.34, 1.25, 0.64, 1)',
             pointerEvents: 'none',
             zIndex: 0,
           }}

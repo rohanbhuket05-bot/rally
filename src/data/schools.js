@@ -1,3 +1,20 @@
+export const SCHOOLS = [
+  'UCSD', 'USC', 'UCLA', 'UC Berkeley', 'UC Irvine', 'UCSB', 'UC Davis',
+  'UC Santa Cruz', 'UC Riverside', 'SDSU', 'Stanford', 'MIT', 'Harvard',
+  'Yale', 'Princeton', 'Columbia', 'Cornell', 'NYU', 'UChicago', 'CMU',
+  'Georgia Tech', 'U of Michigan', 'UT Austin', 'UW', 'Purdue', 'UF', 'CSUSM',
+  'Penn State', 'Ohio State', 'UNC Chapel Hill', 'Duke', 'Vanderbilt',
+  'Northwestern', 'Georgetown', 'Boston University', 'Northeastern',
+  'UC Merced', 'Cal Poly SLO', 'Cal Poly Pomona', 'SFSU', 'CSULB', 'CSUF',
+  'Arizona State', 'U of Arizona', 'U of Colorado Boulder', 'CU Denver',
+  'Florida State', 'U of Florida', 'U of Miami', 'U of Georgia', 'Emory',
+  'U of Virginia', 'Virginia Tech', 'U of Washington', 'Washington State',
+  'U of Oregon', 'Oregon State', 'U of Utah', 'BYU', 'U of Nevada Las Vegas',
+  'Indiana University', 'U of Illinois', 'U of Wisconsin', 'U of Minnesota',
+  'Michigan State', 'Penn', 'Brown', 'Dartmouth', 'Rice', 'Tufts', 'Wake Forest',
+  'Tulane', 'TCU', 'SMU', 'Baylor', 'Texas A&M', 'U of Houston',
+];
+
 const EDU_DOMAINS = {
   'ucsd.edu':      'UCSD',
   'usc.edu':       'USC',
@@ -35,4 +52,9 @@ export function getSchoolFromEmail(email) {
   const domain = parts[1];
   if (!domain.endsWith('.edu')) return null;
   return EDU_DOMAINS[domain] || null;
+}
+
+export function getSchoolFromDomain(domain) {
+  if (!domain) return null;
+  return EDU_DOMAINS[domain.toLowerCase()] || null;
 }

@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import './HomeFeed.css';
 
-import { getSchoolFromEmail } from '../data/schools';
+import { getSchoolFromEmail, getSchoolFromDomain, SCHOOLS } from '../data/schools';
 import FriendsPanel from './FriendsPanel';
 import { isSupabaseConfigured, signInWithOtp, signInWithProvider, checkUsernameAvailable, getFriendNotifications } from '../lib/supabaseClient';
 import { validateUsername } from '../lib/usernameValidation';
@@ -25,7 +25,7 @@ const CITIES = [
   'Seoul, South Korea','Mumbai, India','Bangkok, Thailand','Hong Kong',
 ];
 
-export default function Profile({ user, profile = {}, onUpdateProfile = () => {}, activeTab = 'profile', onNavigate = () => {}, onOpenGroup = () => {}, events = [], onAddEvent = () => {}, onUpdateEvent = () => {}, onDeleteEvent = () => {}, onSignOut = () => {}, onAuthRequired = () => {}, darkMode = false, onToggleDark = () => {} }) {
+export default function Profile({ user, profile = {}, onUpdateProfile = () => {}, activeTab = 'profile', onNavigate = () => {}, onOpenGroup = () => {}, events = [], groups: allGroups = [], onAddEvent = () => {}, onUpdateEvent = () => {}, onDeleteEvent = () => {}, onSignOut = () => {}, onAuthRequired = () => {}, darkMode = false, onToggleDark = () => {} }) {
   const [name, setName] = useState(() => profile.name || localStorage.getItem('rally_name') || '');
   const [bio, setBio] = useState(() => profile.bio || localStorage.getItem('rally_bio') || '');
   const [username, setUsername] = useState(() => profile.username || localStorage.getItem('rally_username') || '');
@@ -110,7 +110,7 @@ export default function Profile({ user, profile = {}, onUpdateProfile = () => {}
   const [attended, setAttended] = useState([]);
   const [media, setMedia] = useState([]);
   const [cheers, setCheers] = useState({ count: getStoredCheers(), givers: [] });
-  const [groups, setGroups] = useState([]);
+  const groups = user ? allGroups.filter(g => (g.members || []).some(m => m.user_id === user.id)) : [];
   const [showFriendsPanel, setShowFriendsPanel] = useState(false);
   const [friendNotifCount, setFriendNotifCount] = useState(0);
 
@@ -173,7 +173,17 @@ export default function Profile({ user, profile = {}, onUpdateProfile = () => {}
     setShowForm(false);
   }
 
-  const school = getSchoolFromEmail(user?.email);
+  const detectedSchool = getSchoolFromEmail(user?.email);
+  const [school, setSchool] = useState(() => localStorage.getItem('rally_school') || detectedSchool || '');
+  const [showSchoolPicker, setShowSchoolPicker] = useState(false);
+  const [schoolSearch, setSchoolSearch] = useState('');
+
+  // Verified if the sign-in email's .edu domain auto-maps to the current school,
+  // or if a previous OTP verification was completed (future flow).
+  const schoolVerified = !!school && (
+    detectedSchool === school ||
+    localStorage.getItem('rally_school_verified') === school
+  );
 
   // ── Logged-out state ─────────────────────────────────────────────────────────
   if (!user) {
@@ -277,13 +287,106 @@ export default function Profile({ user, profile = {}, onUpdateProfile = () => {}
             </div>
             <p style={{ margin: 0, color: '#666' }}>{bio || 'Add a short bio to tell people what you’re about.'}</p>
             <div style={{ display:'flex', justifyContent:'center', gap:8, flexWrap:'wrap', marginTop:12 }}>
-              {school && (
-                <span className="category-pill" style={{ background:'var(--purple)', color:'#fff', fontSize:12, padding:'6px 10px', fontWeight:700 }}>{school}</span>
+              {school ? (
+                <button
+                  onClick={() => setShowSchoolPicker(true)}
+                  style={{ background:'rgba(56,189,248,0.15)', color:'#38bdf8', fontSize:12, padding:'6px 10px', fontWeight:700, border:'none', borderRadius:999, cursor:'pointer', display:'flex', alignItems:'center', gap:5 }}
+                >
+                  <svg viewBox="0 0 24 24" width="12" height="12" fill="currentColor"><path d="M12 3L1 9l4 2.18V17h2v-4.82l1 .55V17c0 2.76 2.24 5 5 5s5-2.24 5-5v-4.27l2-1.09V17h2V11.18L23 9 12 3zm5 14c0 1.66-1.34 3-3 3s-3-1.34-3-3v-3.73l3 1.64 3-1.64V17z"/></svg>
+                  {school}
+                  {schoolVerified && (
+                    <span style={{ display:'inline-flex', alignItems:'center', justifyContent:'center', width:14, height:14, borderRadius:'50%', background:'#38bdf8' }}>
+                      <svg viewBox="0 0 24 24" width="9" height="9" fill="currentColor"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41L9 16.17z"/></svg>
+                    </span>
+                  )}
+                </button>
+              ) : (
+                <button
+                  onClick={() => setShowSchoolPicker(true)}
+                  style={{ background:'transparent', color:'#888', fontSize:12, padding:'5px 10px', fontWeight:600, border:'1.5px dashed rgba(128,128,180,0.4)', borderRadius:999, cursor:'pointer', display:'flex', alignItems:'center', gap:5 }}
+                >
+                  <svg viewBox="0 0 24 24" width="12" height="12" fill="currentColor"><path d="M12 3L1 9l4 2.18V17h2v-4.82l1 .55V17c0 2.76 2.24 5 5 5s5-2.24 5-5v-4.27l2-1.09V17h2V11.18L23 9 12 3zm5 14c0 1.66-1.34 3-3 3s-3-1.34-3-3v-3.73l3 1.64 3-1.64V17z"/></svg>
+                  Join your university
+                </button>
               )}
               <span className="category-pill" style={{ background:'var(--light-teal)', color:'var(--teal)', fontSize:12, padding:'6px 10px' }}>{cheers.count} cheers</span>
               <span className="category-pill" style={{ background:'var(--light-purple)', color:'var(--purple)', fontSize:12, padding:'6px 10px' }}>{events.filter(e => !e.personal && e.dateISO && new Date(e.dateISO) < new Date()).length} hosted</span>
               <span className="category-pill" style={{ background:'var(--light-pink)', color:'var(--pink)', fontSize:12, padding:'6px 10px' }}>{events.filter(e => e.dateISO && new Date(e.dateISO) < new Date()).length} attended</span>
             </div>
+
+            {showSchoolPicker && (
+              <div className="modal-overlay" onClick={() => { setShowSchoolPicker(false); setSchoolSearch(''); }}>
+                <div className="modal" onClick={e => e.stopPropagation()} style={{ maxHeight:'70vh', display:'flex', flexDirection:'column', gap:0 }}>
+                  <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:12 }}>
+                    <h3 style={{ margin:0, fontSize:16 }}>Your University</h3>
+                    <button onClick={() => { setShowSchoolPicker(false); setSchoolSearch(''); }} style={{ background:'none', border:'none', fontSize:20, cursor:'pointer', color:'#888', lineHeight:1 }}>×</button>
+                  </div>
+                  <input
+                    className="text-input"
+                    placeholder="Search universities..."
+                    value={schoolSearch}
+                    onChange={e => setSchoolSearch(e.target.value)}
+                    autoFocus
+                    style={{ marginBottom:10 }}
+                  />
+                  <div style={{ overflowY:'auto', flex:1, display:'flex', flexDirection:'column', gap:4 }}>
+                    {(schoolSearch.trim()
+                      ? SCHOOLS.filter(s => s.toLowerCase().includes(schoolSearch.toLowerCase()))
+                      : SCHOOLS
+                    ).map(s => (
+                      <button
+                        key={s}
+                        onClick={() => {
+                          setSchool(s);
+                          localStorage.setItem('rally_school', s);
+                          setShowSchoolPicker(false);
+                          setSchoolSearch('');
+                        }}
+                        style={{
+                          background: s === school ? 'rgba(83,74,183,0.12)' : 'transparent',
+                          border: 'none', borderRadius:8, padding:'10px 12px',
+                          textAlign:'left', cursor:'pointer', fontSize:14, fontWeight: s === school ? 700 : 400,
+                          color: s === school ? 'var(--purple)' : 'inherit',
+                        }}
+                      >
+                        {s}
+                      </button>
+                    ))}
+                    {schoolSearch.trim() && SCHOOLS.filter(s => s.toLowerCase().includes(schoolSearch.toLowerCase())).length === 0 && (
+                      <div style={{ fontSize:13, color:'#888', padding:'10px 12px' }}>No results for "{schoolSearch}"</div>
+                    )}
+                  </div>
+                  {school && !schoolVerified && (
+                    <div style={{ marginTop:10, padding:'10px 12px', borderRadius:10, background:'rgba(83,74,183,0.07)', border:'1px solid rgba(83,74,183,0.15)', display:'flex', alignItems:'center', justifyContent:'space-between' }}>
+                      <div>
+                        <div style={{ fontSize:13, fontWeight:600 }}>Verify your student status</div>
+                        <div style={{ fontSize:11, color:'#888', marginTop:2 }}>Get a checkmark on your {school} badge</div>
+                      </div>
+                      <button
+                        disabled
+                        style={{ fontSize:12, fontWeight:700, color:'var(--purple)', background:'none', border:'1px solid var(--purple)', borderRadius:8, padding:'5px 10px', opacity:0.5, cursor:'not-allowed' }}
+                      >
+                        Coming soon
+                      </button>
+                    </div>
+                  )}
+                  {school && schoolVerified && (
+                    <div style={{ marginTop:10, padding:'8px 12px', borderRadius:10, background:'rgba(0,229,168,0.07)', border:'1px solid rgba(0,229,168,0.2)', display:'flex', alignItems:'center', gap:6 }}>
+                      <svg viewBox="0 0 24 24" width="14" height="14" fill="var(--teal)"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41L9 16.17z"/></svg>
+                      <span style={{ fontSize:13, color:'var(--teal)', fontWeight:600 }}>Student status verified</span>
+                    </div>
+                  )}
+                  {school && (
+                    <button
+                      onClick={() => { setSchool(''); localStorage.removeItem('rally_school'); localStorage.removeItem('rally_school_verified'); setShowSchoolPicker(false); setSchoolSearch(''); }}
+                      style={{ marginTop:8, background:'none', border:'none', color:'#888', fontSize:13, cursor:'pointer', textAlign:'center' }}
+                    >
+                      Remove university
+                    </button>
+                  )}
+                </div>
+              </div>
+            )}
           </>
         ) : (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
@@ -539,37 +642,35 @@ export default function Profile({ user, profile = {}, onUpdateProfile = () => {}
       <div style={{ display:'flex', flexDirection:'column', alignItems:'flex-start' }}>
 
         <section style={{ marginTop: 14, width: '100%' }}>
+          <h3 style={{ margin: '6px 0', textAlign: 'left' }}>Groups</h3>
+          <div style={{ display:'flex', flexDirection:'column', gap:8 }}>
+            {groups.map(g => {
+              const isAdmin = (g.members || []).some(m => m.user_id === user?.id && m.role === 'admin');
+              return (
+              <div key={g.id} className="card" style={{ display:'flex', justifyContent:'space-between', alignItems:'center', cursor:'pointer' }} onClick={() => onOpenGroup(g.id)}>
+                <div>
+                  <div style={{ fontWeight:700, display:'flex', alignItems:'center', gap:6 }}>
+                    {g.name}
+                    {isAdmin && (
+                      <svg viewBox="0 0 24 24" width="14" height="14" fill="#22c55e" style={{ flexShrink:0 }}>
+                        <path d="M2 19h20v2H2v-2zM12 2L4 8l2 9h12l2-9-8-6zm0 2.8L18 9l-1.5 6h-9L6 9l6-4.2z"/>
+                      </svg>
+                    )}
+                  </div>
+                  <div style={{ color:'#666', fontSize:13, textAlign:'left' }}>{(g.members || []).length} members</div>
+                </div>
+                <button className="nav-action-btn" onClick={(e)=>{ e.stopPropagation(); onOpenGroup(g.id); }}>View</button>
+              </div>
+              );
+            })}
+          </div>
+        </section>
+
+        <section style={{ marginTop: 14, width: '100%' }}>
           <h3 style={{ margin: '6px 0', textAlign: 'left' }}>Media</h3>
           <div className="media-grid">
             {media.map(m => (
               <div key={m.id} className="media-item">Photo</div>
-            ))}
-          </div>
-        </section>
-
-        <section style={{ marginTop: 14, width: '100%' }}>
-          <h3 style={{ margin: '6px 0', textAlign: 'left' }}>Cheers</h3>
-          <div style={{ display:'flex', alignItems:'center', gap:8, justifyContent:'flex-start' }}>
-            <div className="cheers-count">{cheers.count}</div>
-            <div style={{ display:'flex', gap:6 }}>
-              {cheers.givers.map((g,i)=> (
-                <div key={i} className="avatar" style={{ width:28, height:28, fontSize:12, marginLeft:0 }}>{g.name[0]}</div>
-              ))}
-            </div>
-          </div>
-        </section>
-
-        <section style={{ marginTop: 14, width: '100%' }}>
-          <h3 style={{ margin: '6px 0', textAlign: 'left' }}>Groups</h3>
-          <div style={{ display:'flex', flexDirection:'column', gap:8 }}>
-            {groups.map(g => (
-              <div key={g.id} className="card" style={{ display:'flex', justifyContent:'space-between', alignItems:'center', cursor:'pointer' }} onClick={() => onOpenGroup(g.id)}>
-                <div>
-                  <div style={{ fontWeight:700 }}>{g.name}</div>
-                  <div style={{ color:'#666', fontSize:13 }}>{g.members} members</div>
-                </div>
-                <button className="nav-action-btn" onClick={(e)=>{ e.stopPropagation(); onOpenGroup(g.id); }}>View</button>
-              </div>
             ))}
           </div>
         </section>

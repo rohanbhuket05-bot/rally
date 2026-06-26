@@ -7,18 +7,6 @@ import './HomeFeed.css';
 
 export default function HomeFeed({ activeTab = 'home', onNavigate = () => {}, events = [], onAddEvent = () => {}, onUpdateEvent = () => {}, onDeleteEvent = () => {}, onOpenEvent = () => {}, user = null, onAuthRequired = () => {}, groups = [], onOpenGroup = () => {} }) {
   const [showAllEvents, setShowAllEvents] = React.useState(false);
-  const [cheersCount, setCheersCount] = React.useState(() => {
-    try {
-      const stored = Number(localStorage.getItem('rally_cheers'));
-      if (Number.isNaN(stored) || stored < 0 || stored === 12) {
-        localStorage.setItem('rally_cheers', '0');
-        return 0;
-      }
-      return stored;
-    } catch (e) {
-      return 0;
-    }
-  });
   const [groupsJoined, setGroupsJoined] = React.useState(() => {
     try {
       const saved = JSON.parse(localStorage.getItem('rally_groups_joined') || '[]');
@@ -45,15 +33,6 @@ export default function HomeFeed({ activeTab = 'home', onNavigate = () => {}, ev
   function toggleGroup(id){
     const next = groupsJoined.includes(id) ? groupsJoined.filter(x=>x!==id) : [...groupsJoined, id];
     setGroupsJoined(next); localStorage.setItem('rally_groups_joined', JSON.stringify(next));
-  }
-
-  function addCheer(){
-    const next = cheersCount + 1;
-    setCheersCount(next);
-    try {
-      localStorage.setItem('rally_cheers', String(next));
-      window.dispatchEvent(new Event('rally-cheers-updated'));
-    } catch(e){}
   }
 
   return (
@@ -99,14 +78,6 @@ export default function HomeFeed({ activeTab = 'home', onNavigate = () => {}, ev
           {(showAllEvents ? events : events.slice(0, 3)).map((ev) => (
             <EventCard key={ev.id} event={ev} onJoin={handleJoin} currentUserName={currentUserName} onOpenDetails={onOpenEvent} />
           ))}
-        </div>
-      </section>
-
-      <section style={{ marginTop: 14 }}>
-        <h3 style={{ margin: '6px 0' }}>Cheers</h3>
-        <div style={{ display:'flex', alignItems:'center', gap:8 }}>
-          <div className="cheers-count">{cheersCount}</div>
-          <button className="join" onClick={addCheer}>Cheer</button>
         </div>
       </section>
 
