@@ -259,7 +259,7 @@ export default function EventDetails({ event, onBack, onUpdateEvent, activeTab, 
                 return (
                   <div key={grp[0].id} style={{ display: 'flex', gap: 10 }}>
                     {avatarUrl ? (
-                      <img src={avatarUrl} alt={senderName} style={{ width: 26, height: 26, borderRadius: '50%', objectFit: 'cover', flexShrink: 0, alignSelf: 'flex-start' }} />
+                      <img src={avatarUrl} alt={senderName} referrerPolicy="no-referrer" style={{ width: 26, height: 26, borderRadius: '50%', objectFit: 'cover', flexShrink: 0, alignSelf: 'flex-start' }} />
                     ) : (
                       <div style={{ width: 26, height: 26, borderRadius: '50%', background: senderColor, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 10, fontWeight: 700, color: '#fff', flexShrink: 0, alignSelf: 'flex-start' }}>
                         {initials}

@@ -139,7 +139,7 @@ export default function GroupChat({ activeTab = 'group-chat', onNavigate = () =>
                 return (
                   <div key={grp[0].id} style={{ display: 'flex', gap: 12, marginBottom: 14 }}>
                     {avatarUrl ? (
-                      <img src={avatarUrl} alt={displayName} style={{ width: 36, height: 36, borderRadius: '50%', objectFit: 'cover', flexShrink: 0, alignSelf: 'flex-start' }} />
+                      <img src={avatarUrl} alt={displayName} referrerPolicy="no-referrer" style={{ width: 36, height: 36, borderRadius: '50%', objectFit: 'cover', flexShrink: 0, alignSelf: 'flex-start' }} />
                     ) : (
                       <div style={{ width: 36, height: 36, borderRadius: '50%', background: color, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 13, fontWeight: 700, color: '#fff', flexShrink: 0, alignSelf: 'flex-start' }}>
                         {initials}
