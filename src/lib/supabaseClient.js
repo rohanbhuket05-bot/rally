@@ -557,6 +557,62 @@ export function subscribeToGroupMessages(groupId, onMessage) {
   return () => supabase.removeChannel(channel);
 }
 
+function mapEventMessageRow(r) {
+  return {
+    id: r.id,
+    sender: r.sender_name,
+    text: r.text,
+    userId: r.user_id,
+    createdAt: r.created_at,
+    time: new Date(r.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+  };
+}
+
+export async function getEventMessages(eventId) {
+  try {
+    const { data, error } = await supabase
+      .from('event_messages')
+      .select('*')
+      .eq('event_id', eventId)
+      .order('created_at', { ascending: true });
+    if (error) { console.error('getEventMessages error', error); return []; }
+    return (data || []).map(mapEventMessageRow);
+  } catch (e) {
+    console.error('getEventMessages exception', e.message || e);
+    return [];
+  }
+}
+
+export async function sendEventMessage(eventId, text, senderName) {
+  try {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) throw new Error('Not authenticated');
+    const { data, error } = await supabase
+      .from('event_messages')
+      .insert({ event_id: eventId, user_id: user.id, sender_name: senderName, text })
+      .select()
+      .single();
+    if (error) { console.error('sendEventMessage error', error); return null; }
+    return mapEventMessageRow(data);
+  } catch (e) {
+    console.error('sendEventMessage exception', e.message || e);
+    return null;
+  }
+}
+
+export function subscribeToEventMessages(eventId, onMessage) {
+  const channel = supabase
+    .channel(`event-messages-${eventId}`)
+    .on('postgres_changes', {
+      event: 'INSERT',
+      schema: 'public',
+      table: 'event_messages',
+      filter: `event_id=eq.${eventId}`,
+    }, (payload) => onMessage(mapEventMessageRow(payload.new)))
+    .subscribe();
+  return () => supabase.removeChannel(channel);
+}
+
 export async function signInWithProvider(provider) {
   try {
     return await supabase.auth.signInWithOAuth({
