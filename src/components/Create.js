@@ -109,7 +109,7 @@ export default function Create({ onNavigate = () => {}, onCreateGroup = () => {}
     if (!user) { onAuthRequired('Sign in to create on Rally'); return; }
     if (option.id === 'host-event') { setShowHostModal(true); return; }
     if (option.id === 'create-rally') { onCreateGroup({ initialType: 'event' }); return; }
-    alert(`${option.title} coming soon!`);
+    if (option.id === 'spontaneous') { onNavigate('spontaneous'); return; }
   }
 
   function handleSubmit(e) {
@@ -146,6 +146,7 @@ export default function Create({ onNavigate = () => {}, onCreateGroup = () => {}
         <h1>Create</h1>
         <p className="tagline">Launch something new for your crew.</p>
       </header>
+      <div className="scroll-area">
 
       <section className="create-grid">
         {createOptions.map((option) => (
@@ -357,6 +358,7 @@ export default function Create({ onNavigate = () => {}, onCreateGroup = () => {}
           </div>
         </div>
       )}
+      </div>
     </main>
   );
 }

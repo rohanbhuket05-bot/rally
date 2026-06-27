@@ -150,6 +150,7 @@ export default function Explore({ events = [], onNavigate = () => {}, onOpenEven
         <h1>Explore</h1>
         <p className="tagline">Find happenings around you</p>
       </header>
+      <div className="scroll-area">
 
       <section style={{ marginBottom: 12 }}>
         <input
@@ -210,6 +211,7 @@ export default function Explore({ events = [], onNavigate = () => {}, onOpenEven
           })}
         </div>
       </section>
+      </div>
     </main>
   );
 }

@@ -15,6 +15,7 @@ import CreateGroup from './components/CreateGroup';
 import AuthModal from './components/AuthModal';
 import UsernamePrompt from './components/UsernamePrompt';
 import BottomNav from './components/BottomNav';
+import SpontaneousCompose from './components/SpontaneousCompose';
 import { groupsData } from './data/groups';
 import { isSupabaseConfigured, signOut, getUser, onAuthStateChange, getEvents as sbGetEvents, insertEvent as sbInsertEvent, updateEvent as sbUpdateEvent, updateEventAttendees as sbUpdateEventAttendees, deleteEvent as sbDeleteEvent, getGroups as sbGetGroups, insertGroup as sbInsertGroup, updateGroup as sbUpdateGroup, deleteGroup as sbDeleteGroup, leaveGroup as sbLeaveGroup, mapGroupRow, getProfile, upsertProfile } from './lib/supabaseClient';
 
@@ -334,6 +335,14 @@ function App() {
       )}
       {activeTab === 'post' && (
         <Create activeTab={activeTab} onNavigate={setActiveTab} onCreateGroup={openCreateGroup} onAddEvent={addEvent} user={user} onAuthRequired={onAuthRequired} />
+      )}
+      {activeTab === 'spontaneous' && (
+        <SpontaneousCompose
+          user={user}
+          profile={profile}
+          onBack={() => setActiveTab('post')}
+          onPosted={() => setActiveTab('home')}
+        />
       )}
       {activeTab === 'group' && (activeGroupId || previewGroup) && (
         <GroupDetails

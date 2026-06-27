@@ -81,6 +81,7 @@ export default function Groups({
         <h1>Groups</h1>
         <p className="tagline">Clubs, crews, and rallies</p>
       </header>
+      <div className="scroll-area">
 
       {/* Create CTA */}
       <section style={{ marginTop: 8, marginBottom: 8 }}>
@@ -220,6 +221,7 @@ export default function Groups({
           </div>
         </section>
       )}
+      </div>
     </main>
   );
 }

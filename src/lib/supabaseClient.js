@@ -628,6 +628,71 @@ export function subscribeToEventMessages(eventId, onMessage) {
   return () => supabase.removeChannel(channel);
 }
 
+function mapSpontaneousPost(r) {
+  return {
+    id: r.id,
+    userId: r.user_id,
+    senderName: r.sender_name,
+    avatarUrl: r.avatar_url || '',
+    text: r.text,
+    location: r.location || '',
+    expiresAt: r.expires_at,
+    createdAt: r.created_at,
+  };
+}
+
+export async function getSpontaneousPosts() {
+  try {
+    const { data, error } = await supabase
+      .from('spontaneous_posts')
+      .select('*')
+      .gt('expires_at', new Date().toISOString())
+      .order('created_at', { ascending: false });
+    if (error) { console.error('getSpontaneousPosts error', error); return []; }
+    return (data || []).map(mapSpontaneousPost);
+  } catch (e) {
+    console.error('getSpontaneousPosts exception', e.message || e);
+    return [];
+  }
+}
+
+export async function createSpontaneousPost(text, location, senderName, avatarUrl) {
+  try {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) throw new Error('Not authenticated');
+    const { data, error } = await supabase
+      .from('spontaneous_posts')
+      .insert({ user_id: user.id, sender_name: senderName, avatar_url: avatarUrl || '', text, location: location || '' })
+      .select()
+      .single();
+    if (error) { console.error('createSpontaneousPost error', error); return null; }
+    return mapSpontaneousPost(data);
+  } catch (e) {
+    console.error('createSpontaneousPost exception', e.message || e);
+    return null;
+  }
+}
+
+export async function deleteSpontaneousPost(id) {
+  try {
+    const { error } = await supabase.from('spontaneous_posts').delete().eq('id', id);
+    if (error) console.error('deleteSpontaneousPost error', error);
+  } catch (e) {
+    console.error('deleteSpontaneousPost exception', e.message || e);
+  }
+}
+
+export function subscribeToSpontaneousPosts(onInsert, onDelete) {
+  const channel = supabase
+    .channel('spontaneous-posts')
+    .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'spontaneous_posts' },
+      payload => onInsert(mapSpontaneousPost(payload.new)))
+    .on('postgres_changes', { event: 'DELETE', schema: 'public', table: 'spontaneous_posts' },
+      payload => onDelete(payload.old.id))
+    .subscribe();
+  return () => supabase.removeChannel(channel);
+}
+
 export async function signInWithProvider(provider) {
   try {
     return await supabase.auth.signInWithOAuth({

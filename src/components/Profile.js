@@ -198,7 +198,7 @@ export default function Profile({ user, profile = {}, onUpdateProfile = () => {}
   return (
     <main className="feed-root" style={{ height: '100vh', overflow: 'hidden', paddingBottom: 0 }}>
       <header className="feed-header" style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
-        <div>
+        <div style={{ textAlign: 'left' }}>
           <h1 style={{ margin: 0 }}>Profile</h1>
           <p className="tagline" style={{ margin: 0 }}>{name || 'Set up your profile'}</p>
         </div>
