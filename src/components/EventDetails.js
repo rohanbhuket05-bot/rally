@@ -1,17 +1,17 @@
 import React, { useState, useEffect } from 'react';
-import { getGroupMessages, subscribeToGroupMessages, isSupabaseConfigured } from '../lib/supabaseClient';
+import { getEventMessages, subscribeToEventMessages, isSupabaseConfigured, getProfilesByIds } from '../lib/supabaseClient';
 import './HomeFeed.css';
 
 const TAGS = [
-  { id: 'On Campus', color: '#38bdf8', bg: 'rgba(56,189,248,0.15)' },
+  { id: 'On Campus', color: '#FFB420', bg: 'rgba(255,180,32,0.12)' },
   { id: 'Social',    color: '#FF6BA8', bg: 'rgba(255,107,168,0.15)' },
   { id: 'Sports',    color: '#00E5A8', bg: 'rgba(0,229,168,0.15)' },
-  { id: 'Arts',      color: '#FFB420', bg: 'rgba(255,180,32,0.12)' },
+  { id: 'Arts',      color: '#9B59B6', bg: 'rgba(155,89,182,0.15)' },
   { id: 'Music',     color: '#9D8FFF', bg: 'rgba(157,143,255,0.15)' },
-  { id: 'Food',      color: '#F97316', bg: 'rgba(249,115,22,0.15)' },
-  { id: 'Gaming',    color: '#06B6D4', bg: 'rgba(6,182,212,0.15)' },
-  { id: 'Outdoors',  color: '#22C55E', bg: 'rgba(34,197,94,0.15)' },
-  { id: 'Other',     color: '#9CA3AF', bg: 'rgba(156,163,175,0.13)' },
+  { id: 'Food',      color: '#FF6BA8', bg: 'rgba(255,107,168,0.15)' },
+  { id: 'Gaming',    color: '#667EEA', bg: 'rgba(102,126,234,0.15)' },
+  { id: 'Outdoors',  color: '#00E5A8', bg: 'rgba(0,229,168,0.15)' },
+  { id: 'Other',     color: '#999999', bg: 'rgba(153,153,153,0.15)' },
 ];
 
 const AVATAR_COLORS = [
@@ -31,22 +31,30 @@ export default function EventDetails({ event, onBack, onUpdateEvent, activeTab, 
   const [showJoinPrompt, setShowJoinPrompt] = useState(false);
   const [showEdit, setShowEdit] = useState(false);
   const [editForm, setEditForm] = useState({});
+  const [previewAvatarMap, setPreviewAvatarMap] = useState({});
 
-  const channelId = event?.id ? `event-${event.id}` : null;
+  const eventId = event?.id ?? null;
 
   useEffect(() => {
-    if (!channelId || !isSupabaseConfigured()) return;
-    setLastReadCount(parseInt(localStorage.getItem(`rally_chat_read_${channelId}`) || '0'));
+    if (!eventId || !isSupabaseConfigured()) return;
+    const readKey = `rally_chat_read_event_${eventId}`;
+    setLastReadCount(parseInt(localStorage.getItem(readKey) || '0'));
     let cancelled = false;
-    getGroupMessages(channelId).then(msgs => { if (!cancelled) setLiveMessages(msgs); });
+    getEventMessages(eventId).then(msgs => { if (!cancelled) setLiveMessages(msgs); });
     const interval = setInterval(() => {
-      getGroupMessages(channelId).then(msgs => { if (!cancelled) setLiveMessages(msgs); });
+      getEventMessages(eventId).then(msgs => { if (!cancelled) setLiveMessages(msgs); });
     }, 5000);
-    const unsub = subscribeToGroupMessages(channelId, msg => {
+    const unsub = subscribeToEventMessages(eventId, msg => {
       if (!cancelled) setLiveMessages(prev => prev.some(m => m.id === msg.id) ? prev : [...prev, msg]);
     });
     return () => { cancelled = true; clearInterval(interval); unsub(); };
-  }, [channelId]);
+  }, [eventId]);
+
+  useEffect(() => {
+    const unknownIds = [...new Set(liveMessages.map(m => m.userId).filter(id => id && !(id in previewAvatarMap)))];
+    if (unknownIds.length === 0) return;
+    getProfilesByIds(unknownIds).then(map => setPreviewAvatarMap(prev => ({ ...prev, ...map })));
+  }, [liveMessages]);
 
   if (!event) return null;
 
@@ -70,7 +78,7 @@ export default function EventDetails({ event, onBack, onUpdateEvent, activeTab, 
     : (currentUserName && attendees.some(a => a.name === currentUserName)));
 
   function openChat() {
-    localStorage.setItem(`rally_chat_read_${channelId}`, String(liveMessages.length));
+    localStorage.setItem(`rally_chat_read_event_${eventId}`, String(liveMessages.length));
     setLastReadCount(liveMessages.length);
     onOpenChat(event);
   }
@@ -113,25 +121,26 @@ export default function EventDetails({ event, onBack, onUpdateEvent, activeTab, 
   return (
     <main className="feed-root" style={{ overflowY: 'auto' }}>
       {/* Back + title */}
-      <header style={{ display: 'flex', alignItems: 'flex-start', gap: 12, marginBottom: 16 }}>
+      <header style={{ marginBottom: 16, display: 'flex', flexDirection: 'column', alignItems: 'flex-start' }}>
         <button
           onClick={onBack}
           style={{
             background: 'rgba(83,74,183,0.1)', border: 'none', borderRadius: 10,
             padding: '8px 12px', color: 'var(--purple)', fontWeight: 700,
-            cursor: 'pointer', flexShrink: 0, marginTop: 2,
+            cursor: 'pointer', marginBottom: 12,
           }}
         >
           ← Back
         </button>
-        <div style={{ flex: 1, minWidth: 0 }}>
-          <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: 6 }}>
-            {(tags.length > 0 ? tags : (category ? [category] : [])).map(tag => (
-              <span key={tag} className="category-pill">{tag}</span>
-            ))}
-            {trending && <span className="badge">Trending</span>}
-          </div>
-          <h2 style={{ margin: 0, fontSize: 22, color: '#111', lineHeight: 1.2 }}>{title}</h2>
+        <h2 style={{ margin: '0 0 6px', fontSize: 22, color: '#fff', lineHeight: 1.2 }}>{title}</h2>
+        <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', alignItems: 'center' }}>
+          {(tags.length > 0 ? tags : (category ? [category] : [])).map(tag => {
+            const tagDef = TAGS.find(t => t.id === tag);
+            const col = tagDef?.color || '#9D8FFF';
+            const bg = tagDef?.bg || 'rgba(157,143,255,0.15)';
+            return <span key={tag} className="category-pill" style={{ color: col, background: bg }}>{tag}</span>;
+          })}
+          {trending && <span className="badge">Trending</span>}
         </div>
       </header>
 
@@ -245,12 +254,17 @@ export default function EventDetails({ event, onBack, onUpdateEvent, activeTab, 
                 const senderColor = isMe ? 'var(--purple)' : avatarColor(grp[0].sender || '');
                 const senderName = isMe ? 'You' : (grp[0].sender || 'Unknown');
                 const initials = senderName.split(' ').map(s => s[0]).slice(0, 2).join('').toUpperCase();
+                const avatarUrl = isMe ? profile?.avatar_url : previewAvatarMap[grp[0].userId]?.avatar_url;
                 const lastMsg = grp[grp.length - 1];
                 return (
                   <div key={grp[0].id} style={{ display: 'flex', gap: 10 }}>
-                    <div style={{ width: 26, height: 26, borderRadius: '50%', background: senderColor, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 10, fontWeight: 700, color: '#fff', flexShrink: 0, alignSelf: 'flex-start' }}>
-                      {initials}
-                    </div>
+                    {avatarUrl ? (
+                      <img src={avatarUrl} alt={senderName} style={{ width: 26, height: 26, borderRadius: '50%', objectFit: 'cover', flexShrink: 0, alignSelf: 'flex-start' }} />
+                    ) : (
+                      <div style={{ width: 26, height: 26, borderRadius: '50%', background: senderColor, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 10, fontWeight: 700, color: '#fff', flexShrink: 0, alignSelf: 'flex-start' }}>
+                        {initials}
+                      </div>
+                    )}
                     <div style={{ flex: 1, minWidth: 0 }}>
                       <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, marginBottom: 2 }}>
                         <span style={{ fontSize: 13, fontWeight: 700, color: senderColor }}>{senderName}</span>
@@ -292,7 +306,7 @@ export default function EventDetails({ event, onBack, onUpdateEvent, activeTab, 
           if (!joined) { setShowJoinPrompt(true); return; }
           openChat();
         }}
-        style={{ width: '100%', padding: '12px', borderRadius: 12, marginBottom: 20, display: 'block', fontSize: 15 }}
+        style={{ width: '100%', padding: '14px', borderRadius: 14, marginBottom: 20, display: 'block', fontSize: 15, fontWeight: 700 }}
       >
         Open event chat
       </button>

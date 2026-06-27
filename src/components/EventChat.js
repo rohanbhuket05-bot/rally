@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { getEventMessages, sendEventMessage, subscribeToEventMessages, isSupabaseConfigured } from '../lib/supabaseClient';
+import { getEventMessages, sendEventMessage, subscribeToEventMessages, isSupabaseConfigured, getProfilesByIds } from '../lib/supabaseClient';
 import './HomeFeed.css';
 
 const AVATAR_COLORS = ['#534AB7','#D4537E','#1D9E75','#EF9F27','#667EEA','#9B59B6'];
@@ -13,6 +13,7 @@ export default function EventChat({ event, user, profile, onBack }) {
   const [messages, setMessages] = useState([]);
   const [draft, setDraft] = useState('');
   const [sending, setSending] = useState(false);
+  const [avatarMap, setAvatarMap] = useState({});
   const bottomRef = useRef(null);
 
   const eventId = event?.id ?? null;
@@ -34,6 +35,12 @@ export default function EventChat({ event, user, profile, onBack }) {
       setMessages(prev => prev.some(m => m.id === msg.id) ? prev : [...prev, msg]);
     });
   }, [eventId, useSupabase]);
+
+  useEffect(() => {
+    const unknownIds = [...new Set(messages.map(m => m.userId).filter(id => id && !(id in avatarMap)))];
+    if (unknownIds.length === 0) return;
+    getProfilesByIds(unknownIds).then(map => setAvatarMap(prev => ({ ...prev, ...map })));
+  }, [messages]);
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -105,12 +112,17 @@ export default function EventChat({ event, user, profile, onBack }) {
             const displayName = isMe ? (profile?.name || profile?.username || 'You') : (grp[0].sender || 'Unknown');
             const initials = displayName.split(' ').map(s => s[0]).slice(0, 2).join('').toUpperCase();
             const color = isMe ? 'var(--purple)' : avatarColor(grp[0].sender || '');
+            const avatarUrl = isMe ? profile?.avatar_url : avatarMap[grp[0].userId]?.avatar_url;
             const lastMsg = grp[grp.length - 1];
             return (
               <div key={grp[0].id} style={{ display: 'flex', gap: 12, marginBottom: 14 }}>
-                <div style={{ width: 36, height: 36, borderRadius: '50%', background: color, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 13, fontWeight: 700, color: '#fff', flexShrink: 0, alignSelf: 'flex-start' }}>
-                  {initials}
-                </div>
+                {avatarUrl ? (
+                  <img src={avatarUrl} alt={displayName} style={{ width: 36, height: 36, borderRadius: '50%', objectFit: 'cover', flexShrink: 0, alignSelf: 'flex-start' }} />
+                ) : (
+                  <div style={{ width: 36, height: 36, borderRadius: '50%', background: color, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 13, fontWeight: 700, color: '#fff', flexShrink: 0, alignSelf: 'flex-start' }}>
+                    {initials}
+                  </div>
+                )}
                 <div style={{ flex: 1, minWidth: 0 }}>
                   <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, marginBottom: 4 }}>
                     <span style={{ fontSize: 14, fontWeight: 700, color }}>{displayName}</span>

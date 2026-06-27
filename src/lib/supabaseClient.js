@@ -323,6 +323,21 @@ export async function getProfile(userId) {
   }
 }
 
+export async function getProfilesByIds(userIds) {
+  if (!userIds || userIds.length === 0) return {};
+  try {
+    const { data, error } = await supabase
+      .from('profiles')
+      .select('id, avatar_url, name, username')
+      .in('id', userIds);
+    if (error) { console.warn('getProfilesByIds error', error); return {}; }
+    return Object.fromEntries((data || []).map(p => [p.id, p]));
+  } catch (e) {
+    console.warn('getProfilesByIds exception', e.message || e);
+    return {};
+  }
+}
+
 export async function upsertProfile(userId, { name, bio, username, friends, school, school_verified, avatar_url, pronouns }) {
   try {
     const { data, error } = await supabase
