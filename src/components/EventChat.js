@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { getGroupMessages, sendGroupMessage, subscribeToGroupMessages, isSupabaseConfigured } from '../lib/supabaseClient';
+import { getEventMessages, sendEventMessage, subscribeToEventMessages, isSupabaseConfigured } from '../lib/supabaseClient';
 import './HomeFeed.css';
 
 const AVATAR_COLORS = ['#534AB7','#D4537E','#1D9E75','#EF9F27','#667EEA','#9B59B6'];
@@ -15,25 +15,25 @@ export default function EventChat({ event, user, profile, onBack }) {
   const [sending, setSending] = useState(false);
   const bottomRef = useRef(null);
 
-  const channelId = event?.id ? `event-${event.id}` : null;
+  const eventId = event?.id ?? null;
   const senderName = profile?.name || profile?.username || user?.email || 'Unknown';
-  const useSupabase = isSupabaseConfigured() && !!channelId;
+  const useSupabase = isSupabaseConfigured() && !!eventId;
 
   useEffect(() => {
     if (!useSupabase) return;
     let cancelled = false;
-    const fetch = () => getGroupMessages(channelId).then(msgs => { if (!cancelled) setMessages(msgs); });
+    const fetch = () => getEventMessages(eventId).then(msgs => { if (!cancelled) setMessages(msgs); });
     fetch();
     const interval = setInterval(fetch, 4000);
     return () => { cancelled = true; clearInterval(interval); };
-  }, [channelId, useSupabase]);
+  }, [eventId, useSupabase]);
 
   useEffect(() => {
     if (!useSupabase) return;
-    return subscribeToGroupMessages(channelId, (msg) => {
+    return subscribeToEventMessages(eventId, (msg) => {
       setMessages(prev => prev.some(m => m.id === msg.id) ? prev : [...prev, msg]);
     });
-  }, [channelId, useSupabase]);
+  }, [eventId, useSupabase]);
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -47,7 +47,7 @@ export default function EventChat({ event, user, profile, onBack }) {
     setDraft('');
     if (useSupabase) {
       setSending(true);
-      const msg = await sendGroupMessage(channelId, text, senderName);
+      const msg = await sendEventMessage(eventId, text, senderName);
       setSending(false);
       if (msg) setMessages(prev => prev.some(m => m.id === msg.id) ? prev : [...prev, msg]);
     } else {
