@@ -22,7 +22,14 @@ import { isSupabaseConfigured, signOut, getUser, onAuthStateChange, getEvents as
 function App() {
   const [user, setUser] = useState(null);
   const [showUsernamePrompt, setShowUsernamePrompt] = useState(false);
-  const [darkMode, setDarkMode] = useState(() => localStorage.getItem('rally_dark_mode') !== 'false');
+  const [darkMode, setDarkMode] = useState(() => {
+    if (!localStorage.getItem('rally_dark_migrated_v1')) {
+      localStorage.setItem('rally_dark_mode', 'true');
+      localStorage.setItem('rally_dark_migrated_v1', '1');
+      return true;
+    }
+    return localStorage.getItem('rally_dark_mode') !== 'false';
+  });
   useEffect(() => { localStorage.setItem('rally_dark_mode', darkMode); }, [darkMode]);
   const [profile, setProfile] = useState({
     name: localStorage.getItem('rally_name') || '',
