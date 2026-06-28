@@ -3,6 +3,7 @@ import EventCard from './EventCard';
 import StoryViewer from './StoryViewer';
 import { getPublicEvents, getSpontaneousPosts, subscribeToSpontaneousPosts, deleteSpontaneousPost, isSupabaseConfigured } from '../lib/supabaseClient';
 import './HomeFeed.css';
+import SchoolLogo from './SchoolLogo';
 
 const AVATAR_COLORS = ['#534AB7','#D4537E','#1D9E75','#EF9F27','#667EEA','#9B59B6'];
 function avatarColor(name = '') {
@@ -170,11 +171,7 @@ export default function HomeFeed({ activeTab = 'home', onNavigate = () => {}, ev
         {school ? (
           <div className="card" style={{ marginBottom: 12, padding: '14px 16px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-              <div style={{ width: 42, height: 42, borderRadius: 12, background: 'var(--light-purple)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-                <svg viewBox="0 0 24 24" fill="none" width="22" height="22" stroke="var(--purple)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/>
-                </svg>
-              </div>
+              <SchoolLogo school={school} size={42} />
               <div style={{ textAlign: 'left' }}>
                 <div style={{ fontWeight: 800, fontSize: 15, color: '#EEEEFF', lineHeight: 1.2 }}>{school}</div>
                 <div style={{ fontSize: 12, color: '#8888AA', marginTop: 2 }}>

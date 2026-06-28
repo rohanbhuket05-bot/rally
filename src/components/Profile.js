@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import './HomeFeed.css';
 
 import { getSchoolFromEmail, getSchoolFromDomain, SCHOOLS, getDomainsForSchool } from '../data/schools';
+import SchoolLogo from './SchoolLogo';
 import FriendsPanel from './FriendsPanel';
 import { isSupabaseConfigured, signInWithOtp, signInWithProvider, checkUsernameAvailable, getFriendNotifications, sendEduVerification, verifyEduCode } from '../lib/supabaseClient';
 import { validateUsername } from '../lib/usernameValidation';
@@ -366,13 +367,13 @@ export default function Profile({ user, profile = {}, onUpdateProfile = () => {}
               {school ? (
                 <button
                   onClick={() => setShowSchoolPicker(true)}
-                  style={{ background:'rgba(56,189,248,0.15)', color:'#38bdf8', fontSize:12, padding:'6px 10px', fontWeight:700, border:'none', borderRadius:999, cursor:'pointer', display:'flex', alignItems:'center', gap:5 }}
+                  style={{ background:'rgba(255,255,255,0.07)', color:'#EEEEFF', fontSize:12, padding:'4px 10px 4px 5px', fontWeight:700, border:'1px solid rgba(255,255,255,0.1)', borderRadius:999, cursor:'pointer', display:'flex', alignItems:'center', gap:6 }}
                 >
-                  <svg viewBox="0 0 24 24" width="12" height="12" fill="currentColor"><path d="M12 3L1 9l4 2.18V17h2v-4.82l1 .55V17c0 2.76 2.24 5 5 5s5-2.24 5-5v-4.27l2-1.09V17h2V11.18L23 9 12 3zm5 14c0 1.66-1.34 3-3 3s-3-1.34-3-3v-3.73l3 1.64 3-1.64V17z"/></svg>
+                  <SchoolLogo school={school} size={20} />
                   {school}
                   {schoolVerified && (
-                    <span style={{ display:'inline-flex', alignItems:'center', justifyContent:'center', width:14, height:14, borderRadius:'50%', background:'#38bdf8' }}>
-                      <svg viewBox="0 0 24 24" width="9" height="9" fill="currentColor"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41L9 16.17z"/></svg>
+                    <span style={{ display:'inline-flex', alignItems:'center', justifyContent:'center', width:14, height:14, borderRadius:'50%', background:'var(--teal)', flexShrink:0 }}>
+                      <svg viewBox="0 0 24 24" width="9" height="9" fill="white"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41L9 16.17z"/></svg>
                     </span>
                   )}
                 </button>
