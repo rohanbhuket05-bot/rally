@@ -44,7 +44,10 @@ function App() {
     const saved = localStorage.getItem('rally_active_tab');
     // Reloading on group-chat causes a blank screen — redirect to groups until fixed
     if (saved === 'group-chat') return 'groups';
-    return PERSISTENT_TABS.includes(saved) ? saved : 'home';
+    if (PERSISTENT_TABS.includes(saved)) return saved;
+    // First-time visitors land on profile to set up their account
+    const isFirstVisit = !localStorage.getItem('rally_name') && !localStorage.getItem('rally_username');
+    return isFirstVisit ? 'profile' : 'home';
   });
   const setActiveTab = useCallback((tabOrFn) => {
     setActiveTabRaw(prev => {

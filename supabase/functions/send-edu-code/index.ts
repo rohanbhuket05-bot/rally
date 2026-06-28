@@ -46,6 +46,23 @@ Deno.serve(async (req: Request) => {
       });
     }
 
+    // Rate limit: max 1 code per 60 seconds per user
+    const { data: existing } = await supabase
+      .from('edu_verifications')
+      .select('created_at')
+      .eq('user_id', user.id)
+      .single();
+    if (existing) {
+      const secondsSinceLast = (Date.now() - new Date(existing.created_at).getTime()) / 1000;
+      if (secondsSinceLast < 60) {
+        const waitSeconds = Math.ceil(60 - secondsSinceLast);
+        return new Response(JSON.stringify({ error: `Please wait ${waitSeconds}s before requesting another code.` }), {
+          status: 429,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
+    }
+
     const code = Math.floor(100000 + Math.random() * 900000).toString();
     const expiresAt = new Date(Date.now() + 10 * 60 * 1000).toISOString();
 

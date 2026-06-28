@@ -359,7 +359,14 @@ export async function sendEduVerification(eduEmail, school) {
     const { data, error } = await supabase.functions.invoke('send-edu-code', {
       body: { edu_email: eduEmail, school },
     });
-    if (error) throw error;
+    if (error) {
+      // Extract the actual message from the response body (e.g. 429 rate limit message)
+      if (error.context && typeof error.context.json === 'function') {
+        const body = await error.context.json().catch(() => null);
+        if (body?.error) return { success: false, error: body.error };
+      }
+      throw error;
+    }
     if (data?.error) throw new Error(data.error);
     return { success: true };
   } catch (e) {

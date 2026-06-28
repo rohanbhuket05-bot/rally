@@ -40,7 +40,8 @@
 /* Add extra bottom space so content isn't hidden behind the fixed bottom nav */
 .feed-root{ padding-bottom: calc(var(--bottom-nav-height) + env(safe-area-inset-bottom, 0px)) }
 
-.scroll-area{ overflow:auto; flex:1; padding-right:8px; padding-bottom: calc(var(--bottom-nav-height) + env(safe-area-inset-bottom, 0px)); }
+.scroll-area{ overflow:auto; flex:1; padding-right:8px; padding-bottom: calc(var(--bottom-nav-height) + env(safe-area-inset-bottom, 0px)); scrollbar-width:none; -ms-overflow-style:none; }
+.scroll-area::-webkit-scrollbar { display:none; }
 
 .feed-header{
   display:flex;
