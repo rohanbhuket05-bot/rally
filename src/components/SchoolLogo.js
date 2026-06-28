@@ -23,12 +23,12 @@ export default function SchoolLogo({ school, size = 20, style = {} }) {
 
   return (
     <img
-      src={`https://logo.clearbit.com/${domain}`}
+      src={`https://www.google.com/s2/favicons?domain=${domain}&sz=64`}
       alt={school}
       onError={() => setFailed(true)}
       style={{
         width: size, height: size, borderRadius: radius,
-        objectFit: 'contain', background: '#fff',
+        objectFit: 'contain', background: 'transparent',
         flexShrink: 0, display: 'block', ...style,
       }}
     />

@@ -372,9 +372,7 @@ export default function Profile({ user, profile = {}, onUpdateProfile = () => {}
                   <SchoolLogo school={school} size={20} />
                   {school}
                   {schoolVerified && (
-                    <span style={{ display:'inline-flex', alignItems:'center', justifyContent:'center', width:14, height:14, borderRadius:'50%', background:'var(--teal)', flexShrink:0 }}>
-                      <svg viewBox="0 0 24 24" width="9" height="9" fill="white"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41L9 16.17z"/></svg>
-                    </span>
+                    <svg viewBox="0 0 24 24" width="13" height="13" fill="var(--teal)" flexShrink="0"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41L9 16.17z"/></svg>
                   )}
                 </button>
               ) : (

@@ -1,18 +1,25 @@
-import { serve } from 'https://deno.land/std@0.168.0/http/server.ts';
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 
-const cors = {
+const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+  'Access-Control-Allow-Methods': 'POST, OPTIONS',
 };
 
-serve(async (req) => {
-  if (req.method === 'OPTIONS') return new Response('ok', { headers: cors });
+Deno.serve(async (req: Request) => {
+  if (req.method === 'OPTIONS') {
+    return new Response('ok', { headers: corsHeaders });
+  }
 
   try {
-    // Authenticate the calling user
     const authHeader = req.headers.get('Authorization');
-    if (!authHeader) throw new Error('Missing auth header');
+    console.log('auth header present:', !!authHeader);
+    if (!authHeader) {
+      return new Response(JSON.stringify({ error: 'Missing auth header' }), {
+        status: 401,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
 
     const supabase = createClient(
       Deno.env.get('SUPABASE_URL')!,
@@ -22,12 +29,23 @@ serve(async (req) => {
     const { data: { user }, error: authError } = await supabase.auth.getUser(
       authHeader.replace('Bearer ', ''),
     );
-    if (authError || !user) throw new Error('Unauthorized');
+    console.log('user:', user?.id, 'authError:', authError?.message);
+    if (authError || !user) {
+      return new Response(JSON.stringify({ error: 'Unauthorized' }), {
+        status: 401,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
 
     const { edu_email, school } = await req.json();
-    if (!edu_email || !school) throw new Error('Missing edu_email or school');
+    console.log('edu_email:', edu_email, 'school:', school);
+    if (!edu_email || !school) {
+      return new Response(JSON.stringify({ error: 'Missing edu_email or school' }), {
+        status: 400,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
 
-    // Generate a 6-digit code and store it (10-minute expiry)
     const code = Math.floor(100000 + Math.random() * 900000).toString();
     const expiresAt = new Date(Date.now() + 10 * 60 * 1000).toISOString();
 
@@ -37,9 +55,14 @@ serve(async (req) => {
         { user_id: user.id, edu_email, school, code, expires_at: expiresAt },
         { onConflict: 'user_id' },
       );
-    if (dbError) throw dbError;
+    console.log('dbError:', dbError?.message);
+    if (dbError) {
+      return new Response(JSON.stringify({ error: dbError.message }), {
+        status: 500,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
 
-    // Send email via Resend
     const emailRes = await fetch('https://api.resend.com/emails', {
       method: 'POST',
       headers: {
@@ -47,7 +70,7 @@ serve(async (req) => {
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        from: 'Rally <verify@rallywithus.app>',
+        from: 'Rally <verify@rallywithus.net>',
         to: edu_email,
         subject: `${code} is your Rally verification code`,
         html: `
@@ -61,18 +84,24 @@ serve(async (req) => {
       }),
     });
 
+    const resendBody = await emailRes.text();
+    console.log('resend status:', emailRes.status, 'body:', resendBody);
+
     if (!emailRes.ok) {
-      const body = await emailRes.text();
-      throw new Error(`Resend error: ${body}`);
+      return new Response(JSON.stringify({ error: `Resend error: ${resendBody}` }), {
+        status: 500,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
     }
 
     return new Response(JSON.stringify({ success: true }), {
-      headers: { ...cors, 'Content-Type': 'application/json' },
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
   } catch (e) {
+    console.error('unhandled error:', (e as Error).message);
     return new Response(JSON.stringify({ error: (e as Error).message }), {
-      status: 400,
-      headers: { ...cors, 'Content-Type': 'application/json' },
+      status: 500,
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
   }
 });
