@@ -353,6 +353,36 @@ export async function upsertProfile(userId, { name, bio, username, friends, scho
   }
 }
 
+/** Send a 6-digit verification code to a .edu email via the Edge Function. */
+export async function sendEduVerification(eduEmail, school) {
+  try {
+    const { data, error } = await supabase.functions.invoke('send-edu-code', {
+      body: { edu_email: eduEmail, school },
+    });
+    if (error) throw error;
+    if (data?.error) throw new Error(data.error);
+    return { success: true };
+  } catch (e) {
+    console.warn('sendEduVerification error', e.message || e);
+    return { success: false, error: e.message || 'Failed to send code' };
+  }
+}
+
+/** Validate the code against the DB (via Postgres RPC) and mark profile verified on success. */
+export async function verifyEduCode(eduEmail, code) {
+  try {
+    const { data, error } = await supabase.rpc('verify_edu_code', {
+      p_email: eduEmail,
+      p_code: code,
+    });
+    if (error) throw error;
+    return { success: !!data };
+  } catch (e) {
+    console.warn('verifyEduCode error', e.message || e);
+    return { success: false, error: e.message || 'Verification failed' };
+  }
+}
+
 export async function getFriendNotifications(userId) {
   try {
     const [{ count: incoming }, { count: acceptedTotal }] = await Promise.all([

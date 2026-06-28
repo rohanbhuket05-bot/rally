@@ -1,9 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import './HomeFeed.css';
 
-import { getSchoolFromEmail, getSchoolFromDomain, SCHOOLS } from '../data/schools';
+import { getSchoolFromEmail, getSchoolFromDomain, SCHOOLS, getDomainsForSchool } from '../data/schools';
 import FriendsPanel from './FriendsPanel';
-import { isSupabaseConfigured, signInWithOtp, signInWithProvider, checkUsernameAvailable, getFriendNotifications } from '../lib/supabaseClient';
+import { isSupabaseConfigured, signInWithOtp, signInWithProvider, checkUsernameAvailable, getFriendNotifications, sendEduVerification, verifyEduCode } from '../lib/supabaseClient';
 import { validateUsername } from '../lib/usernameValidation';
 
 const placeholderFriendNames = new Set(['Maya', 'Leo', 'Ava', 'Jon']);
@@ -119,6 +119,14 @@ export default function Profile({ user, profile = {}, onUpdateProfile = () => {}
   const [showFriendsPanel, setShowFriendsPanel] = useState(false);
   const [friendNotifCount, setFriendNotifCount] = useState(0);
 
+  // .edu verification flow
+  const [showVerifyModal, setShowVerifyModal] = useState(false);
+  const [verifyStep, setVerifyStep] = useState('email'); // 'email' | 'code' | 'success'
+  const [verifyEmail, setVerifyEmail] = useState('');
+  const [verifyCode, setVerifyCode] = useState('');
+  const [verifyLoading, setVerifyLoading] = useState(false);
+  const [verifyError, setVerifyError] = useState(null);
+
   useEffect(() => {
     if (!user) return;
     getFriendNotifications(user.id).then(({ incoming, acceptedTotal }) => {
@@ -135,6 +143,55 @@ export default function Profile({ user, profile = {}, onUpdateProfile = () => {}
         localStorage.setItem('rally_seen_accepted', String(acceptedTotal));
       });
       setFriendNotifCount(0);
+    }
+  }
+
+  function openVerifyModal() {
+    setShowSchoolPicker(false);
+    setSchoolSearch('');
+    setVerifyStep('email');
+    setVerifyEmail('');
+    setVerifyCode('');
+    setVerifyError(null);
+    setShowVerifyModal(true);
+  }
+
+  async function handleSendCode() {
+    const email = verifyEmail.trim().toLowerCase();
+    if (!email) return;
+    const domain = email.split('@')[1] || '';
+    const expectedDomains = getDomainsForSchool(school);
+    if (!domain.endsWith('.edu')) {
+      setVerifyError('Must be a .edu email address.');
+      return;
+    }
+    if (expectedDomains.length > 0 && !expectedDomains.includes(domain)) {
+      setVerifyError(`Must be a @${expectedDomains[0]} email for ${school}.`);
+      return;
+    }
+    setVerifyLoading(true);
+    setVerifyError(null);
+    const { success, error } = await sendEduVerification(email, school);
+    setVerifyLoading(false);
+    if (success) {
+      setVerifyStep('code');
+    } else {
+      setVerifyError(error || 'Failed to send code. Try again.');
+    }
+  }
+
+  async function handleVerifyCode() {
+    if (verifyCode.length !== 6) return;
+    setVerifyLoading(true);
+    setVerifyError(null);
+    const { success, error } = await verifyEduCode(verifyEmail.trim().toLowerCase(), verifyCode);
+    setVerifyLoading(false);
+    if (success) {
+      localStorage.setItem('rally_school_verified', school);
+      onUpdateProfile({ name, bio, username, friends: [], school, school_verified: true });
+      setVerifyStep('success');
+    } else {
+      setVerifyError(error || 'Invalid or expired code. Try again.');
     }
   }
 
@@ -335,6 +392,102 @@ export default function Profile({ user, profile = {}, onUpdateProfile = () => {}
 
             {bio && <p style={{ margin: '10px 0 0', color: '#EEEEFF', textAlign: 'left', fontSize: 14, lineHeight: 1.5 }}>{bio}</p>}
 
+          {/* .edu Verification modal */}
+          {showVerifyModal && (() => {
+            const expectedDomains = getDomainsForSchool(school);
+            const placeholder = expectedDomains.length > 0 ? `you@${expectedDomains[0]}` : 'you@university.edu';
+            return (
+              <div className="modal-overlay" onClick={() => setShowVerifyModal(false)}>
+                <div className="modal" style={{ padding: 24 }} onClick={e => e.stopPropagation()}>
+
+                  {verifyStep === 'email' && (
+                    <>
+                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
+                        <h3 style={{ margin: 0, fontSize: 17 }}>Verify student status</h3>
+                        <button onClick={() => setShowVerifyModal(false)} style={{ background: 'none', border: 'none', fontSize: 22, cursor: 'pointer', color: '#888', lineHeight: 1, padding: '0 2px' }}>×</button>
+                      </div>
+                      <p style={{ margin: '0 0 4px', fontSize: 14 }}>Enter your <strong>{school}</strong> email to get a verification code.</p>
+                      {expectedDomains.length > 0 && (
+                        <p style={{ margin: '0 0 14px', fontSize: 12, color: '#888' }}>Must end in @{expectedDomains[0]}</p>
+                      )}
+                      <input
+                        className="text-input"
+                        type="email"
+                        placeholder={placeholder}
+                        value={verifyEmail}
+                        onChange={e => { setVerifyEmail(e.target.value); setVerifyError(null); }}
+                        style={{ marginBottom: verifyError ? 8 : 14 }}
+                        autoFocus
+                      />
+                      {verifyError && <div style={{ fontSize: 12, color: '#E74C3C', marginBottom: 12 }}>{verifyError}</div>}
+                      <button
+                        className="join"
+                        style={{ width: '100%', padding: 13, fontSize: 15 }}
+                        disabled={verifyLoading || !verifyEmail.trim()}
+                        onClick={handleSendCode}
+                      >
+                        {verifyLoading ? 'Sending…' : 'Send code'}
+                      </button>
+                    </>
+                  )}
+
+                  {verifyStep === 'code' && (
+                    <>
+                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
+                        <h3 style={{ margin: 0, fontSize: 17 }}>Check your email</h3>
+                        <button onClick={() => setShowVerifyModal(false)} style={{ background: 'none', border: 'none', fontSize: 22, cursor: 'pointer', color: '#888', lineHeight: 1, padding: '0 2px' }}>×</button>
+                      </div>
+                      <p style={{ margin: '0 0 16px', fontSize: 14, lineHeight: 1.5 }}>
+                        We sent a 6-digit code to <strong>{verifyEmail}</strong>. It expires in 10 minutes.
+                      </p>
+                      <input
+                        className="text-input"
+                        type="text"
+                        inputMode="numeric"
+                        autoComplete="one-time-code"
+                        maxLength={6}
+                        placeholder="000000"
+                        value={verifyCode}
+                        onChange={e => { setVerifyCode(e.target.value.replace(/\D/g, '').slice(0, 6)); setVerifyError(null); }}
+                        style={{ marginBottom: verifyError ? 8 : 14, fontSize: 26, textAlign: 'center', letterSpacing: '0.35em', fontWeight: 700 }}
+                        autoFocus
+                      />
+                      {verifyError && <div style={{ fontSize: 12, color: '#E74C3C', marginBottom: 12 }}>{verifyError}</div>}
+                      <button
+                        className="join"
+                        style={{ width: '100%', padding: 13, fontSize: 15, marginBottom: 10 }}
+                        disabled={verifyLoading || verifyCode.length !== 6}
+                        onClick={handleVerifyCode}
+                      >
+                        {verifyLoading ? 'Verifying…' : 'Verify'}
+                      </button>
+                      <button
+                        onClick={() => { setVerifyStep('email'); setVerifyCode(''); setVerifyError(null); }}
+                        style={{ background: 'none', border: 'none', color: 'var(--purple)', fontSize: 13, cursor: 'pointer', width: '100%', padding: '4px 0' }}
+                      >
+                        ← Use a different email
+                      </button>
+                    </>
+                  )}
+
+                  {verifyStep === 'success' && (
+                    <div style={{ textAlign: 'center', padding: '8px 0' }}>
+                      <div style={{ width: 60, height: 60, borderRadius: '50%', background: 'var(--light-teal)', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 16px' }}>
+                        <svg viewBox="0 0 24 24" fill="var(--teal)" width="30" height="30"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41L9 16.17z"/></svg>
+                      </div>
+                      <h3 style={{ margin: '0 0 8px', fontSize: 19 }}>You're verified!</h3>
+                      <p style={{ margin: '0 0 22px', fontSize: 14 }}>Your {school} student status is confirmed.</p>
+                      <button className="join" style={{ width: '100%', padding: 13, fontSize: 15 }} onClick={() => setShowVerifyModal(false)}>
+                        Done
+                      </button>
+                    </div>
+                  )}
+
+                </div>
+              </div>
+            );
+          })()}
+
             {showSchoolPicker && (
               <div className="modal-overlay" onClick={() => { setShowSchoolPicker(false); setSchoolSearch(''); }}>
                 <div className="modal" onClick={e => e.stopPropagation()} style={{ maxHeight:'70vh', display:'flex', flexDirection:'column', gap:0 }}>
@@ -385,10 +538,10 @@ export default function Profile({ user, profile = {}, onUpdateProfile = () => {}
                         <div style={{ fontSize:11, color:'#888', marginTop:2 }}>Get a checkmark on your {school} badge</div>
                       </div>
                       <button
-                        disabled
-                        style={{ fontSize:12, fontWeight:700, color:'var(--purple)', background:'none', border:'1px solid var(--purple)', borderRadius:8, padding:'5px 10px', opacity:0.5, cursor:'not-allowed' }}
+                        onClick={openVerifyModal}
+                        style={{ fontSize:12, fontWeight:700, color:'var(--purple)', background:'none', border:'1px solid var(--purple)', borderRadius:8, padding:'5px 10px', cursor:'pointer' }}
                       >
-                        Coming soon
+                        Verify
                       </button>
                     </div>
                   )}

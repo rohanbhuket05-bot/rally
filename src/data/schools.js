@@ -16,33 +16,94 @@ export const SCHOOLS = [
 ];
 
 const EDU_DOMAINS = {
-  'ucsd.edu':      'UCSD',
-  'usc.edu':       'USC',
-  'ucla.edu':      'UCLA',
-  'berkeley.edu':  'UC Berkeley',
-  'uci.edu':       'UC Irvine',
-  'ucsb.edu':      'UCSB',
-  'ucdavis.edu':   'UC Davis',
-  'ucsc.edu':      'UC Santa Cruz',
-  'ucr.edu':       'UC Riverside',
-  'sdsu.edu':      'SDSU',
-  'stanford.edu':  'Stanford',
-  'mit.edu':       'MIT',
-  'harvard.edu':   'Harvard',
-  'yale.edu':      'Yale',
-  'princeton.edu': 'Princeton',
-  'columbia.edu':  'Columbia',
-  'cornell.edu':   'Cornell',
-  'nyu.edu':       'NYU',
-  'uchicago.edu':  'UChicago',
-  'cmu.edu':       'CMU',
-  'gatech.edu':    'Georgia Tech',
-  'umich.edu':     'U of Michigan',
-  'utexas.edu':    'UT Austin',
-  'uw.edu':        'UW',
-  'purdue.edu':    'Purdue',
-  'ufl.edu':       'UF',
-  'csusm.edu':     'CSUSM',
+  // UC System
+  'ucsd.edu':       'UCSD',
+  'usc.edu':        'USC',
+  'ucla.edu':       'UCLA',
+  'berkeley.edu':   'UC Berkeley',
+  'uci.edu':        'UC Irvine',
+  'ucsb.edu':       'UCSB',
+  'ucdavis.edu':    'UC Davis',
+  'ucsc.edu':       'UC Santa Cruz',
+  'ucr.edu':        'UC Riverside',
+  'ucmerced.edu':   'UC Merced',
+  // CA State / CSU
+  'sdsu.edu':       'SDSU',
+  'csusm.edu':      'CSUSM',
+  'calpoly.edu':    'Cal Poly SLO',
+  'cpp.edu':        'Cal Poly Pomona',
+  'sfsu.edu':       'SFSU',
+  'csulb.edu':      'CSULB',
+  'fullerton.edu':  'CSUF',
+  // Ivies + elite privates
+  'stanford.edu':   'Stanford',
+  'mit.edu':        'MIT',
+  'harvard.edu':    'Harvard',
+  'yale.edu':       'Yale',
+  'princeton.edu':  'Princeton',
+  'columbia.edu':   'Columbia',
+  'cornell.edu':    'Cornell',
+  'upenn.edu':      'Penn',
+  'brown.edu':      'Brown',
+  'dartmouth.edu':  'Dartmouth',
+  // NYC
+  'nyu.edu':        'NYU',
+  // Chicago area
+  'uchicago.edu':   'UChicago',
+  'northwestern.edu': 'Northwestern',
+  // Tech schools
+  'cmu.edu':        'CMU',
+  'gatech.edu':     'Georgia Tech',
+  // Big Ten + majors
+  'umich.edu':      'U of Michigan',
+  'msu.edu':        'Michigan State',
+  'utexas.edu':     'UT Austin',
+  'uw.edu':         'UW',
+  'purdue.edu':     'Purdue',
+  'ufl.edu':        'UF',
+  'psu.edu':        'Penn State',
+  'osu.edu':        'Ohio State',
+  'unc.edu':        'UNC Chapel Hill',
+  'illinois.edu':   'U of Illinois',
+  'wisc.edu':       'U of Wisconsin',
+  'umn.edu':        'U of Minnesota',
+  'indiana.edu':    'Indiana University',
+  // Southeast
+  'duke.edu':       'Duke',
+  'vanderbilt.edu': 'Vanderbilt',
+  'georgetown.edu': 'Georgetown',
+  'emory.edu':      'Emory',
+  'uga.edu':        'U of Georgia',
+  'fsu.edu':        'Florida State',
+  'miami.edu':      'U of Miami',
+  'tulane.edu':     'Tulane',
+  // Northeast
+  'bu.edu':         'Boston University',
+  'northeastern.edu': 'Northeastern',
+  'tufts.edu':      'Tufts',
+  'wfu.edu':        'Wake Forest',
+  'rice.edu':       'Rice',
+  // Mid-Atlantic
+  'virginia.edu':   'U of Virginia',
+  'vt.edu':         'Virginia Tech',
+  // Pacific Northwest
+  'uoregon.edu':    'U of Oregon',
+  'oregonstate.edu': 'Oregon State',
+  'wsu.edu':        'Washington State',
+  // Mountain West
+  'colorado.edu':   'U of Colorado Boulder',
+  'ucdenver.edu':   'CU Denver',
+  'utah.edu':       'U of Utah',
+  'byu.edu':        'BYU',
+  'unlv.edu':       'U of Nevada Las Vegas',
+  'arizona.edu':    'U of Arizona',
+  'asu.edu':        'Arizona State',
+  // Texas
+  'tamu.edu':       'Texas A&M',
+  'tcu.edu':        'TCU',
+  'smu.edu':        'SMU',
+  'baylor.edu':     'Baylor',
+  'uh.edu':         'U of Houston',
 };
 
 export function getSchoolFromEmail(email) {
@@ -57,4 +118,12 @@ export function getSchoolFromEmail(email) {
 export function getSchoolFromDomain(domain) {
   if (!domain) return null;
   return EDU_DOMAINS[domain.toLowerCase()] || null;
+}
+
+/** Returns all .edu domains expected for a given school name. */
+export function getDomainsForSchool(school) {
+  if (!school) return [];
+  return Object.entries(EDU_DOMAINS)
+    .filter(([, s]) => s === school)
+    .map(([domain]) => domain);
 }
