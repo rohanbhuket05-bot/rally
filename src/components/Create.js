@@ -39,16 +39,16 @@ const createOptions = [
     accent: '#534AB7',
   },
   {
-    id: 'create-rally',
-    title: 'Create a rally',
-    description: 'Anchor your plan to an existing event and invite people to join your group.',
-    accent: '#1D9E75',
-  },
-  {
     id: 'spontaneous',
     title: 'Spontaneous post',
     description: 'Drop a short live post for easy meet-ups that expire in a few hours.',
     accent: '#EF9F27',
+  },
+  {
+    id: 'create-rally',
+    title: 'Create a rally',
+    description: 'Anchor your plan to an existing event and invite people to join your group.',
+    accent: '#1D9E75',
   },
 ];
 
@@ -150,16 +150,18 @@ export default function Create({ onNavigate = () => {}, onCreateGroup = () => {}
 
       <section className="create-grid">
         {createOptions.map((option) => (
-          <article key={option.id} className="create-card" style={{ borderTopColor: option.accent }}>
-            <div>
+          <article key={option.id} className="create-card" style={{ borderTopColor: option.accent, cursor: option.id !== 'create-rally' ? 'pointer' : 'default', opacity: option.id === 'create-rally' ? 0.6 : 1 }} onClick={() => option.id !== 'create-rally' && handleStart(option)}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
               <div className="create-badge" style={{ backgroundColor: option.accent }}>
                 {option.title}
               </div>
-              <p>{option.description}</p>
+              {option.id === 'create-rally' && (
+                <span style={{ fontSize: 10, fontWeight: 700, color: '#888', background: 'rgba(0,0,0,0.08)', borderRadius: 999, padding: '3px 8px', letterSpacing: '0.05em', textTransform: 'uppercase' }}>
+                  Coming soon
+                </span>
+              )}
             </div>
-            <button className="nav-btn" onClick={() => handleStart(option)}>
-              {option.id === 'host-event' ? 'Start' : 'Coming soon'}
-            </button>
+            <p>{option.description}</p>
           </article>
         ))}
       </section>
