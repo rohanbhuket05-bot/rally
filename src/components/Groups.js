@@ -28,6 +28,7 @@ export default function Groups({
   groups = [],
   dms = [],
   user,
+  profile = {},
 }) {
   const myName = localStorage.getItem('rally_name') || localStorage.getItem('rally_username') || '';
   const [invites, setInvites] = useState([]);
@@ -57,6 +58,7 @@ export default function Groups({
       color: avatarColor(displayName),
       role: 'member',
       user_id: user.id,
+      avatar_url: profile?.avatar_url || '',
     };
     setAcceptError('');
     try {

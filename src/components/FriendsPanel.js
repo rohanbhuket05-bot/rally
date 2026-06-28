@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import {
   searchUsersByUsername, sendFriendRequest, getFriendships,
   getIncomingFriendRequests, getOutgoingFriendRequests,
@@ -75,7 +75,133 @@ function PersonRow({ name, username, avatarUrl, actions, onClick }) {
   );
 }
 
-export default function FriendsPanel({ user, onViewFriend = () => {} }) {
+const REMOVE_WIDTH = 120;
+const SWIPE_THRESHOLD = 120;
+
+function SwipeableFriendRow({ f, onViewFriend, onOpenDm, onRemove }) {
+  const [offset, setOffset] = useState(0);
+  const [transitioning, setTransitioning] = useState(false);
+  const [showConfirm, setShowConfirm] = useState(false);
+  const touchStartX = useRef(null);
+  const touchStartY = useRef(null);
+  const isScrolling = useRef(false);
+  const offsetRef = useRef(0);
+
+  function onDragStart(clientX, clientY) {
+    touchStartX.current = clientX;
+    touchStartY.current = clientY;
+    isScrolling.current = false;
+    setTransitioning(false);
+  }
+
+  function onDragMove(clientX, clientY) {
+    if (touchStartX.current === null) return;
+    const dx = clientX - touchStartX.current;
+    const dy = clientY - touchStartY.current;
+    if (isScrolling.current) return;
+    if (Math.abs(dy) > Math.abs(dx)) { isScrolling.current = true; return; }
+    const newOffset = Math.max(-REMOVE_WIDTH, Math.min(0, dx));
+    offsetRef.current = newOffset;
+    setOffset(newOffset);
+  }
+
+  function onDragEnd() {
+    setTransitioning(true);
+    const current = offsetRef.current;
+    if (current <= -SWIPE_THRESHOLD) {
+      setOffset(0);
+      offsetRef.current = 0;
+      setShowConfirm(true);
+    } else {
+      setOffset(0);
+      offsetRef.current = 0;
+    }
+    touchStartX.current = null;
+  }
+
+  function handleRemoveClick() {
+    setTransitioning(true);
+    setOffset(0);
+    setShowConfirm(true);
+  }
+
+  function onTouchStart(e) { onDragStart(e.touches[0].clientX, e.touches[0].clientY); }
+  function onTouchMove(e) { if (!isScrolling.current) e.preventDefault(); onDragMove(e.touches[0].clientX, e.touches[0].clientY); }
+  function onTouchEnd() { onDragEnd(); }
+
+  function onMouseDown(e) { onDragStart(e.clientX, e.clientY); }
+  function onMouseMove(e) { if (touchStartX.current !== null) onDragMove(e.clientX, e.clientY); }
+  function onMouseUp() { if (touchStartX.current !== null) onDragEnd(); }
+
+  const name = f.other?.name || f.other?.username;
+  const username = f.other?.username;
+  const avatarUrl = f.other?.avatar_url;
+
+  return (
+    <div style={{ position: 'relative', borderRadius: 12, overflow: 'hidden' }}>
+      {/* Red remove button revealed on swipe */}
+      <div style={{ position: 'absolute', right: 0, top: 0, bottom: 0, width: REMOVE_WIDTH, background: '#E74C3C', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', borderRadius: 12 }}
+        onClick={handleRemoveClick}
+      >
+        <span style={{ color: '#fff', fontWeight: 700, fontSize: 13 }}>Remove</span>
+      </div>
+
+      {showConfirm && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 9999 }}>
+          <div style={{ background: '#1A1A2E', borderRadius: 16, padding: 24, maxWidth: 300, width: '85%', border: '1px solid rgba(255,255,255,0.1)' }}>
+            <h3 style={{ margin: '0 0 8px', fontSize: 17, color: '#EEEEFF' }}>Remove {name}?</h3>
+            <p style={{ margin: '0 0 20px', fontSize: 14, color: '#888', lineHeight: 1.5 }}>They won't be notified, but you'll both lose the connection.</p>
+            <div style={{ display: 'flex', gap: 10 }}>
+              <button onClick={() => setShowConfirm(false)} style={{ flex: 1, padding: '10px', borderRadius: 10, border: '1px solid rgba(255,255,255,0.1)', background: 'transparent', color: '#EEEEFF', fontWeight: 600, fontSize: 14, cursor: 'pointer' }}>Cancel</button>
+              <button onClick={() => { setShowConfirm(false); onRemove(); }} style={{ flex: 1, padding: '10px', borderRadius: 10, border: 'none', background: '#E74C3C', color: '#fff', fontWeight: 700, fontSize: 14, cursor: 'pointer' }}>Remove</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Swipeable content */}
+      <div
+        onTouchStart={onTouchStart}
+        onTouchMove={onTouchMove}
+        onTouchEnd={onTouchEnd}
+        onMouseDown={onMouseDown}
+        onMouseMove={onMouseMove}
+        onMouseUp={onMouseUp}
+        onMouseLeave={onMouseUp}
+        style={{
+          transform: `translateX(${offset}px)`,
+          transition: transitioning ? 'transform 250ms ease' : 'none',
+          display: 'flex', alignItems: 'center', gap: 12,
+          padding: '10px 14px', borderRadius: 12,
+          background: 'var(--card-bg, #0F0F1A)',
+          border: '1px solid rgba(255,255,255,0.07)',
+          position: 'relative', zIndex: 1,
+          userSelect: 'none', WebkitUserSelect: 'none',
+        }}
+      >
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12, flex: 1, minWidth: 0 }}>
+          <div onClick={() => f.other?.id && onViewFriend(f.other.id)} style={{ cursor: 'pointer', flexShrink: 0 }}>
+            <Avatar name={name} avatarUrl={avatarUrl} />
+          </div>
+          <div onClick={() => f.other?.id && onViewFriend(f.other.id)} style={{ minWidth: 0, textAlign: 'left', cursor: 'pointer' }}>
+            <div style={{ fontWeight: 700, fontSize: 14, color: '#EEEEFF' }}>{name}</div>
+            <div style={{ fontSize: 12, color: '#888', marginTop: 1 }}>@{username}</div>
+          </div>
+        </div>
+        <button
+          style={{ borderRadius: 8, padding: '6px 8px', background: 'rgba(83,74,183,0.1)', border: '1px solid rgba(83,74,183,0.2)', color: 'var(--purple)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}
+          onClick={e => { e.stopPropagation(); onOpenDm(f.other?.id, f.other); }}
+        >
+          <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+            <line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/>
+          </svg>
+        </button>
+      </div>
+    </div>
+  );
+}
+
+export default function FriendsPanel({ user, onViewFriend = () => {}, onOpenDm = () => {} }) {
   const [query, setQuery] = useState('');
   const [searchResults, setSearchResults] = useState([]);
   const [searching, setSearching] = useState(false);
@@ -192,18 +318,12 @@ export default function FriendsPanel({ user, onViewFriend = () => {} }) {
         )}
         <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
           {friends.map(f => (
-            <PersonRow
+            <SwipeableFriendRow
               key={f.id}
-              name={f.other?.name || f.other?.username}
-              username={f.other?.username}
-              avatarUrl={f.other?.avatar_url}
-              onClick={() => f.other?.id && onViewFriend(f.other.id)}
-              actions={
-                <button
-                  style={{ borderRadius: 8, padding: '5px 12px', fontSize: 12, background: 'rgba(231,76,60,0.08)', border: '1px solid rgba(231,76,60,0.2)', color: '#E74C3C', fontWeight: 600, cursor: 'pointer' }}
-                  onClick={() => handleRemove(f.id)}
-                >Remove</button>
-              }
+              f={f}
+              onViewFriend={onViewFriend}
+              onOpenDm={onOpenDm}
+              onRemove={() => handleRemove(f.id)}
             />
           ))}
         </div>

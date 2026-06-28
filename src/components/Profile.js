@@ -26,7 +26,7 @@ const CITIES = [
   'Seoul, South Korea','Mumbai, India','Bangkok, Thailand','Hong Kong',
 ];
 
-export default function Profile({ user, profile = {}, onUpdateProfile = () => {}, activeTab = 'profile', onNavigate = () => {}, onOpenGroup = () => {}, events = [], groups: allGroups = [], onAddEvent = () => {}, onUpdateEvent = () => {}, onDeleteEvent = () => {}, onSignOut = () => {}, onAuthRequired = () => {}, darkMode = false, onToggleDark = () => {}, onViewFriend = () => {} }) {
+export default function Profile({ user, profile = {}, onUpdateProfile = () => {}, activeTab = 'profile', onNavigate = () => {}, onOpenGroup = () => {}, events = [], groups: allGroups = [], onAddEvent = () => {}, onUpdateEvent = () => {}, onDeleteEvent = () => {}, onSignOut = () => {}, onAuthRequired = () => {}, darkMode = false, onToggleDark = () => {}, onViewFriend = () => {}, onOpenDm = () => {} }) {
   const [name, setName] = useState(() => profile.name || localStorage.getItem('rally_name') || '');
   const [bio, setBio] = useState(() => profile.bio || localStorage.getItem('rally_bio') || '');
   const [username, setUsername] = useState(() => profile.username || localStorage.getItem('rally_username') || '');
@@ -630,7 +630,7 @@ export default function Profile({ user, profile = {}, onUpdateProfile = () => {}
         </div>
         {showFriendsPanel && (
           <div className="card" style={{ padding: 16 }}>
-            <FriendsPanel user={user} onViewFriend={onViewFriend} />
+            <FriendsPanel user={user} onViewFriend={onViewFriend} onOpenDm={onOpenDm} />
         </div>
         )}
       </section>

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { getFriendships, searchUsersByUsername, sendGroupInvite, getOutgoingGroupInvites, isSupabaseConfigured, getGroupMessages, subscribeToGroupMessages } from '../lib/supabaseClient';
+import { getFriendships, searchUsersByUsername, sendGroupInvite, getOutgoingGroupInvites, isSupabaseConfigured, getGroupMessages, subscribeToGroupMessages, getProfilesByIds } from '../lib/supabaseClient';
 import './HomeFeed.css';
 
 
@@ -21,16 +21,19 @@ function isUUID(id) {
   return typeof id === 'string' && /^[0-9a-f]{8}-[0-9a-f]{4}-/.test(id);
 }
 
-// Small green checkmark badge overlay for friend-members
+// Friend badge overlay for friend-members
 function FriendBadge() {
   return (
     <span style={{
       position: 'absolute', bottom: -2, right: -2,
-      width: 14, height: 14, borderRadius: '50%',
-      background: '#2ECC71', border: '2px solid #fff',
+      width: 16, height: 16, borderRadius: '50%',
+      background: 'var(--purple)', border: '2px solid #0F0F1A',
       display: 'flex', alignItems: 'center', justifyContent: 'center',
-      fontSize: 8, color: '#fff', fontWeight: 700, lineHeight: 1,
-    }}>✓</span>
+    }}>
+      <svg viewBox="0 0 24 24" width="9" height="9" fill="white">
+        <path d="M16 11c1.66 0 2.99-1.34 2.99-3S17.66 5 16 5c-1.66 0-3 1.34-3 3s1.34 3 3 3zm-8 0c1.66 0 2.99-1.34 2.99-3S9.66 5 8 5C6.34 5 5 6.34 5 8s1.34 3 3 3zm0 2c-2.33 0-7 1.17-7 3.5V19h14v-2.5c0-2.33-4.67-3.5-7-3.5zm8 0c-.29 0-.62.02-.97.05 1.16.84 1.97 1.97 1.97 3.45V19h6v-2.5c0-2.33-4.67-3.5-7-3.5z"/>
+      </svg>
+    </span>
   );
 }
 
@@ -62,6 +65,17 @@ export default function GroupDetails({
   useEffect(() => {
     if (user) getFriendships(user.id).then(setFriends);
   }, [user]);
+
+  // Backfill avatar_urls for members that are missing them
+  const [memberAvatars, setMemberAvatars] = useState({});
+  useEffect(() => {
+    if (!group?.members) return;
+    const missingIds = group.members
+      .filter(m => m.user_id && !m.avatar_url)
+      .map(m => m.user_id);
+    if (missingIds.length === 0) return;
+    getProfilesByIds(missingIds).then(profiles => setMemberAvatars(profiles));
+  }, [group?.id]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Load last-read count from localStorage when group changes
   useEffect(() => {
@@ -329,6 +343,7 @@ export default function GroupDetails({
             const mc = m.color && m.color !== '#FFFFFF' ? m.color : avatarColor(m.name);
             const isFriend = isMemberFriend(m);
             const initials = (m.name || '?').split(' ').map(s => s[0]).slice(0, 2).join('').toUpperCase();
+            const avatarUrl = m.avatar_url || (m.user_id && memberAvatars[m.user_id]?.avatar_url) || '';
             return (
               <div key={i} style={{
                 display: 'flex', alignItems: 'center', gap: 12,
@@ -337,8 +352,8 @@ export default function GroupDetails({
                 border: '1px solid rgba(255,255,255,0.07)',
               }}>
                 <div style={{ position: 'relative', flexShrink: 0 }}>
-                  {m.avatar_url ? (
-                    <img src={m.avatar_url} alt={m.name} referrerPolicy="no-referrer"
+                  {avatarUrl ? (
+                    <img src={avatarUrl} alt={m.name} referrerPolicy="no-referrer"
                       style={{ width: 38, height: 38, borderRadius: '50%', objectFit: 'cover' }} />
                   ) : (
                     <div style={{ width: 38, height: 38, borderRadius: '50%', background: mc, color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 700, fontSize: 13 }}>

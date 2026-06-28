@@ -741,3 +741,81 @@ export async function signInWithProvider(provider) {
     return { error: e };
   }
 }
+
+// ── Direct Messages ────────────────────────────────────────────────────────
+
+export async function createOrGetDm(otherUserId) {
+  try {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return null;
+    const [p1, p2] = [user.id, otherUserId].sort();
+    const { data: existing } = await supabase
+      .from('dms')
+      .select('*')
+      .eq('participant_1', p1)
+      .eq('participant_2', p2)
+      .single();
+    if (existing) return existing;
+    const { data: created, error } = await supabase
+      .from('dms')
+      .insert({ participant_1: p1, participant_2: p2 })
+      .select()
+      .single();
+    if (error) throw error;
+    return created;
+  } catch (e) {
+    console.warn('createOrGetDm error', e.message);
+    return null;
+  }
+}
+
+export async function getDmMessages(dmId) {
+  try {
+    const { data, error } = await supabase
+      .from('dm_messages')
+      .select('id, sender_id, text, created_at, sender:profiles!sender_id(name, avatar_url)')
+      .eq('dm_id', dmId)
+      .order('created_at', { ascending: true });
+    if (error) throw error;
+    return (data || []).map(m => ({
+      id: m.id,
+      userId: m.sender_id,
+      sender: m.sender?.name || 'Unknown',
+      avatarUrl: m.sender?.avatar_url || '',
+      text: m.text,
+      createdAt: m.created_at,
+      time: new Date(m.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+    }));
+  } catch (e) {
+    console.warn('getDmMessages error', e.message);
+    return [];
+  }
+}
+
+export async function sendDmMessage(dmId, text) {
+  try {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return null;
+    const { data, error } = await supabase
+      .from('dm_messages')
+      .insert({ dm_id: dmId, sender_id: user.id, text })
+      .select('id, sender_id, text, created_at')
+      .single();
+    if (error) throw error;
+    await supabase.from('dms').update({ last_message: text, last_at: new Date().toISOString() }).eq('id', dmId);
+    return { ...data, userId: data.sender_id, time: new Date(data.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) };
+  } catch (e) {
+    console.warn('sendDmMessage error', e.message);
+    return null;
+  }
+}
+
+export function subscribeToDmMessages(dmId, onNew) {
+  const channel = supabase
+    .channel(`dm_messages:${dmId}`)
+    .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'dm_messages', filter: `dm_id=eq.${dmId}` },
+      payload => onNew({ ...payload.new, userId: payload.new.sender_id, time: new Date(payload.new.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) })
+    )
+    .subscribe();
+  return () => supabase.removeChannel(channel);
+}

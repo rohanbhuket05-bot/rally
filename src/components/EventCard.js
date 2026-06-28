@@ -37,7 +37,7 @@ export default function EventCard({ event, onJoin, currentUserName, currentUserI
   if (compact) {
     const tags = (event.tags && event.tags.length > 0) ? event.tags : (event.category ? [event.category] : []);
     return (
-      <article className="card" onClick={() => onOpenDetails && onOpenDetails(event)} style={{ cursor: onOpenDetails ? 'pointer' : undefined, padding: '10px 10px', display: 'flex', flexDirection: 'column', gap: 6, minWidth: 0 }}>
+      <article className="card" onClick={() => onOpenDetails && onOpenDetails(event)} style={{ cursor: onOpenDetails ? 'pointer' : undefined, padding: '10px 10px', display: 'flex', flexDirection: 'column', gap: 6, minWidth: 0, ...(isHost ? { border: '1px solid rgba(255,185,0,0.5)', boxShadow: '0 0 10px rgba(255,185,0,0.15), inset 0 0 10px rgba(255,185,0,0.03)' } : {}) }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 4 }}>
           <div style={{ flex: 1, minWidth: 0, textAlign: 'left' }}>
             <h3 className="card-title" style={{ margin: 0, fontSize: 13, lineHeight: 1.3, textAlign: 'left' }}>{title}</h3>
@@ -90,7 +90,7 @@ export default function EventCard({ event, onJoin, currentUserName, currentUserI
   }
 
   return (
-    <article className="card" onClick={() => onOpenDetails && onOpenDetails(event)} style={onOpenDetails ? { cursor: 'pointer' } : undefined}>
+    <article className="card" onClick={() => onOpenDetails && onOpenDetails(event)} style={{ ...(onOpenDetails ? { cursor: 'pointer' } : {}), ...(isHost ? { border: '1px solid rgba(255,185,0,0.5)', boxShadow: '0 0 12px rgba(255,185,0,0.18), inset 0 0 12px rgba(255,185,0,0.03)' } : {}) }}>
       <div className="card-header">
         <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
           <h3 className="card-title" style={{ margin: 0 }}>{title}</h3>

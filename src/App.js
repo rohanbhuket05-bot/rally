@@ -8,6 +8,7 @@ import Groups from './components/Groups';
 import Create from './components/Create';
 import GroupDetails from './components/GroupDetails';
 import GroupChat from './components/GroupChat';
+import DmChat from './components/DmChat';
 import FriendProfilePage from './components/FriendProfilePage';
 import EventDetails from './components/EventDetails';
 import EventChat from './components/EventChat';
@@ -17,7 +18,7 @@ import UsernamePrompt from './components/UsernamePrompt';
 import BottomNav from './components/BottomNav';
 import SpontaneousCompose from './components/SpontaneousCompose';
 import { groupsData } from './data/groups';
-import { isSupabaseConfigured, signOut, getUser, onAuthStateChange, getEvents as sbGetEvents, insertEvent as sbInsertEvent, updateEvent as sbUpdateEvent, updateEventAttendees as sbUpdateEventAttendees, deleteEvent as sbDeleteEvent, getGroups as sbGetGroups, insertGroup as sbInsertGroup, updateGroup as sbUpdateGroup, deleteGroup as sbDeleteGroup, leaveGroup as sbLeaveGroup, mapGroupRow, getProfile, upsertProfile } from './lib/supabaseClient';
+import { isSupabaseConfigured, signOut, getUser, onAuthStateChange, getEvents as sbGetEvents, insertEvent as sbInsertEvent, updateEvent as sbUpdateEvent, updateEventAttendees as sbUpdateEventAttendees, deleteEvent as sbDeleteEvent, getGroups as sbGetGroups, insertGroup as sbInsertGroup, updateGroup as sbUpdateGroup, deleteGroup as sbDeleteGroup, leaveGroup as sbLeaveGroup, mapGroupRow, getProfile, upsertProfile, createOrGetDm } from './lib/supabaseClient';
 
 function App() {
   const [user, setUser] = useState(null);
@@ -77,6 +78,7 @@ function App() {
     try { return JSON.parse(localStorage.getItem('rally_groups') || '[]'); } catch(e) { return []; }
   });
   const [previewGroup, setPreviewGroup] = useState(null);
+  const [activeDm, setActiveDm] = useState(null); // { id, otherUser }
   const [groupMessages, setGroupMessages] = useState(() => {
     return groupsData.reduce((acc, group) => {
       acc[group.id] = group.messages || [];
@@ -331,6 +333,7 @@ function App() {
           onCreateGroup={openCreateGroup}
           onLeaveGroup={handleLeaveGroup}
           user={user}
+          profile={profile}
           onAuthRequired={onAuthRequired}
           onGroupJoined={(group) => {
             setGroups(s => s.some(g => g.id === group.id) ? s.map(g => g.id === group.id ? group : g) : [group, ...s]);
@@ -342,7 +345,7 @@ function App() {
         />
       )}
       {activeTab === 'profile' && (
-        <Profile user={user} profile={profile} onUpdateProfile={handleUpdateProfile} activeTab={activeTab} onNavigate={setActiveTab} onOpenGroup={(id) => { setActiveGroupId(id); setActiveTab('group'); }} events={events} groups={groups} onAddEvent={addEvent} onUpdateEvent={updateEvent} onDeleteEvent={deleteEvent} onSignOut={() => { signOut(); setUser(null); }} onAuthRequired={onAuthRequired} darkMode={darkMode} onToggleDark={() => setDarkMode(d => !d)} onViewFriend={(id) => { setViewingFriendId(id); setActiveTab('friend-profile'); }} />
+        <Profile user={user} profile={profile} onUpdateProfile={handleUpdateProfile} activeTab={activeTab} onNavigate={setActiveTab} onOpenGroup={(id) => { setActiveGroupId(id); setActiveTab('group'); }} events={events} groups={groups} onAddEvent={addEvent} onUpdateEvent={updateEvent} onDeleteEvent={deleteEvent} onSignOut={() => { signOut(); setUser(null); }} onAuthRequired={onAuthRequired} darkMode={darkMode} onToggleDark={() => setDarkMode(d => !d)} onViewFriend={(id) => { setViewingFriendId(id); setActiveTab('friend-profile'); }} onOpenDm={async (otherId, otherUser) => { const dm = await createOrGetDm(otherId); if (dm) { setActiveDm({ id: dm.id, otherUser }); setActiveTab('dm'); } }} />
       )}
       {activeTab === 'friend-profile' && (
         <FriendProfilePage
@@ -389,6 +392,15 @@ function App() {
           group={groups.find(g => g.id === activeGroupId)}
           user={user}
           profile={profile}
+        />
+      )}
+      {activeTab === 'dm' && activeDm && (
+        <DmChat
+          dmId={activeDm.id}
+          otherUser={activeDm.otherUser}
+          user={user}
+          profile={profile}
+          onBack={() => { setActiveDm(null); setActiveTab('profile'); }}
         />
       )}
       {activeTab === 'event-details' && activeEventId && (
