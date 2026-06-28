@@ -112,9 +112,6 @@ export default function EventCard({ event, onJoin, currentUserName, currentUserI
       {event.host && <div style={{ fontSize: 12, color: '#888', marginBottom: 6, textAlign: 'left' }}>Hosted by: {event.host}</div>}
 
       <div className="card-meta">
-        <div style={{ display:'flex', flexWrap:'wrap', gap:8, marginBottom:8, alignItems:'center' }}>
-          <span className="category-pill" style={{ color: 'var(--teal)', background: 'var(--light-teal)', fontSize: 11, fontWeight: 700 }}>{attendees.length} going</span>
-        </div>
         <div className="meta-row">
           <span className="meta-label">When</span>
           <span className="meta-value">{dateDisplay}</span>

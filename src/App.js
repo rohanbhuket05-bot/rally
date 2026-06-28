@@ -250,6 +250,14 @@ function App() {
     setActiveTab(current => { setPreviousTab(current); return 'event-details'; });
   }, []);
 
+  const navigateFromTab = useCallback((tab) => {
+    if (tab === 'spontaneous') {
+      setActiveTab(current => { setPreviousTab(current); return 'spontaneous'; });
+    } else {
+      setActiveTab(tab);
+    }
+  }, []);
+
   const openCreateGroup = useCallback((context = {}) => {
     setCreateGroupContext(context);
     setActiveTab(current => { setPreviousTab(current); return 'create-group'; });
@@ -299,7 +307,7 @@ function App() {
         <UsernamePrompt user={user} onComplete={handleUsernameChosen} />
       )}
       {activeTab === 'home' && (
-        <HomeFeed activeTab={activeTab} onNavigate={setActiveTab} events={events} onAddEvent={addEvent} onUpdateEvent={updateEvent} onDeleteEvent={deleteEvent} onOpenEvent={openEvent} user={user} profile={profile} onAuthRequired={onAuthRequired} groups={groups} onOpenGroup={(id) => { setActiveGroupId(id); setActiveTab('group'); }} />
+        <HomeFeed activeTab={activeTab} onNavigate={navigateFromTab} events={events} onAddEvent={addEvent} onUpdateEvent={updateEvent} onDeleteEvent={deleteEvent} onOpenEvent={openEvent} user={user} profile={profile} onAuthRequired={onAuthRequired} groups={groups} onOpenGroup={(id) => { setActiveGroupId(id); setActiveTab('group'); }} />
       )}
       {activeTab === 'explore' && (
         <Explore activeTab={activeTab} onNavigate={setActiveTab} events={events} onOpenEvent={openEvent} onUpdateEvent={updateEvent} user={user} profile={profile} onAuthRequired={onAuthRequired} />
@@ -334,13 +342,13 @@ function App() {
         />
       )}
       {activeTab === 'post' && (
-        <Create activeTab={activeTab} onNavigate={setActiveTab} onCreateGroup={openCreateGroup} onAddEvent={addEvent} user={user} onAuthRequired={onAuthRequired} />
+        <Create activeTab={activeTab} onNavigate={navigateFromTab} onCreateGroup={openCreateGroup} onAddEvent={addEvent} user={user} onAuthRequired={onAuthRequired} />
       )}
       {activeTab === 'spontaneous' && (
         <SpontaneousCompose
           user={user}
           profile={profile}
-          onBack={() => setActiveTab('post')}
+          onBack={() => setActiveTab(previousTab)}
           onPosted={() => setActiveTab('home')}
         />
       )}
