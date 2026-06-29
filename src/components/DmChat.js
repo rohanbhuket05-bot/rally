@@ -1,13 +1,8 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { getDmMessages, sendDmMessage, subscribeToDmMessages } from '../lib/supabaseClient';
+import { avatarColor } from '../lib/avatarColor';
+import { getInitials } from '../lib/utils';
 import './HomeFeed.css';
-
-const AVATAR_COLORS = ['#534AB7','#D4537E','#1D9E75','#EF9F27','#667EEA','#9B59B6'];
-function avatarColor(name = '') {
-  let h = 0;
-  for (let i = 0; i < name.length; i++) h = name.charCodeAt(i) + ((h << 5) - h);
-  return AVATAR_COLORS[Math.abs(h) % AVATAR_COLORS.length];
-}
 
 export default function DmChat({ dmId, otherUser = {}, user, profile, onBack = () => {} }) {
   const [messages, setMessages] = useState([]);
@@ -46,7 +41,7 @@ export default function DmChat({ dmId, otherUser = {}, user, profile, onBack = (
   }
 
   const otherName = otherUser.name || otherUser.username || 'Unknown';
-  const otherInitials = otherName.split(' ').map(s => s[0]).slice(0, 2).join('').toUpperCase();
+  const otherInitials = getInitials(otherName);
 
   const grouped = [];
   messages.forEach(msg => {
@@ -93,7 +88,7 @@ export default function DmChat({ dmId, otherUser = {}, user, profile, onBack = (
           ) : grouped.map(grp => {
             const isMe = grp[0].userId === user?.id;
             const displayName = isMe ? (profile?.name || 'You') : (grp[0].sender || otherName);
-            const initials = displayName.split(' ').map(s => s[0]).slice(0, 2).join('').toUpperCase();
+            const initials = getInitials(displayName);
             const color = isMe ? 'var(--purple)' : avatarColor(grp[0].sender || '');
             const avatarUrl = isMe ? profile?.avatar_url : (grp[0].avatarUrl || otherUser.avatar_url);
             return (

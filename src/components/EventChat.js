@@ -1,13 +1,8 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { getEventMessages, sendEventMessage, subscribeToEventMessages, isSupabaseConfigured, getProfilesByIds } from '../lib/supabaseClient';
+import { avatarColor } from '../lib/avatarColor';
+import { getInitials } from '../lib/utils';
 import './HomeFeed.css';
-
-const AVATAR_COLORS = ['#534AB7','#D4537E','#1D9E75','#EF9F27','#667EEA','#9B59B6'];
-function avatarColor(name = '') {
-  let h = 0;
-  for (let i = 0; i < name.length; i++) h = name.charCodeAt(i) + ((h << 5) - h);
-  return AVATAR_COLORS[Math.abs(h) % AVATAR_COLORS.length];
-}
 
 export default function EventChat({ event, user, profile, onBack }) {
   const [messages, setMessages] = useState([]);
@@ -110,7 +105,7 @@ export default function EventChat({ event, user, profile, onBack }) {
           ) : grouped.map(grp => {
             const isMe = grp[0].userId === user?.id;
             const displayName = isMe ? (profile?.name || profile?.username || 'You') : (grp[0].sender || 'Unknown');
-            const initials = displayName.split(' ').map(s => s[0]).slice(0, 2).join('').toUpperCase();
+            const initials = getInitials(displayName);
             const color = isMe ? 'var(--purple)' : avatarColor(grp[0].sender || '');
             const avatarUrl = isMe ? profile?.avatar_url : avatarMap[grp[0].userId]?.avatar_url;
             const lastMsg = grp[grp.length - 1];

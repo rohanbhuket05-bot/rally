@@ -1,20 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { getProfile, getEventsByUserId } from '../lib/supabaseClient';
+import { avatarColor } from '../lib/avatarColor';
+import { formatDate, getInitials } from '../lib/utils';
 import './HomeFeed.css';
-
-const AVATAR_COLORS = ['#534AB7', '#D4537E', '#1D9E75', '#EF9F27', '#667EEA', '#9B59B6'];
-function avatarColor(name = '') {
-  let h = 0;
-  for (let i = 0; i < name.length; i++) h = name.charCodeAt(i) + ((h << 5) - h);
-  return AVATAR_COLORS[Math.abs(h) % AVATAR_COLORS.length];
-}
-
-function formatDate(dateISO, showTime) {
-  if (!dateISO) return 'Date TBD';
-  return showTime
-    ? new Date(dateISO).toLocaleString(undefined, { weekday: 'short', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })
-    : new Date(dateISO).toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' });
-}
 
 export default function FriendProfilePage({ friendId, onBack, groups = [] }) {
   const [profile, setProfile] = useState(null);
@@ -44,7 +32,7 @@ export default function FriendProfilePage({ friendId, onBack, groups = [] }) {
   }, [friendId]);
 
   const name = profile?.name || profile?.username || '?';
-  const initials = name.split(' ').map(s => s[0]).slice(0, 2).join('').toUpperCase();
+  const initials = getInitials(name);
 
   const now = new Date();
   const upcomingEvents = events.filter(e => !e.personal && (!e.dateISO || new Date(e.dateISO) >= now));

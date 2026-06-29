@@ -1,11 +1,6 @@
 import React, { useState, useEffect } from 'react';
-
-const AVATAR_COLORS = ['#534AB7','#D4537E','#1D9E75','#EF9F27','#667EEA','#9B59B6'];
-function avatarColor(name = '') {
-  let h = 0;
-  for (let i = 0; i < name.length; i++) h = name.charCodeAt(i) + ((h << 5) - h);
-  return AVATAR_COLORS[Math.abs(h) % AVATAR_COLORS.length];
-}
+import { avatarColor } from '../lib/avatarColor';
+import { getInitials } from '../lib/utils';
 
 function timeAgo(isoString) {
   const diff = (Date.now() - new Date(isoString)) / 1000;
@@ -27,7 +22,7 @@ export default function StoryViewer({ posts, startIndex = 0, user, onClose, onDe
   if (!post) return null;
 
   const isOwn = post.userId === user?.id;
-  const initials = (post.senderName || '?').split(' ').map(s => s[0]).slice(0, 2).join('').toUpperCase();
+  const initials = getInitials(post.senderName);
   const color = avatarColor(post.senderName || '');
 
   function prev(e) { e.stopPropagation(); setIndex(i => Math.max(0, i - 1)); }

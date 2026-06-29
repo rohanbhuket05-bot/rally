@@ -17,8 +17,8 @@ import AuthModal from './components/AuthModal';
 import UsernamePrompt from './components/UsernamePrompt';
 import BottomNav from './components/BottomNav';
 import SpontaneousCompose from './components/SpontaneousCompose';
-import { groupsData } from './data/groups';
-import { isSupabaseConfigured, signOut, getUser, onAuthStateChange, getEvents as sbGetEvents, insertEvent as sbInsertEvent, updateEvent as sbUpdateEvent, updateEventAttendees as sbUpdateEventAttendees, deleteEvent as sbDeleteEvent, getGroups as sbGetGroups, insertGroup as sbInsertGroup, updateGroup as sbUpdateGroup, deleteGroup as sbDeleteGroup, leaveGroup as sbLeaveGroup, mapGroupRow, getProfile, upsertProfile, createOrGetDm } from './lib/supabaseClient';
+import Campus from './components/Campus';
+import { isSupabaseConfigured, signOut, getUser, onAuthStateChange, getEvents as sbGetEvents, insertEvent as sbInsertEvent, updateEvent as sbUpdateEvent, updateEventAttendees as sbUpdateEventAttendees, deleteEvent as sbDeleteEvent, getGroups as sbGetGroups, insertGroup as sbInsertGroup, updateGroup as sbUpdateGroup, deleteGroup as sbDeleteGroup, leaveGroup as sbLeaveGroup, getProfile, upsertProfile, createOrGetDm } from './lib/supabaseClient';
 
 function App() {
   const [user, setUser] = useState(null);
@@ -39,7 +39,7 @@ function App() {
     friends: (() => { try { return JSON.parse(localStorage.getItem('rally_friends') || '[]'); } catch(e) { return []; } })(),
   });
   const [authModalMessage, setAuthModalMessage] = useState(null); // null = hidden, string = shown
-  const MAIN_TABS = ['home', 'explore', 'groups', 'profile', 'post'];
+  const MAIN_TABS = ['home', 'explore', 'campus', 'groups', 'profile', 'post'];
   const PERSISTENT_TABS = [...MAIN_TABS, 'group', 'group-chat', 'friend-profile'];
   const [activeTab, setActiveTabRaw] = useState(() => {
     const saved = localStorage.getItem('rally_active_tab');
@@ -72,19 +72,20 @@ function App() {
   }, [viewingFriendId]);
   const [createGroupContext, setCreateGroupContext] = useState(null);
   const [events, setEvents] = useState(() => {
-    try { return JSON.parse(localStorage.getItem('rally_events') || '[]'); } catch(e) { return []; }
+    try {
+      if (!localStorage.getItem('rally_events_migrated_v3')) {
+        localStorage.removeItem('rally_events');
+        localStorage.setItem('rally_events_migrated_v3', '1');
+        return [];
+      }
+      return JSON.parse(localStorage.getItem('rally_events') || '[]');
+    } catch(e) { return []; }
   });
   const [groups, setGroups] = useState(() => {
     try { return JSON.parse(localStorage.getItem('rally_groups') || '[]'); } catch(e) { return []; }
   });
   const [previewGroup, setPreviewGroup] = useState(null);
   const [activeDm, setActiveDm] = useState(null); // { id, otherUser }
-  const [groupMessages, setGroupMessages] = useState(() => {
-    return groupsData.reduce((acc, group) => {
-      acc[group.id] = group.messages || [];
-      return acc;
-    }, {});
-  });
 
   // load events from Supabase; migrate any localStorage-only events up on first load
   useEffect(() => {
@@ -96,7 +97,7 @@ function App() {
       if (rows && rows.length > 0) {
         // Supabase is authoritative once it has data
         const fallbackHost = localStorage.getItem('rally_username') || localStorage.getItem('rally_name') || '';
-        setEvents(rows.map(r => ({ id: r.id, title: r.title, dateISO: r.date_iso || r.dateISO, showTime: r.show_time ?? r.showTime ?? true, location: r.location, city: r.city || '', host: r.host || (r.personal ? undefined : fallbackHost), attendees: r.attendees || [], personal: r.personal ?? false, tags: r.tags || [], visibility: r.visibility || 'public', user_id: r.user_id })));
+        setEvents(rows.map(r => { const isPersonal = r.personal === true; return { id: r.id, title: r.title, dateISO: r.date_iso || r.dateISO, showTime: r.show_time ?? r.showTime ?? true, location: r.location, city: r.city || '', host: r.host || (isPersonal ? undefined : fallbackHost), attendees: r.attendees || [], personal: isPersonal, tags: r.tags || [], visibility: isPersonal ? 'private' : (r.visibility || 'public'), user_id: r.user_id, coverUrl: r.cover_url || r.coverUrl || null }; }));
       } else {
         // Supabase empty — migrate any localStorage events up
         const local = (() => { try { return JSON.parse(localStorage.getItem('rally_events') || '[]'); } catch(e) { return []; } })();
@@ -229,9 +230,9 @@ function App() {
     });
 
     if (isSupabaseConfigured()){
-      const created = await sbInsertEvent({ title: evt.title, date_iso: evt.dateISO, show_time: evt.showTime, location: evt.location, city: evt.city || '', host: temp.host || '', attendees: evt.attendees || [], personal: evt.personal ?? false, tags: evt.tags || [], visibility: evt.visibility || 'public' });
+      const created = await sbInsertEvent({ title: evt.title, date_iso: evt.dateISO, show_time: evt.showTime, location: evt.location, city: evt.city || '', host: temp.host || '', attendees: evt.attendees || [], personal: evt.personal ?? false, tags: evt.tags || [], visibility: evt.visibility || 'public', cover_url: evt.coverUrl || null });
       if (created) {
-        setEvents(s => s.map(x => x.id === temp.id ? ({ id: created.id, title: created.title, dateISO: created.date_iso || created.dateISO, showTime: created.show_time ?? created.showTime, location: created.location, city: evt.city || '', host: temp.host || '', attendees: created.attendees || [], personal: created.personal ?? false, tags: created.tags || evt.tags || [], visibility: created.visibility || evt.visibility || 'public', user_id: created.user_id }) : x));
+        setEvents(s => s.map(x => x.id === temp.id ? ({ id: created.id, title: created.title, dateISO: created.date_iso || created.dateISO, showTime: created.show_time ?? created.showTime, location: created.location, city: evt.city || '', host: temp.host || '', attendees: created.attendees || [], personal: evt.personal ?? created.personal ?? false, tags: created.tags || evt.tags || [], visibility: evt.visibility || created.visibility || (evt.personal ? 'private' : 'public'), user_id: created.user_id, coverUrl: created.cover_url || null }) : x));
       }
     }
   }, []);
@@ -242,7 +243,7 @@ function App() {
     if (isSupabaseConfigured()) {
       const isOwner = updated.user_id && user ? updated.user_id === user.id : true;
       if (isOwner) {
-        await sbUpdateEvent({ id: updated.id, date_iso: updated.dateISO, show_time: updated.showTime, title: updated.title, location: updated.location, attendees: updated.attendees || [], tags: updated.tags || [], visibility: updated.visibility || 'public' });
+        await sbUpdateEvent({ id: updated.id, date_iso: updated.dateISO, show_time: updated.showTime, title: updated.title, location: updated.location, attendees: updated.attendees || [], tags: updated.tags || [], visibility: updated.visibility || 'public', cover_url: updated.coverUrl || null });
       } else {
         await sbUpdateEventAttendees(updated.id, updated.attendees || []);
       }
@@ -297,7 +298,12 @@ function App() {
 
   const updateGroup = useCallback((updated) => {
     setGroups(s => s.map(g => g.id === updated.id ? updated : g));
-    if (isSupabaseConfigured()) sbUpdateGroup(updated.id, { members: updated.members });
+    if (isSupabaseConfigured()) {
+      const payload = { members: updated.members };
+      if (updated.logoColor !== undefined) payload.logo_color = updated.logoColor;
+      if (updated.logoUrl !== undefined) payload.logo_url = updated.logoUrl;
+      sbUpdateGroup(updated.id, payload);
+    }
   }, []);
 
   const deleteGroup = useCallback((id) => {
@@ -322,7 +328,10 @@ function App() {
         <HomeFeed activeTab={activeTab} onNavigate={navigateFromTab} events={events} onAddEvent={addEvent} onUpdateEvent={updateEvent} onDeleteEvent={deleteEvent} onOpenEvent={openEvent} user={user} profile={profile} onAuthRequired={onAuthRequired} groups={groups} onOpenGroup={(id) => { setActiveGroupId(id); setActiveTab('group'); }} />
       )}
       {activeTab === 'explore' && (
-        <Explore activeTab={activeTab} onNavigate={setActiveTab} events={events} onOpenEvent={openEvent} onUpdateEvent={updateEvent} user={user} profile={profile} onAuthRequired={onAuthRequired} />
+        <Explore activeTab={activeTab} onNavigate={setActiveTab} events={events.filter(e => !e.personal && e.visibility === 'public')} onOpenEvent={openEvent} onUpdateEvent={updateEvent} user={user} profile={profile} onAuthRequired={onAuthRequired} />
+      )}
+      {activeTab === 'campus' && (
+        <Campus user={user} profile={profile} events={events} groups={groups} onOpenEvent={openEvent} onNavigate={setActiveTab} />
       )}
       {activeTab === 'groups' && (
         <Groups

@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { createSpontaneousPost } from '../lib/supabaseClient';
+import { getInitials } from '../lib/utils';
 import './HomeFeed.css';
 
 const MAX_CHARS = 200;
@@ -11,7 +12,7 @@ export default function SpontaneousCompose({ user, profile, onBack, onPosted }) 
 
   const senderName = profile?.name || profile?.username || user?.email || 'Someone';
   const remaining = MAX_CHARS - text.length;
-  const initials = senderName.split(' ').map(s => s[0]).slice(0, 2).join('').toUpperCase();
+  const initials = getInitials(senderName);
 
   async function handlePost() {
     if (!text.trim() || posting) return;

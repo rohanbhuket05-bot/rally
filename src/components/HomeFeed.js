@@ -4,23 +4,11 @@ import StoryViewer from './StoryViewer';
 import { getPublicEvents, getSpontaneousPosts, subscribeToSpontaneousPosts, deleteSpontaneousPost, isSupabaseConfigured } from '../lib/supabaseClient';
 import './HomeFeed.css';
 import SchoolLogo from './SchoolLogo';
-
-const AVATAR_COLORS = ['#534AB7','#D4537E','#1D9E75','#EF9F27','#667EEA','#9B59B6'];
-function avatarColor(name = '') {
-  let h = 0;
-  for (let i = 0; i < name.length; i++) h = name.charCodeAt(i) + ((h << 5) - h);
-  return AVATAR_COLORS[Math.abs(h) % AVATAR_COLORS.length];
-}
+import { avatarColor } from '../lib/avatarColor';
+import { getInitials } from '../lib/utils';
 
 export default function HomeFeed({ activeTab = 'home', onNavigate = () => {}, events = [], onAddEvent = () => {}, onUpdateEvent = () => {}, onDeleteEvent = () => {}, onOpenEvent = () => {}, user = null, profile = null, onAuthRequired = () => {}, groups = [], onOpenGroup = () => {} }) {
   const [showAllEvents, setShowAllEvents] = React.useState(false);
-  const [groupsJoined, setGroupsJoined] = React.useState(() => {
-    try {
-      const saved = JSON.parse(localStorage.getItem('rally_groups_joined') || '[]');
-      return Array.isArray(saved) ? saved.filter((id) => typeof id === 'string') : [];
-    } catch(e){ return [] }
-  });
-
   const [campusEvents, setCampusEvents] = useState([]);
   const [spontaneousPosts, setSpontaneousPosts] = useState([]);
   const [viewingStories, setViewingStories] = useState(false);
@@ -53,7 +41,6 @@ export default function HomeFeed({ activeTab = 'home', onNavigate = () => {}, ev
     return unsub;
   }, [user]);
 
-  const allGroups = [];
   const currentUserName = localStorage.getItem('rally_name') || localStorage.getItem('rally_username') || '';
   const school = profile?.school || localStorage.getItem('rally_school') || '';
   const schoolVerified = profile?.school_verified || localStorage.getItem('rally_school_verified');
@@ -82,11 +69,6 @@ export default function HomeFeed({ activeTab = 'home', onNavigate = () => {}, ev
     const exists = (event.attendees || []).some(a=>a.name === name);
     const attendees = exists ? (event.attendees || []).filter(a=>a.name !== name) : [{ name, initials, color: '#FFFFFF', user_id: user?.id, avatar_url: profile?.avatar_url || '' }, ...(event.attendees || [])];
     onUpdateEvent({ ...event, attendees });
-  }
-
-  function toggleGroup(id){
-    const next = groupsJoined.includes(id) ? groupsJoined.filter(x=>x!==id) : [...groupsJoined, id];
-    setGroupsJoined(next); localStorage.setItem('rally_groups_joined', JSON.stringify(next));
   }
 
   async function handleDeleteStory(id) {
@@ -138,7 +120,7 @@ export default function HomeFeed({ activeTab = 'home', onNavigate = () => {}, ev
 
             {/* Other users' story circles */}
             {storyCircles.filter(p => p.userId !== user?.id).map(post => {
-              const initials = (post.senderName || '?').split(' ').map(s => s[0]).slice(0, 2).join('').toUpperCase();
+              const initials = getInitials(post.senderName);
               const color = avatarColor(post.senderName || '');
               const displayName = post.senderName?.split(' ')[0] || 'Someone';
               return (

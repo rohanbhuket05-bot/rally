@@ -1,35 +1,45 @@
 import React, { useState } from 'react';
-import { getDomainsForSchool } from '../data/schools';
+import { getInitials } from '../lib/utils';
 
-export default function SchoolLogo({ school, size = 20, style = {} }) {
+export default function SchoolLogo({ school = '', size = 48, style = {} }) {
   const [failed, setFailed] = useState(false);
-  const domain = getDomainsForSchool(school)[0];
-  const initial = (school || '?')[0].toUpperCase();
-  const radius = Math.round(size * 0.22);
 
-  if (!domain || failed) {
-    return (
-      <div style={{
-        width: size, height: size, borderRadius: radius,
-        background: 'rgba(157,143,255,0.18)',
-        display: 'flex', alignItems: 'center', justifyContent: 'center',
-        fontSize: Math.round(size * 0.52), fontWeight: 800, color: 'var(--purple)',
-        flexShrink: 0, lineHeight: 1, ...style,
-      }}>
-        {initial}
-      </div>
-    );
-  }
+  // Try Google favicon as school logo proxy
+  const domain = school.toLowerCase().replace(/[^a-z0-9]/g, '') + '.edu';
+  const faviconUrl = `https://www.google.com/s2/favicons?domain=${domain}&sz=128`;
 
-  return (
+  const initials = getInitials(school) || school.slice(0, 2).toUpperCase();
+
+  return failed ? (
+    <div style={{
+      width: size,
+      height: size,
+      borderRadius: size * 0.22,
+      background: 'var(--purple)',
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'center',
+      color: '#fff',
+      fontWeight: 800,
+      fontSize: size * 0.35,
+      flexShrink: 0,
+      ...style,
+    }}>
+      {initials}
+    </div>
+  ) : (
     <img
-      src={`https://www.google.com/s2/favicons?domain=${domain}&sz=64`}
+      src={faviconUrl}
       alt={school}
       onError={() => setFailed(true)}
       style={{
-        width: size, height: size, borderRadius: radius,
-        objectFit: 'contain', background: 'transparent',
-        flexShrink: 0, display: 'block', ...style,
+        width: size,
+        height: size,
+        borderRadius: size * 0.22,
+        objectFit: 'contain',
+        background: 'rgba(255,255,255,0.06)',
+        flexShrink: 0,
+        ...style,
       }}
     />
   );

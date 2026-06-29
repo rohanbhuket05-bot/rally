@@ -1,30 +1,115 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import './HomeFeed.css';
 
-import { getSchoolFromEmail, getSchoolFromDomain, SCHOOLS, getDomainsForSchool } from '../data/schools';
+import { getSchoolFromEmail, SCHOOLS, getDomainsForSchool } from '../data/schools';
 import SchoolLogo from './SchoolLogo';
 import FriendsPanel from './FriendsPanel';
-import { isSupabaseConfigured, signInWithOtp, signInWithProvider, checkUsernameAvailable, getFriendNotifications, sendEduVerification, verifyEduCode } from '../lib/supabaseClient';
+import { isSupabaseConfigured, signInWithOtp, signInWithProvider, checkUsernameAvailable, getFriendNotifications, sendEduVerification, verifyEduCode, uploadAvatarImage } from '../lib/supabaseClient';
 import { validateUsername } from '../lib/usernameValidation';
+import { CITIES, formatDate, getInitials } from '../lib/utils';
 
-const placeholderFriendNames = new Set(['Maya', 'Leo', 'Ava', 'Jon']);
+const EV_DELETE_WIDTH = 160;
+const EV_SWIPE_THRESHOLD = 140;
 
-const CITIES = [
-  'Atlanta, GA','Austin, TX','Baltimore, MD','Boston, MA','Charlotte, NC',
-  'Chicago, IL','Cincinnati, OH','Cleveland, OH','Columbus, OH','Dallas, TX',
-  'Denver, CO','Detroit, MI','El Paso, TX','Fort Worth, TX','Fresno, CA',
-  'Houston, TX','Indianapolis, IN','Jacksonville, FL','Kansas City, MO','Las Vegas, NV',
-  'Long Beach, CA','Los Angeles, CA','Louisville, KY','Memphis, TN','Mesa, AZ',
-  'Miami, FL','Milwaukee, WI','Minneapolis, MN','Nashville, TN','New Orleans, LA',
-  'New York, NY','Oakland, CA','Oklahoma City, OK','Omaha, NE','Philadelphia, PA',
-  'Phoenix, AZ','Portland, OR','Raleigh, NC','Sacramento, CA','San Antonio, TX',
-  'San Diego, CA','San Francisco, CA','San Jose, CA','Seattle, WA','Tampa, FL',
-  'Tucson, AZ','Tulsa, OK','Virginia Beach, VA','Washington, DC',
-  'London, UK','Paris, France','Tokyo, Japan','Sydney, Australia','Toronto, Canada',
-  'Vancouver, Canada','Mexico City, Mexico','Berlin, Germany','Amsterdam, Netherlands',
-  'Barcelona, Spain','Madrid, Spain','Rome, Italy','Dubai, UAE','Singapore',
-  'Seoul, South Korea','Mumbai, India','Bangkok, Thailand','Hong Kong',
-];
+function SwipeableEventRow({ ev, onOpen, onDelete }) {
+  const [offset, setOffset] = useState(0);
+  const [transitioning, setTransitioning] = useState(false);
+  const [showConfirm, setShowConfirm] = useState(false);
+  const touchStartX = useRef(null);
+  const touchStartY = useRef(null);
+  const isScrolling = useRef(false);
+  const offsetRef = useRef(0);
+  const didDrag = useRef(false);
+
+  function onDragStart(clientX, clientY) {
+    touchStartX.current = clientX;
+    touchStartY.current = clientY;
+    isScrolling.current = false;
+    didDrag.current = false;
+    setTransitioning(false);
+  }
+
+  function onDragMove(clientX, clientY) {
+    if (touchStartX.current === null) return;
+    const dx = clientX - touchStartX.current;
+    const dy = clientY - touchStartY.current;
+    if (isScrolling.current) return;
+    if (Math.abs(dy) > Math.abs(dx)) { isScrolling.current = true; return; }
+    if (Math.abs(dx) > 5) didDrag.current = true;
+    const newOffset = Math.max(-EV_DELETE_WIDTH, Math.min(0, dx));
+    offsetRef.current = newOffset;
+    setOffset(newOffset);
+  }
+
+  function onDragEnd() {
+    setTransitioning(true);
+    if (offsetRef.current <= -EV_SWIPE_THRESHOLD) {
+      setOffset(0);
+      offsetRef.current = 0;
+      setShowConfirm(true);
+    } else {
+      setOffset(0);
+      offsetRef.current = 0;
+    }
+    touchStartX.current = null;
+  }
+
+  return (
+    <div style={{ overflow: 'hidden', borderRadius: 16 }}>
+      {showConfirm && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 9999 }}>
+          <div style={{ background: '#1A1A2E', borderRadius: 16, padding: 24, maxWidth: 300, width: '85%', border: '1px solid rgba(255,255,255,0.1)' }}>
+            <h3 style={{ margin: '0 0 8px', fontSize: 17, color: '#EEEEFF' }}>Delete event?</h3>
+            <p style={{ margin: '0 0 20px', fontSize: 14, color: '#888', lineHeight: 1.5 }}>This action cannot be undone.</p>
+            <div style={{ display: 'flex', gap: 10 }}>
+              <button onClick={() => setShowConfirm(false)} style={{ flex: 1, padding: '10px', borderRadius: 10, border: '1px solid rgba(255,255,255,0.1)', background: 'transparent', color: '#EEEEFF', fontWeight: 600, fontSize: 14, cursor: 'pointer' }}>Cancel</button>
+              <button onClick={() => { setShowConfirm(false); onDelete(ev.id); }} style={{ flex: 1, padding: '10px', borderRadius: 10, border: 'none', background: '#E74C3C', color: '#fff', fontWeight: 700, fontSize: 14, cursor: 'pointer' }}>Delete</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Flex row: card + delete button side by side. Outer overflow:hidden reveals delete on swipe. */}
+      <div
+        onTouchStart={e => onDragStart(e.touches[0].clientX, e.touches[0].clientY)}
+        onTouchMove={e => { if (!isScrolling.current) e.preventDefault(); onDragMove(e.touches[0].clientX, e.touches[0].clientY); }}
+        onTouchEnd={onDragEnd}
+        onMouseDown={e => onDragStart(e.clientX, e.clientY)}
+        onMouseMove={e => { if (touchStartX.current !== null) onDragMove(e.clientX, e.clientY); }}
+        onMouseUp={onDragEnd}
+        onMouseLeave={onDragEnd}
+        style={{
+          display: 'flex',
+          width: `calc(100% + ${EV_DELETE_WIDTH}px)`,
+          transform: `translateX(${offset}px)`,
+          transition: transitioning ? 'transform 250ms ease' : 'none',
+          userSelect: 'none', WebkitUserSelect: 'none',
+        }}
+      >
+        <div className="card event-card" style={{ flex: 1, margin: 0, borderRadius: 16, minWidth: 0 }}>
+          <div
+            onClick={() => { if (!didDrag.current) onOpen(ev); }}
+            style={{ fontWeight: 700, fontSize: 14, textAlign: 'left', cursor: 'pointer', userSelect: 'none', WebkitUserSelect: 'none' }}
+          >{ev.title}</div>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 4 }}>
+            <span
+              onClick={() => { if (!didDrag.current) onOpen(ev); }}
+              style={{ fontSize: 12, color: '#aaa', cursor: 'pointer', userSelect: 'none', WebkitUserSelect: 'none' }}
+            >{[ev.location, ev.city].filter(Boolean).join(', ')}</span>
+            <span style={{ fontSize: 12, color: '#888', flexShrink: 0, userSelect: 'none', WebkitUserSelect: 'none' }}>{formatDate(ev.dateISO, ev.showTime)}</span>
+          </div>
+        </div>
+
+        <div
+          onClick={() => setShowConfirm(true)}
+          style={{ flex: `0 0 ${EV_DELETE_WIDTH}px`, background: '#E74C3C', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}
+        >
+          <span style={{ color: '#fff', fontWeight: 700, fontSize: 13 }}>Delete</span>
+        </div>
+      </div>
+    </div>
+  );
+}
 
 export default function Profile({ user, profile = {}, onUpdateProfile = () => {}, activeTab = 'profile', onNavigate = () => {}, onOpenGroup = () => {}, events = [], groups: allGroups = [], onAddEvent = () => {}, onUpdateEvent = () => {}, onDeleteEvent = () => {}, onSignOut = () => {}, onAuthRequired = () => {}, darkMode = false, onToggleDark = () => {}, onViewFriend = () => {}, onOpenDm = () => {} }) {
   const [name, setName] = useState(() => profile.name || localStorage.getItem('rally_name') || '');
@@ -32,11 +117,10 @@ export default function Profile({ user, profile = {}, onUpdateProfile = () => {}
   const [username, setUsername] = useState(() => profile.username || localStorage.getItem('rally_username') || '');
   const [pronouns, setPronouns] = useState(() => profile.pronouns || localStorage.getItem('rally_pronouns') || '');
   const [editingProfile, setEditingProfile] = useState(false);
+  const [uploadingAvatar, setUploadingAvatar] = useState(false);
+  const avatarInputRef = useRef(null);
   const [usernameStatus, setUsernameStatus] = useState('idle'); // idle | checking | available | taken | invalid
   const [usernameError, setUsernameError] = useState(null);
-
-  const getInitials = (n) => n.split(' ').filter(Boolean).map(s=>s[0]).slice(0,2).join('').toUpperCase();
-
 
   const getStoredCheers = () => {
     try {
@@ -90,7 +174,7 @@ export default function Profile({ user, profile = {}, onUpdateProfile = () => {}
     localStorage.setItem('rally_username', finalUsername);
     localStorage.setItem('rally_pronouns', pronouns);
     setEditingProfile(false);
-    onUpdateProfile({ name: newName, bio: newBio, username: finalUsername, friends: [], pronouns });
+    onUpdateProfile({ name: newName, bio: newBio, username: finalUsername, friends: profile.friends || [], pronouns, avatar_url: profile.avatar_url || '' });
   };
   // `events` and handlers are provided by App (single source of truth)
   const [showSettings, setShowSettings] = useState(false);
@@ -113,7 +197,6 @@ export default function Profile({ user, profile = {}, onUpdateProfile = () => {}
   const [form, setForm] = useState({ title: '', month: '', day: '', time: '', location: '', city: '' });
   const [showCitySuggestions, setShowCitySuggestions] = useState(false);
 
-  const [attended, setAttended] = useState([]);
   const [media, setMedia] = useState([]);
   const [cheers, setCheers] = useState({ count: getStoredCheers(), givers: [] });
   const groups = user ? allGroups.filter(g => (g.members || []).some(m => m.user_id === user.id)) : [];
@@ -341,18 +424,21 @@ export default function Profile({ user, profile = {}, onUpdateProfile = () => {}
 
             {/* Avatar + username + real name */}
             <div style={{ display: 'flex', alignItems: 'center', gap: 14, marginBottom: 10 }}>
-              {user?.user_metadata?.avatar_url ? (
-                <img
-                  src={user.user_metadata.avatar_url}
-                  alt={name}
-                  referrerPolicy="no-referrer"
-                  style={{ width: 56, height: 56, borderRadius: '50%', objectFit: 'cover', flexShrink: 0, border: '2px solid rgba(255,255,255,0.1)' }}
-                />
-              ) : (
-                <div style={{ width: 56, height: 56, borderRadius: '50%', background: 'linear-gradient(180deg,var(--light-purple),#fff)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 20, color: 'var(--purple)', fontWeight: 800, flexShrink: 0 }}>
-                  {getInitials(name)}
-                </div>
-              )}
+              {(() => {
+                const avatarSrc = profile?.avatar_url || user?.user_metadata?.avatar_url;
+                return avatarSrc ? (
+                  <img
+                    src={avatarSrc}
+                    alt={name}
+                    referrerPolicy="no-referrer"
+                    style={{ width: 56, height: 56, borderRadius: '50%', objectFit: 'cover', flexShrink: 0, border: '2px solid rgba(255,255,255,0.1)' }}
+                  />
+                ) : (
+                  <div style={{ width: 56, height: 56, borderRadius: '50%', background: 'linear-gradient(180deg,var(--light-purple),#fff)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 20, color: 'var(--purple)', fontWeight: 800, flexShrink: 0 }}>
+                    {getInitials(name)}
+                  </div>
+                );
+              })()}
               <div style={{ flex: 1, minWidth: 0 }}>
                 <h2 style={{ margin: 0, fontSize: 20, textAlign: 'left' }}>{username ? `@${username}` : 'Set your handle'}</h2>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 3 }}>
@@ -564,6 +650,50 @@ export default function Profile({ user, profile = {}, onUpdateProfile = () => {}
           </>
         ) : (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+            {/* Avatar picker */}
+            <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 4 }}>
+              <div style={{ position: 'relative', width: 72, height: 72 }}>
+                {(() => {
+                  const avatarSrc = profile?.avatar_url || user?.user_metadata?.avatar_url;
+                  return avatarSrc ? (
+                    <img src={avatarSrc} alt={name} referrerPolicy="no-referrer" style={{ width: 72, height: 72, borderRadius: '50%', objectFit: 'cover', border: '2px solid rgba(255,255,255,0.1)' }} />
+                  ) : (
+                    <div style={{ width: 72, height: 72, borderRadius: '50%', background: 'linear-gradient(180deg,var(--light-purple),#fff)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 26, color: 'var(--purple)', fontWeight: 800 }}>
+                      {getInitials(name)}
+                    </div>
+                  );
+                })()}
+                <button
+                  type="button"
+                  onClick={() => avatarInputRef.current?.click()}
+                  disabled={uploadingAvatar}
+                  style={{ position: 'absolute', bottom: 0, right: 0, width: 26, height: 26, borderRadius: '50%', background: 'var(--purple)', border: '2.5px solid var(--card-bg, #1a1a2e)', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', padding: 0 }}
+                >
+                  {uploadingAvatar ? (
+                    <div style={{ width: 10, height: 10, border: '2px solid rgba(255,255,255,0.3)', borderTopColor: '#fff', borderRadius: '50%', animation: 'spin 0.6s linear infinite' }} />
+                  ) : (
+                    <svg viewBox="0 0 24 24" width="13" height="13" fill="white" aria-hidden="true">
+                      <path d="M12 15.2a3.2 3.2 0 1 1 0-6.4 3.2 3.2 0 0 1 0 6.4zM9 2L7.17 4H4c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2h-3.17L15 2H9z"/>
+                    </svg>
+                  )}
+                </button>
+                <input
+                  ref={avatarInputRef}
+                  type="file"
+                  accept="image/*"
+                  style={{ display: 'none' }}
+                  onChange={async (e) => {
+                    const file = e.target.files?.[0];
+                    if (!file || !user) return;
+                    setUploadingAvatar(true);
+                    const url = await uploadAvatarImage(user.id, file);
+                    setUploadingAvatar(false);
+                    if (url) onUpdateProfile({ ...profile, avatar_url: url });
+                    e.target.value = '';
+                  }}
+                />
+              </div>
+            </div>
             <label style={{ fontSize: 13, color: '#666' }}>Username</label>
             <input
               className="text-input"
@@ -732,18 +862,7 @@ export default function Profile({ user, profile = {}, onUpdateProfile = () => {}
 
         <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginTop: 8 }}>
           {(showAllEvents ? upcomingEvents : upcomingEvents.slice(0, 3)).map((ev) => (
-            <div key={ev.id} className="card event-card" onClick={() => openEvent(ev)}>
-              <button className="delete-btn" aria-label="Delete event" onClick={(e) => { e.stopPropagation(); setDeleteTarget(ev.id); setShowConfirm(true); }}>
-                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="14" height="14" fill="currentColor"><path d="M18.3 5.71a1 1 0 0 0-1.41 0L12 10.59 7.11 5.7A1 1 0 0 0 5.7 7.11L10.59 12l-4.9 4.89a1 1 0 1 0 1.41 1.41L12 13.41l4.89 4.9a1 1 0 0 0 1.41-1.41L13.41 12l4.9-4.89a1 1 0 0 0 0-1.4z"/></svg>
-              </button>
-              <div style={{ fontWeight: 700, fontSize: 14, textAlign: 'left' }}>{ev.title}</div>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 4 }}>
-                <span style={{ fontSize: 12, color: '#aaa' }}>{[ev.location, ev.city].filter(Boolean).join(', ')}</span>
-                <span style={{ fontSize: 12, color: '#888', flexShrink: 0 }}>
-                  {ev.dateISO ? (ev.showTime ? new Date(ev.dateISO).toLocaleString(undefined, { weekday: 'short', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' }) : new Date(ev.dateISO).toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' })) : 'Date TBD'}
-                </span>
-              </div>
-            </div>
+            <SwipeableEventRow key={ev.id} ev={ev} onOpen={openEvent} onDelete={onDeleteEvent} />
           ))}
 
         {selectedEvent && (
@@ -816,7 +935,7 @@ export default function Profile({ user, profile = {}, onUpdateProfile = () => {}
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 4 }}>
                 <span style={{ fontSize: 12, color: '#aaa' }}>{[ev.location, ev.city].filter(Boolean).join(', ')}</span>
                 <span style={{ fontSize: 12, color: '#888', flexShrink: 0 }}>
-                  {ev.dateISO ? (ev.showTime ? new Date(ev.dateISO).toLocaleString(undefined, { weekday: 'short', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' }) : new Date(ev.dateISO).toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' })) : 'Date TBD'}
+                  {formatDate(ev.dateISO, ev.showTime)}
                 </span>
               </div>
             </div>

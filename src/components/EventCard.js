@@ -1,4 +1,5 @@
 import React from 'react';
+import { formatDate } from '../lib/utils';
 import './HomeFeed.css';
 
 const CATEGORY_COLORS = {
@@ -16,7 +17,7 @@ const CATEGORY_COLORS = {
 
 export default function EventCard({ event, onJoin, currentUserName, currentUserId, onOpenDetails, compact = false }) {
   const { title, date, dateISO, showTime, location, attendees = [], trending, personal } = event;
-  const dateDisplay = date || (dateISO ? (showTime ? new Date(dateISO).toLocaleString(undefined, { weekday: 'short', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' }) : new Date(dateISO).toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' })) : 'Date TBD');
+  const dateDisplay = date || formatDate(dateISO, showTime);
   const joined = currentUserId
     ? attendees.some(a => a.user_id === currentUserId)
     : (currentUserName && attendees.some(a => a.name === currentUserName));
@@ -38,6 +39,9 @@ export default function EventCard({ event, onJoin, currentUserName, currentUserI
     const tags = (event.tags && event.tags.length > 0) ? event.tags : (event.category ? [event.category] : []);
     return (
       <article className="card" onClick={() => onOpenDetails && onOpenDetails(event)} style={{ cursor: onOpenDetails ? 'pointer' : undefined, padding: '10px 10px', display: 'flex', flexDirection: 'column', gap: 6, minWidth: 0, ...(isHost ? { border: '1px solid rgba(255,185,0,0.5)', boxShadow: '0 0 10px rgba(255,185,0,0.15), inset 0 0 10px rgba(255,185,0,0.03)' } : {}) }}>
+        {event.coverUrl && (
+          <img src={event.coverUrl} alt="" style={{ display: 'block', width: 'calc(100% + 20px)', height: 72, objectFit: 'cover', borderRadius: '9px 9px 0 0', margin: '-10px -10px 2px -10px' }} />
+        )}
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 4 }}>
           <div style={{ flex: 1, minWidth: 0, textAlign: 'left' }}>
             <h3 className="card-title" style={{ margin: 0, fontSize: 13, lineHeight: 1.3, textAlign: 'left' }}>{title}</h3>
@@ -91,6 +95,9 @@ export default function EventCard({ event, onJoin, currentUserName, currentUserI
 
   return (
     <article className="card" onClick={() => onOpenDetails && onOpenDetails(event)} style={{ ...(onOpenDetails ? { cursor: 'pointer' } : {}), ...(isHost ? { border: '1px solid rgba(255,185,0,0.5)', boxShadow: '0 0 12px rgba(255,185,0,0.18), inset 0 0 12px rgba(255,185,0,0.03)' } : {}) }}>
+      {event.coverUrl && (
+        <img src={event.coverUrl} alt="" style={{ display: 'block', width: 'calc(100% + 24px)', height: 140, objectFit: 'cover', borderRadius: '15px 15px 0 0', margin: '-12px -12px 12px -12px' }} />
+      )}
       <div className="card-header">
         <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
           <h3 className="card-title" style={{ margin: 0 }}>{title}</h3>

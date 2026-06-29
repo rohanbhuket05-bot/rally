@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import EventCard from './EventCard';
 import { getPublicEvents } from '../lib/supabaseClient';
+import { getInitials } from '../lib/utils';
 import './HomeFeed.css';
 
 const CATEGORIES = [
@@ -114,14 +115,14 @@ export default function Explore({ events = [], onNavigate = () => {}, onOpenEven
 
   const allPublicEvents = useMemo(() => {
     const dbIds = new Set(dbPublicEvents.map(e => e.id));
-    const localOnly = events.filter(e => !e.personal && !dbIds.has(e.id));
+    const localOnly = events.filter(e => !dbIds.has(e.id));
     return [...dbPublicEvents, ...localOnly];
   }, [dbPublicEvents, events]);
 
   function handleJoin(event) {
     if (!user) { onAuthRequired('Sign in to join this event'); return; }
     const name = localStorage.getItem('rally_name') || localStorage.getItem('rally_username') || '';
-    const initials = (name || 'You').split(' ').map(s => s[0]).slice(0, 2).join('').toUpperCase();
+    const initials = getInitials(name || 'You');
     const exists = (event.attendees || []).some(a => a.name === name);
     const attendees = exists
       ? (event.attendees || []).filter(a => a.name !== name)
