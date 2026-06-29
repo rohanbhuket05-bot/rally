@@ -75,92 +75,43 @@ function App() {
     else localStorage.removeItem('rally_viewing_friend_id');
   }, [viewingFriendId]);
   const [createGroupContext, setCreateGroupContext] = useState(null);
-  const [events, setEvents] = useState(() => {
-    try {
-      if (!localStorage.getItem('rally_events_migrated_v3')) {
-        localStorage.removeItem('rally_events');
-        localStorage.setItem('rally_events_migrated_v3', '1');
-        return [];
-      }
-      return JSON.parse(localStorage.getItem('rally_events') || '[]');
-    } catch(e) { return []; }
-  });
-  const [groups, setGroups] = useState(() => {
-    try { return JSON.parse(localStorage.getItem('rally_groups') || '[]'); } catch(e) { return []; }
-  });
+  const [events, setEvents] = useState([]);
+  const [groups, setGroups] = useState([]);
+
+  // clear stale localStorage data — Supabase is the source of truth
+  useEffect(() => {
+    localStorage.removeItem('rally_events');
+    localStorage.removeItem('rally_groups');
+    localStorage.removeItem('rally_events_migrated_v3');
+  }, []);
   const [previewGroup, setPreviewGroup] = useState(null);
   const [activeDm, setActiveDm] = useState(null); // { id, otherUser }
 
-  // load events from Supabase; migrate any localStorage-only events up on first load
+  // load events from Supabase
   useEffect(() => {
+    if (!isSupabaseConfigured()) return;
     let mounted = true;
-    async function load() {
-      if (!isSupabaseConfigured()) return;
-      const rows = await sbGetEvents();
-      if (!mounted) return;
-      if (rows && rows.length > 0) {
-        // Supabase is authoritative once it has data
-        const fallbackHost = localStorage.getItem('rally_username') || localStorage.getItem('rally_name') || '';
-        setEvents(rows.map(r => { const isPersonal = r.personal === true; return { id: r.id, title: r.title, dateISO: r.date_iso || r.dateISO, showTime: r.show_time ?? r.showTime ?? true, location: r.location, city: r.city || '', host: r.host || (isPersonal ? undefined : fallbackHost), attendees: r.attendees || [], personal: isPersonal, tags: r.tags || [], visibility: isPersonal ? 'private' : (r.visibility || 'public'), user_id: r.user_id, coverUrl: r.cover_url || r.coverUrl || null }; }));
-      } else {
-        // Supabase empty — migrate any localStorage events up
-        const local = (() => { try { return JSON.parse(localStorage.getItem('rally_events') || '[]'); } catch(e) { return []; } })();
-        if (local.length > 0) {
-          const uploaded = await Promise.all(
-            local.map(e => sbInsertEvent({ title: e.title, date_iso: e.dateISO, show_time: e.showTime ?? true, location: e.location, attendees: e.attendees || [] }))
-          );
-          const migrated = uploaded.filter(Boolean).map(r => ({ id: r.id, title: r.title, dateISO: r.date_iso || r.dateISO, showTime: r.show_time ?? true, location: r.location, attendees: r.attendees || [] }));
-          if (mounted && migrated.length > 0) setEvents(migrated);
-        }
-      }
-    }
-    load();
+    sbGetEvents().then(rows => {
+      if (!mounted || !rows) return;
+      const fallbackHost = localStorage.getItem('rally_username') || localStorage.getItem('rally_name') || '';
+      setEvents(rows.map(r => {
+        const isPersonal = r.personal === true;
+        return { id: r.id, title: r.title, dateISO: r.date_iso || r.dateISO, showTime: r.show_time ?? r.showTime ?? true, location: r.location, city: r.city || '', host: r.host || (isPersonal ? undefined : fallbackHost), attendees: r.attendees || [], personal: isPersonal, tags: r.tags || [], visibility: isPersonal ? 'private' : (r.visibility || 'public'), user_id: r.user_id, coverUrl: r.cover_url || r.coverUrl || null };
+      }));
+    });
     return () => { mounted = false };
   }, []);
 
-  // always persist events to localStorage
-  useEffect(() => {
-    try { localStorage.setItem('rally_events', JSON.stringify(events)); } catch(e){}
-  }, [events]);
-
-  // load groups from Supabase when user is available; migrate localStorage groups if Supabase is empty
+  // load groups from Supabase when user is available
   useEffect(() => {
     if (!user || !isSupabaseConfigured()) return;
     let mounted = true;
-    async function loadGroups() {
-      const rows = await sbGetGroups();
+    sbGetGroups().then(rows => {
       if (!mounted) return;
-      if (rows.length > 0) {
-        setGroups(rows);
-      } else {
-        const local = (() => { try { return JSON.parse(localStorage.getItem('rally_groups') || '[]'); } catch(e) { return []; } })();
-        // Only migrate groups that don't already have a real UUID — those already exist in Supabase
-        // and re-inserting them would create clones with different IDs (breaking group chat)
-        const isUUID = id => typeof id === 'string' && /^[0-9a-f]{8}-[0-9a-f]{4}-/.test(id);
-        const toMigrate = local.filter(g => !isUUID(g.id));
-        if (toMigrate.length > 0) {
-          const uploaded = await Promise.all(
-            toMigrate.map(g => sbInsertGroup({
-              ...g,
-              members: (g.members || []).map(m => m.role === 'admin' ? { ...m, user_id: user.id } : m),
-            }))
-          );
-          const migrated = uploaded.filter(Boolean);
-          if (mounted && migrated.length > 0) setGroups(migrated);
-        } else if (local.length > 0) {
-          // UUID groups exist locally but Supabase returned empty — likely a transient auth
-          // race condition. Keep local state; Supabase will be in sync on next load.
-          setGroups(local);
-        }
-      }
-    }
-    loadGroups();
+      setGroups(rows);
+    });
     return () => { mounted = false };
   }, [user]);
-
-  useEffect(() => {
-    try { localStorage.setItem('rally_groups', JSON.stringify(groups)); } catch(e){}
-  }, [groups]);
 
   const loadUserProfile = useCallback(async (userId, u) => {
     const data = await getProfile(userId);
