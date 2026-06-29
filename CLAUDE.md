@@ -10,8 +10,7 @@ A mobile-first social app for coordinating real-world experiences with friends. 
 - No component library — all UI is custom
 
 ## Git Workflow
-- Always work on `dev` branch
-- Never push to `master` directly — only merge dev → master when user explicitly asks
+- Always work on `master` branch — never switch branches unless the user explicitly says to
 - Never push at all until user says to
 
 ---
