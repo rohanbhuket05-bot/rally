@@ -4,7 +4,7 @@ import './HomeFeed.css';
 import { getSchoolFromEmail, SCHOOLS, getDomainsForSchool } from '../data/schools';
 import SchoolLogo from './SchoolLogo';
 import FriendsPanel from './FriendsPanel';
-import { isSupabaseConfigured, signInWithOtp, signInWithProvider, checkUsernameAvailable, getFriendNotifications, sendEduVerification, verifyEduCode, uploadAvatarImage } from '../lib/supabaseClient';
+import { isSupabaseConfigured, signInWithOtp, signInWithProvider, checkUsernameAvailable, getFriendNotifications, uploadAvatarImage, sendEduVerification, verifyEduCode } from '../lib/supabaseClient';
 import { validateUsername } from '../lib/usernameValidation';
 import { CITIES, formatDate, getInitials } from '../lib/utils';
 
@@ -239,43 +239,34 @@ export default function Profile({ user, profile = {}, onUpdateProfile = () => {}
     setShowVerifyModal(true);
   }
 
-  async function handleSendCode() {
-    const email = verifyEmail.trim().toLowerCase();
-    if (!email) return;
-    const domain = email.split('@')[1] || '';
+  async function handleVerifyStudent() {
     const expectedDomains = getDomainsForSchool(school);
-    if (!domain.endsWith('.edu')) {
-      setVerifyError('Must be a .edu email address.');
-      return;
-    }
-    if (expectedDomains.length > 0 && !expectedDomains.includes(domain)) {
-      setVerifyError(`Must be a @${expectedDomains[0]} email for ${school}.`);
-      return;
-    }
+    const domain = expectedDomains[0] || '';
+    const prefix = verifyEmail.trim().toLowerCase();
+    if (!prefix) { setVerifyError('Enter your email prefix.'); return; }
+    if (!domain) { setVerifyError('No known domain for your school.'); return; }
+    const fullEmail = `${prefix}@${domain}`;
     setVerifyLoading(true);
     setVerifyError(null);
-    const { success, error } = await sendEduVerification(email, school);
+    const { success, error } = await sendEduVerification(fullEmail, school);
     setVerifyLoading(false);
-    if (success) {
-      setVerifyStep('code');
-    } else {
-      setVerifyError(error || 'Failed to send code. Try again.');
-    }
+    if (!success) { setVerifyError(error || 'Failed to send code. Try again.'); return; }
+    setVerifyStep('code');
   }
 
   async function handleVerifyCode() {
-    if (verifyCode.length !== 6) return;
+    const expectedDomains = getDomainsForSchool(school);
+    const domain = expectedDomains[0] || '';
+    const fullEmail = `${verifyEmail.trim().toLowerCase()}@${domain}`;
+    const code = verifyCode.trim();
+    if (!code) { setVerifyError('Enter the 6-digit code.'); return; }
     setVerifyLoading(true);
     setVerifyError(null);
-    const { success, error } = await verifyEduCode(verifyEmail.trim().toLowerCase(), verifyCode);
+    const { success, error } = await verifyEduCode(fullEmail, code);
+    if (!success) { setVerifyLoading(false); setVerifyError(error || 'Incorrect code. Try again.'); return; }
+    await onUpdateProfile({ name, bio, username, friends: profile.friends || [], school, school_verified: true, edu_email: fullEmail });
     setVerifyLoading(false);
-    if (success) {
-      localStorage.setItem('rally_school_verified', school);
-      onUpdateProfile({ name, bio, username, friends: [], school, school_verified: true });
-      setVerifyStep('success');
-    } else {
-      setVerifyError(error || 'Invalid or expired code. Try again.');
-    }
+    setVerifyStep('success');
   }
 
 
@@ -479,7 +470,7 @@ export default function Profile({ user, profile = {}, onUpdateProfile = () => {}
           {/* .edu Verification modal */}
           {showVerifyModal && (() => {
             const expectedDomains = getDomainsForSchool(school);
-            const placeholder = expectedDomains.length > 0 ? `you@${expectedDomains[0]}` : 'you@university.edu';
+            const domain = expectedDomains[0] || '';
             return (
               <div className="modal-overlay" onClick={() => setShowVerifyModal(false)}>
                 <div className="modal" style={{ padding: 24 }} onClick={e => e.stopPropagation()}>
@@ -490,25 +481,40 @@ export default function Profile({ user, profile = {}, onUpdateProfile = () => {}
                         <h3 style={{ margin: 0, fontSize: 17 }}>Verify student status</h3>
                         <button onClick={() => setShowVerifyModal(false)} style={{ background: 'none', border: 'none', fontSize: 22, cursor: 'pointer', color: '#888', lineHeight: 1, padding: '0 2px' }}>×</button>
                       </div>
-                      <p style={{ margin: '0 0 4px', fontSize: 14 }}>Enter your <strong>{school}</strong> email to get a verification code.</p>
-                      {expectedDomains.length > 0 && (
-                        <p style={{ margin: '0 0 14px', fontSize: 12, color: '#888' }}>Must end in @{expectedDomains[0]}</p>
-                      )}
-                      <input
-                        className="text-input"
-                        type="email"
-                        placeholder={placeholder}
-                        value={verifyEmail}
-                        onChange={e => { setVerifyEmail(e.target.value); setVerifyError(null); }}
-                        style={{ marginBottom: verifyError ? 8 : 14 }}
-                        autoFocus
-                      />
+                      <p style={{ margin: '0 0 20px', fontSize: 14, color: '#8888AA', lineHeight: 1.5 }}>
+                        Enter your <strong style={{ color: 'var(--text-primary)' }}>{school}</strong> email to confirm you're a student.
+                      </p>
+                      <div style={{ marginBottom: verifyError ? 8 : 16 }}>
+                        <div style={{ fontSize: 11, fontWeight: 700, color: '#8888AA', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 8 }}>School email</div>
+                        <div style={{ display: 'flex', alignItems: 'stretch', borderRadius: 12, overflow: 'hidden', border: '1px solid rgba(255,255,255,0.1)' }}>
+                          <input
+                            className="text-input"
+                            type="text"
+                            placeholder="yourname"
+                            value={verifyEmail}
+                            onChange={e => { setVerifyEmail(e.target.value.replace(/[@\s]/g, '')); setVerifyError(null); }}
+                            onKeyDown={e => { if (e.key === 'Enter' && verifyEmail.trim() && !verifyLoading) handleVerifyStudent(); }}
+                            autoFocus
+                            autoCapitalize="none"
+                            autoCorrect="off"
+                            style={{ flex: 1, border: 'none', borderRadius: 0, marginBottom: 0, background: 'rgba(255,255,255,0.05)' }}
+                          />
+                          <div style={{
+                            padding: '0 16px', fontSize: 14, fontWeight: 600,
+                            color: 'var(--purple)', background: 'rgba(83,74,183,0.12)',
+                            borderLeft: '1px solid rgba(83,74,183,0.25)',
+                            display: 'flex', alignItems: 'center', whiteSpace: 'nowrap',
+                          }}>
+                            @{domain || 'university.edu'}
+                          </div>
+                        </div>
+                      </div>
                       {verifyError && <div style={{ fontSize: 12, color: '#E74C3C', marginBottom: 12 }}>{verifyError}</div>}
                       <button
                         className="join"
                         style={{ width: '100%', padding: 13, fontSize: 15 }}
                         disabled={verifyLoading || !verifyEmail.trim()}
-                        onClick={handleSendCode}
+                        onClick={handleVerifyStudent}
                       >
                         {verifyLoading ? 'Sending…' : 'Send code'}
                       </button>
@@ -521,35 +527,37 @@ export default function Profile({ user, profile = {}, onUpdateProfile = () => {}
                         <h3 style={{ margin: 0, fontSize: 17 }}>Check your email</h3>
                         <button onClick={() => setShowVerifyModal(false)} style={{ background: 'none', border: 'none', fontSize: 22, cursor: 'pointer', color: '#888', lineHeight: 1, padding: '0 2px' }}>×</button>
                       </div>
-                      <p style={{ margin: '0 0 16px', fontSize: 14, lineHeight: 1.5 }}>
-                        We sent a 6-digit code to <strong>{verifyEmail}</strong>. It expires in 10 minutes.
+                      <p style={{ margin: '0 0 20px', fontSize: 14, color: '#8888AA', lineHeight: 1.5 }}>
+                        We sent a 6-digit code to <strong style={{ color: 'var(--text-primary)' }}>{verifyEmail}@{getDomainsForSchool(school)[0]}</strong>
                       </p>
-                      <input
-                        className="text-input"
-                        type="text"
-                        inputMode="numeric"
-                        autoComplete="one-time-code"
-                        maxLength={6}
-                        placeholder="000000"
-                        value={verifyCode}
-                        onChange={e => { setVerifyCode(e.target.value.replace(/\D/g, '').slice(0, 6)); setVerifyError(null); }}
-                        style={{ marginBottom: verifyError ? 8 : 14, fontSize: 26, textAlign: 'center', letterSpacing: '0.35em', fontWeight: 700 }}
-                        autoFocus
-                      />
+                      <div style={{ marginBottom: verifyError ? 8 : 16 }}>
+                        <div style={{ fontSize: 11, fontWeight: 700, color: '#8888AA', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 8 }}>Verification code</div>
+                        <input
+                          className="text-input"
+                          type="text"
+                          inputMode="numeric"
+                          placeholder="123456"
+                          value={verifyCode}
+                          onChange={e => { setVerifyCode(e.target.value.replace(/\D/g, '').slice(0, 6)); setVerifyError(null); }}
+                          onKeyDown={e => { if (e.key === 'Enter' && verifyCode.trim() && !verifyLoading) handleVerifyCode(); }}
+                          autoFocus
+                          style={{ width: '100%', boxSizing: 'border-box', letterSpacing: '0.2em', fontSize: 20, textAlign: 'center' }}
+                        />
+                      </div>
                       {verifyError && <div style={{ fontSize: 12, color: '#E74C3C', marginBottom: 12 }}>{verifyError}</div>}
                       <button
                         className="join"
                         style={{ width: '100%', padding: 13, fontSize: 15, marginBottom: 10 }}
-                        disabled={verifyLoading || verifyCode.length !== 6}
+                        disabled={verifyLoading || verifyCode.length < 6}
                         onClick={handleVerifyCode}
                       >
                         {verifyLoading ? 'Verifying…' : 'Verify'}
                       </button>
                       <button
                         onClick={() => { setVerifyStep('email'); setVerifyCode(''); setVerifyError(null); }}
-                        style={{ background: 'none', border: 'none', color: 'var(--purple)', fontSize: 13, cursor: 'pointer', width: '100%', padding: '4px 0' }}
+                        style={{ background: 'none', border: 'none', color: '#8888AA', fontSize: 13, cursor: 'pointer', width: '100%', padding: '6px' }}
                       >
-                        ← Use a different email
+                        Resend code
                       </button>
                     </>
                   )}

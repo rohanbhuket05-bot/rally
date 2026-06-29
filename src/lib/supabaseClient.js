@@ -867,18 +867,37 @@ export async function deleteSpontaneousPost(id) {
 
 export async function sendEduVerification(email, school) {
   try {
-    const { error } = await supabase.auth.signInWithOtp({ email, options: { shouldCreateUser: false } });
-    if (error) return { success: false, error: error.message };
+    const { data: { session } } = await supabase.auth.getSession();
+    const res = await fetch(`${supabase.supabaseUrl}/functions/v1/send-edu-code`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${session?.access_token}`,
+      },
+      body: JSON.stringify({ edu_email: email, school }),
+    });
+    const body = await res.json();
+    if (!res.ok) return { success: false, error: body.error || 'Failed to send code' };
     return { success: true };
   } catch (e) {
     return { success: false, error: e.message || 'Failed to send code' };
   }
 }
 
-export async function verifyEduCode(email, token) {
+export async function verifyEduCode(email, code) {
   try {
-    const { error } = await supabase.auth.verifyOtp({ email, token, type: 'email' });
-    if (error) return { success: false, error: error.message };
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return { success: false, error: 'Not signed in' };
+    const { data, error } = await supabase
+      .from('edu_verifications')
+      .select('code, expires_at')
+      .eq('user_id', user.id)
+      .eq('edu_email', email)
+      .single();
+    if (error || !data) return { success: false, error: 'No verification found. Request a new code.' };
+    if (new Date(data.expires_at) < new Date()) return { success: false, error: 'Code expired. Request a new one.' };
+    if (data.code !== code) return { success: false, error: 'Incorrect code. Try again.' };
+    await supabase.from('edu_verifications').delete().eq('user_id', user.id);
     return { success: true };
   } catch (e) {
     return { success: false, error: e.message || 'Invalid code' };
