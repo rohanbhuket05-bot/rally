@@ -1,4 +1,6 @@
 import React, { useState } from 'react';
+import { avatarColor } from '../lib/avatarColor';
+import { getInitials } from '../lib/utils';
 import './HomeFeed.css';
 
 const TYPE_OPTIONS = [
@@ -13,21 +15,12 @@ const PRIVACY_OPTIONS = [
   { value: 'private', label: 'Private' },
 ];
 
-const AVATAR_COLORS = ['#534AB7','#D4537E','#1D9E75','#EF9F27','#667EEA','#9B59B6'];
-function avatarColor(name = '') {
-  let h = 0;
-  for (let i = 0; i < name.length; i++) h = name.charCodeAt(i) + ((h << 5) - h);
-  return AVATAR_COLORS[Math.abs(h) % AVATAR_COLORS.length];
-}
-
 export default function CreateGroup({
   onBack,
   onCreateGroup,
   initialType = null,
   initialEventId = null,
   initialEventTitle = null,
-  activeTab,
-  onNavigate,
   user = null,
   onAuthRequired = () => {},
 }) {
@@ -40,12 +33,12 @@ export default function CreateGroup({
   const [members, setMembers] = useState([]);
 
   const myName = localStorage.getItem('rally_name') || localStorage.getItem('rally_username') || 'You';
-  const myInitials = myName.split(' ').map(s => s[0]).slice(0, 2).join('').toUpperCase();
+  const myInitials = getInitials(myName);
 
   function addMember() {
     const n = memberInput.trim();
     if (!n || members.some(m => m.name.toLowerCase() === n.toLowerCase())) return;
-    const initials = n.split(' ').map(s => s[0]).slice(0, 2).join('').toUpperCase();
+    const initials = getInitials(n);
     setMembers(prev => [...prev, { name: n, initials, color: avatarColor(n), role: 'member' }]);
     setMemberInput('');
   }

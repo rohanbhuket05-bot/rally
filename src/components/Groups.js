@@ -1,21 +1,9 @@
 import React, { useState, useEffect } from 'react';
-import { isSupabaseConfigured, getGroupInvites, acceptGroupInvite, declineGroupInvite, leaveGroup } from '../lib/supabaseClient';
+import { isSupabaseConfigured, getGroupInvites, acceptGroupInvite, declineGroupInvite } from '../lib/supabaseClient';
+import { avatarColor } from '../lib/avatarColor';
+import { getInitials } from '../lib/utils';
+import { TYPE_COLORS, TYPE_LABELS } from '../lib/groupTypes';
 import './HomeFeed.css';
-
-const TYPE_COLORS = {
-  club:   { color: 'var(--purple)', bg: 'var(--light-purple)' },
-  friend: { color: 'var(--pink)',   bg: 'var(--light-pink)' },
-  event:  { color: 'var(--teal)',   bg: 'var(--light-teal)' },
-};
-
-const TYPE_LABELS = { club: 'Club / Org', friend: 'Friend Group', event: 'Event Rally' };
-
-const AVATAR_COLORS = ['#534AB7','#D4537E','#1D9E75','#EF9F27','#667EEA','#9B59B6'];
-function avatarColor(name = '') {
-  let h = 0;
-  for (let i = 0; i < name.length; i++) h = name.charCodeAt(i) + ((h << 5) - h);
-  return AVATAR_COLORS[Math.abs(h) % AVATAR_COLORS.length];
-}
 
 export default function Groups({
   onNavigate = () => {},
@@ -50,7 +38,7 @@ export default function Groups({
   async function handleAccept(invite) {
     if (!user) return;
     const displayName = localStorage.getItem('rally_name') || localStorage.getItem('rally_username') || 'You';
-    const initials = displayName.split(' ').map(s => s[0]).slice(0, 2).join('').toUpperCase();
+    const initials = getInitials(displayName);
     const memberEntry = {
       name: displayName,
       initials,
@@ -98,15 +86,17 @@ export default function Groups({
       {/* Your groups */}
       <section style={{ marginTop: 8 }}>
         <h3 style={{ margin: '6px 0', textAlign: 'left' }}>Your groups</h3>
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-          {myGroups.length > 0 ? myGroups.map(g => (
-            <GroupRow key={g.id} group={g} user={user} onOpen={() => onOpenGroup(g.id)} onLeave={() => onLeaveGroup(g.id)} />
-          )) : (
-            <div className="card" style={{ color: '#888', fontSize: 14, textAlign: 'left' }}>
-              No groups yet. Create one or join a public group below.
-            </div>
-          )}
-        </div>
+        {myGroups.length > 0 ? (
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 8 }}>
+            {myGroups.map(g => (
+              <GroupRow key={g.id} group={g} user={user} compact onOpen={() => onOpenGroup(g.id)} onLeave={() => onLeaveGroup(g.id)} />
+            ))}
+          </div>
+        ) : (
+          <div className="card" style={{ color: '#888', fontSize: 14, textAlign: 'left' }}>
+            No groups yet. Create one or join a public group below.
+          </div>
+        )}
       </section>
 
       {/* DMs */}
@@ -115,7 +105,7 @@ export default function Groups({
         <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
           {dms.length > 0 ? dms.map(dm => {
             const other = dm.participants?.find(p => p.user_id !== user?.id) || {};
-            const initials = (other.name || '?').split(' ').map(s => s[0]).slice(0, 2).join('').toUpperCase();
+            const initials = getInitials(other.name);
             const col = avatarColor(other.name || '');
             return (
               <div
@@ -166,7 +156,11 @@ export default function Groups({
               const { color, bg } = TYPE_COLORS[g.type] || TYPE_COLORS.club;
               return (
                 <div key={inv.id} className="card" style={{ padding: '14px 16px' }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 12, marginBottom: 10 }}>
+                  <div style={{ display: 'flex', alignItems: 'flex-start', gap: 12, marginBottom: 10 }}>
+                    {g.logoUrl
+                      ? <img src={g.logoUrl} alt={g.name} style={{ width: 42, height: 42, borderRadius: 10, objectFit: 'cover', flexShrink: 0, marginTop: 2 }} />
+                      : <div style={{ width: 42, height: 42, borderRadius: 10, background: g.logoColor || avatarColor(g.name), display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontWeight: 800, fontSize: 14, flexShrink: 0, marginTop: 2 }}>{getInitials(g.name)}</div>
+                    }
                     <div style={{ flex: 1, minWidth: 0 }}>
                       <div style={{ fontWeight: 700, fontSize: 15, marginBottom: 4 }}>{g.name}</div>
                       {g.description && <div style={{ color: '#666', fontSize: 13, marginBottom: 6, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{g.description}</div>}
@@ -224,7 +218,7 @@ export default function Groups({
   );
 }
 
-function GroupRow({ group, user, onOpen, onLeave }) {
+function GroupRow({ group, user, onOpen, onLeave, compact = false }) {
   const { type = 'club', privacy = 'public', members = [], name, description, eventTitle } = group;
   const { color, bg } = TYPE_COLORS[type] || TYPE_COLORS.club;
   const [showConfirm, setShowConfirm] = useState(false);
@@ -234,14 +228,41 @@ function GroupRow({ group, user, onOpen, onLeave }) {
     members.some(m => m.user_id === user.id && m.role === 'admin')
   );
   const isMember = user && members.some(m => m.user_id === user.id);
+  const goldStyle = isAdmin ? { border: '1px solid rgba(255,185,0,0.5)', boxShadow: '0 0 10px rgba(255,185,0,0.15), inset 0 0 10px rgba(255,185,0,0.03)' } : {};
+
+  if (compact) {
+    return (
+      <>
+        <div
+          className="card"
+          style={{ display: 'flex', alignItems: 'center', gap: 10, cursor: 'pointer', padding: '12px 14px', ...goldStyle }}
+          onClick={onOpen}
+        >
+          {group.logoUrl
+            ? <img src={group.logoUrl} alt={name} style={{ width: 40, height: 40, borderRadius: 10, objectFit: 'cover', flexShrink: 0 }} />
+            : <div style={{ width: 40, height: 40, borderRadius: 10, background: group.logoColor || avatarColor(name), display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontWeight: 800, fontSize: 14, flexShrink: 0 }}>{getInitials(name)}</div>
+          }
+          <div style={{ minWidth: 0, textAlign: 'left' }}>
+            <div style={{ fontWeight: 700, fontSize: 13, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{name}</div>
+            <div style={{ fontSize: 11, color: '#666', marginTop: 2 }}>{members.length} {members.length === 1 ? 'member' : 'members'}</div>
+          </div>
+        </div>
+        {showConfirm && <LeaveConfirmDialog name={name} onCancel={() => setShowConfirm(false)} onConfirm={() => { setShowConfirm(false); onLeave(); }} />}
+      </>
+    );
+  }
 
   return (
     <>
       <div
         className="card"
-        style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12, cursor: 'pointer' }}
+        style={{ display: 'flex', alignItems: 'center', gap: 12, cursor: 'pointer', ...goldStyle }}
         onClick={onOpen}
       >
+        {group.logoUrl
+          ? <img src={group.logoUrl} alt={name} style={{ width: 42, height: 42, borderRadius: 10, objectFit: 'cover', flexShrink: 0 }} />
+          : <div style={{ width: 42, height: 42, borderRadius: 10, background: group.logoColor || avatarColor(name), display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontWeight: 800, fontSize: 14, flexShrink: 0 }}>{getInitials(name)}</div>
+        }
         <div style={{ flex: 1, minWidth: 0, textAlign: 'left' }}>
           <div style={{ fontWeight: 700, fontSize: 15, marginBottom: 4 }}>{name}</div>
           {description && <div style={{ color: '#666', fontSize: 13, marginBottom: 6, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{description}</div>}
@@ -265,28 +286,26 @@ function GroupRow({ group, user, onOpen, onLeave }) {
         </div>
       </div>
 
-      {showConfirm && (
-        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.45)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 9999 }}>
-          <div style={{ background: '#fff', borderRadius: 16, padding: 28, maxWidth: 320, width: '90%', boxShadow: '0 8px 32px rgba(0,0,0,0.18)' }}>
-            <h3 style={{ margin: '0 0 10px', fontSize: 18 }}>Leave "{name}"?</h3>
-            <p style={{ margin: '0 0 20px', fontSize: 14, color: '#555', lineHeight: 1.5 }}>You'll be removed from this group and will need an invite to rejoin.</p>
-            <div style={{ display: 'flex', gap: 10 }}>
-              <button
-                onClick={() => setShowConfirm(false)}
-                style={{ flex: 1, padding: '11px', borderRadius: 10, border: '1.5px solid #ddd', background: '#fff', color: '#444', fontWeight: 600, fontSize: 14, cursor: 'pointer' }}
-              >
-                Cancel
-              </button>
-              <button
-                onClick={() => { setShowConfirm(false); onLeave(); }}
-                style={{ flex: 1, padding: '11px', borderRadius: 10, border: 'none', background: '#E74C3C', color: '#fff', fontWeight: 700, fontSize: 14, cursor: 'pointer' }}
-              >
-                Leave
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+      {showConfirm && <LeaveConfirmDialog name={name} onCancel={() => setShowConfirm(false)} onConfirm={() => { setShowConfirm(false); onLeave(); }} />}
     </>
+  );
+}
+
+function LeaveConfirmDialog({ name, onCancel, onConfirm }) {
+  return (
+    <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.45)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 9999 }}>
+      <div style={{ background: '#fff', borderRadius: 16, padding: 28, maxWidth: 320, width: '90%', boxShadow: '0 8px 32px rgba(0,0,0,0.18)' }}>
+        <h3 style={{ margin: '0 0 10px', fontSize: 18 }}>Leave "{name}"?</h3>
+        <p style={{ margin: '0 0 20px', fontSize: 14, color: '#555', lineHeight: 1.5 }}>You'll be removed from this group and will need an invite to rejoin.</p>
+        <div style={{ display: 'flex', gap: 10 }}>
+          <button onClick={onCancel} style={{ flex: 1, padding: '11px', borderRadius: 10, border: '1.5px solid #ddd', background: '#fff', color: '#444', fontWeight: 600, fontSize: 14, cursor: 'pointer' }}>
+            Cancel
+          </button>
+          <button onClick={onConfirm} style={{ flex: 1, padding: '11px', borderRadius: 10, border: 'none', background: '#E74C3C', color: '#fff', fontWeight: 700, fontSize: 14, cursor: 'pointer' }}>
+            Leave
+          </button>
+        </div>
+      </div>
+    </div>
   );
 }

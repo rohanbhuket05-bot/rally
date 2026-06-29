@@ -1,78 +1,56 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { getEventMessages, sendEventMessage, subscribeToEventMessages, isSupabaseConfigured, getProfilesByIds } from '../lib/supabaseClient';
+import { getDmMessages, sendDmMessage, subscribeToDmMessages } from '../lib/supabaseClient';
 import { avatarColor } from '../lib/avatarColor';
 import { getInitials } from '../lib/utils';
 import './HomeFeed.css';
 
-export default function EventChat({ event, user, profile, onBack }) {
+export default function DmChat({ dmId, otherUser = {}, user, profile, onBack = () => {} }) {
   const [messages, setMessages] = useState([]);
   const [draft, setDraft] = useState('');
   const [sending, setSending] = useState(false);
-  const [avatarMap, setAvatarMap] = useState({});
   const bottomRef = useRef(null);
 
-  const eventId = event?.id ?? null;
-  const senderName = profile?.name || profile?.username || user?.email || 'Unknown';
-  const useSupabase = isSupabaseConfigured() && !!eventId;
-
   useEffect(() => {
-    if (!useSupabase) return;
+    if (!dmId) return;
     let cancelled = false;
-    const fetch = () => getEventMessages(eventId).then(msgs => { if (!cancelled) setMessages(msgs); });
+    const fetch = () => getDmMessages(dmId).then(msgs => { if (!cancelled) setMessages(msgs); });
     fetch();
     const interval = setInterval(fetch, 4000);
     return () => { cancelled = true; clearInterval(interval); };
-  }, [eventId, useSupabase]);
+  }, [dmId]);
 
   useEffect(() => {
-    if (!useSupabase) return;
-    return subscribeToEventMessages(eventId, (msg) => {
+    if (!dmId) return;
+    return subscribeToDmMessages(dmId, msg => {
       setMessages(prev => prev.some(m => m.id === msg.id) ? prev : [...prev, msg]);
     });
-  }, [eventId, useSupabase]);
-
-  useEffect(() => {
-    const unknownIds = [...new Set(messages.map(m => m.userId).filter(id => id && !(id in avatarMap)))];
-    if (unknownIds.length === 0) return;
-    getProfilesByIds(unknownIds).then(map => setAvatarMap(prev => ({ ...prev, ...map })));
-  }, [messages]);
+  }, [dmId]);
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
 
-  if (!event) return null;
-
   async function handleSend() {
     const text = draft.trim();
     if (!text || sending) return;
     setDraft('');
-    if (useSupabase) {
-      setSending(true);
-      const msg = await sendEventMessage(eventId, text, senderName);
-      setSending(false);
-      if (msg) setMessages(prev => prev.some(m => m.id === msg.id) ? prev : [...prev, msg]);
-    } else {
-      setMessages(prev => [...prev, {
-        id: `local-${Date.now()}`,
-        sender: senderName,
-        text,
-        time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-        userId: user?.id,
-      }]);
-    }
+    setSending(true);
+    const msg = await sendDmMessage(dmId, text);
+    setSending(false);
+    if (msg) setMessages(prev => prev.some(m => m.id === msg.id) ? prev : [...prev, msg]);
   }
 
-  const attendeeCount = (event.attendees || []).length;
+  const otherName = otherUser.name || otherUser.username || 'Unknown';
+  const otherInitials = getInitials(otherName);
 
   const grouped = [];
   messages.forEach(msg => {
     const last = grouped[grouped.length - 1];
     const lastMsg = last?.[last.length - 1];
-    const cont = lastMsg && lastMsg.userId === msg.userId &&
+    const isContinuation = lastMsg && lastMsg.userId === msg.userId &&
       msg.createdAt && lastMsg.createdAt &&
       (new Date(msg.createdAt) - new Date(lastMsg.createdAt)) < 5 * 60 * 1000;
-    if (cont) last.push(msg);
+    if (isContinuation) last.push(msg);
     else grouped.push([msg]);
   });
 
@@ -88,11 +66,16 @@ export default function EventChat({ event, user, profile, onBack }) {
           >
             ← Back
           </button>
-          <div style={{ textAlign: 'center', padding: '0 80px' }}>
-            <h2 style={{ margin: 0, fontSize: 17, lineHeight: 1.25 }}>{event.title}</h2>
-            <p style={{ margin: '2px 0 0', fontSize: 12, color: '#8888AA' }}>
-              {attendeeCount} {attendeeCount === 1 ? 'attendee' : 'attendees'}
-            </p>
+          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4 }}>
+            {otherUser.avatar_url ? (
+              <img src={otherUser.avatar_url} alt={otherName} referrerPolicy="no-referrer"
+                style={{ width: 36, height: 36, borderRadius: '50%', objectFit: 'cover' }} />
+            ) : (
+              <div style={{ width: 36, height: 36, borderRadius: '50%', background: avatarColor(otherName), display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 13, fontWeight: 700, color: '#fff' }}>
+                {otherInitials}
+              </div>
+            )}
+            <span style={{ fontWeight: 700, fontSize: 15 }}>{otherName}</span>
           </div>
         </header>
 
@@ -100,19 +83,19 @@ export default function EventChat({ event, user, profile, onBack }) {
         <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 8, paddingBottom: 8 }}>
           {messages.length === 0 ? (
             <div style={{ textAlign: 'center', color: '#555577', fontSize: 14, marginTop: 40 }}>
-              No messages yet. Start the conversation!
+              No messages yet. Say hi!
             </div>
           ) : grouped.map(grp => {
             const isMe = grp[0].userId === user?.id;
-            const displayName = isMe ? (profile?.name || profile?.username || 'You') : (grp[0].sender || 'Unknown');
+            const displayName = isMe ? (profile?.name || 'You') : (grp[0].sender || otherName);
             const initials = getInitials(displayName);
             const color = isMe ? 'var(--purple)' : avatarColor(grp[0].sender || '');
-            const avatarUrl = isMe ? profile?.avatar_url : avatarMap[grp[0].userId]?.avatar_url;
-            const lastMsg = grp[grp.length - 1];
+            const avatarUrl = isMe ? profile?.avatar_url : (grp[0].avatarUrl || otherUser.avatar_url);
             return (
               <div key={grp[0].id} style={{ display: 'flex', gap: 12, marginBottom: 14 }}>
                 {avatarUrl ? (
-                  <img src={avatarUrl} alt={displayName} referrerPolicy="no-referrer" style={{ width: 36, height: 36, borderRadius: '50%', objectFit: 'cover', flexShrink: 0, alignSelf: 'flex-start' }} />
+                  <img src={avatarUrl} alt={displayName} referrerPolicy="no-referrer"
+                    style={{ width: 36, height: 36, borderRadius: '50%', objectFit: 'cover', flexShrink: 0, alignSelf: 'flex-start' }} />
                 ) : (
                   <div style={{ width: 36, height: 36, borderRadius: '50%', background: color, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 13, fontWeight: 700, color: '#fff', flexShrink: 0, alignSelf: 'flex-start' }}>
                     {initials}
@@ -121,7 +104,7 @@ export default function EventChat({ event, user, profile, onBack }) {
                 <div style={{ flex: 1, minWidth: 0 }}>
                   <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, marginBottom: 4 }}>
                     <span style={{ fontSize: 14, fontWeight: 700, color }}>{displayName}</span>
-                    <span style={{ fontSize: 11, color: '#555577' }}>{lastMsg.time}</span>
+                    <span style={{ fontSize: 11, color: '#555577' }}>{grp[grp.length - 1].time}</span>
                   </div>
                   {grp.map(msg => (
                     <div key={msg.id} style={{ fontSize: 14, color: '#CCCCEE', lineHeight: 1.6, textAlign: 'left' }}>
@@ -139,23 +122,22 @@ export default function EventChat({ event, user, profile, onBack }) {
         <div style={{ display: 'flex', gap: 8, alignItems: 'center', paddingTop: 8, flexShrink: 0 }}>
           <input
             className="text-input"
-            placeholder="Message the event chat…"
+            placeholder={`Message ${otherName}…`}
             value={draft}
             onChange={e => setDraft(e.target.value)}
             onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSend(); } }}
             style={{ flex: 1 }}
           />
           <button
-            className="join"
-            type="button"
             onClick={handleSend}
             disabled={!draft.trim() || sending}
-            style={{ borderRadius: 12, padding: '10px 18px', opacity: (!draft.trim() || sending) ? 0.5 : 1 }}
+            style={{ background: 'var(--purple)', border: 'none', borderRadius: 12, padding: '10px 16px', color: '#fff', fontWeight: 700, cursor: draft.trim() ? 'pointer' : 'default', opacity: draft.trim() ? 1 : 0.4, transition: 'opacity 150ms', flexShrink: 0 }}
           >
-            {sending ? '…' : 'Send'}
+            <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+              <line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/>
+            </svg>
           </button>
         </div>
-
       </div>
     </main>
   );

@@ -1,29 +1,20 @@
-import React, { useState, useEffect } from 'react';
-import { getGroupMessages, subscribeToGroupMessages, isSupabaseConfigured } from '../lib/supabaseClient';
+import React, { useState, useEffect, useRef } from 'react';
+import { getEventMessages, subscribeToEventMessages, isSupabaseConfigured, getProfilesByIds, uploadEventCover } from '../lib/supabaseClient';
+import { avatarColor } from '../lib/avatarColor';
+import { getInitials } from '../lib/utils';
 import './HomeFeed.css';
 
 const TAGS = [
-  { id: 'On Campus', color: '#38bdf8', bg: 'rgba(56,189,248,0.15)' },
+  { id: 'On Campus', color: '#FFB420', bg: 'rgba(255,180,32,0.12)' },
   { id: 'Social',    color: '#FF6BA8', bg: 'rgba(255,107,168,0.15)' },
   { id: 'Sports',    color: '#00E5A8', bg: 'rgba(0,229,168,0.15)' },
-  { id: 'Arts',      color: '#FFB420', bg: 'rgba(255,180,32,0.12)' },
+  { id: 'Arts',      color: '#9B59B6', bg: 'rgba(155,89,182,0.15)' },
   { id: 'Music',     color: '#9D8FFF', bg: 'rgba(157,143,255,0.15)' },
-  { id: 'Food',      color: '#F97316', bg: 'rgba(249,115,22,0.15)' },
-  { id: 'Gaming',    color: '#06B6D4', bg: 'rgba(6,182,212,0.15)' },
-  { id: 'Outdoors',  color: '#22C55E', bg: 'rgba(34,197,94,0.15)' },
-  { id: 'Other',     color: '#9CA3AF', bg: 'rgba(156,163,175,0.13)' },
+  { id: 'Food',      color: '#FF6BA8', bg: 'rgba(255,107,168,0.15)' },
+  { id: 'Gaming',    color: '#667EEA', bg: 'rgba(102,126,234,0.15)' },
+  { id: 'Outdoors',  color: '#00E5A8', bg: 'rgba(0,229,168,0.15)' },
+  { id: 'Other',     color: '#999999', bg: 'rgba(153,153,153,0.15)' },
 ];
-
-const AVATAR_COLORS = [
-  '#534AB7', '#D4537E', '#1D9E75', '#EF9F27', '#667EEA',
-  '#9B59B6', '#E74C3C', '#3498DB', '#2ECC71', '#F39C12',
-];
-
-function avatarColor(name = '') {
-  let h = 0;
-  for (let i = 0; i < name.length; i++) h = name.charCodeAt(i) + ((h << 5) - h);
-  return AVATAR_COLORS[Math.abs(h) % AVATAR_COLORS.length];
-}
 
 export default function EventDetails({ event, onBack, onUpdateEvent, activeTab, onNavigate, onCreateGroup = () => {}, onOpenChat = () => {}, user = null, profile = null, onAuthRequired = () => {} }) {
   const [liveMessages, setLiveMessages] = useState([]);
@@ -31,22 +22,32 @@ export default function EventDetails({ event, onBack, onUpdateEvent, activeTab, 
   const [showJoinPrompt, setShowJoinPrompt] = useState(false);
   const [showEdit, setShowEdit] = useState(false);
   const [editForm, setEditForm] = useState({});
+  const [previewAvatarMap, setPreviewAvatarMap] = useState({});
+  const [uploadingCover, setUploadingCover] = useState(false);
+  const coverInputRef = useRef(null);
 
-  const channelId = event?.id ? `event-${event.id}` : null;
+  const eventId = event?.id ?? null;
 
   useEffect(() => {
-    if (!channelId || !isSupabaseConfigured()) return;
-    setLastReadCount(parseInt(localStorage.getItem(`rally_chat_read_${channelId}`) || '0'));
+    if (!eventId || !isSupabaseConfigured()) return;
+    const readKey = `rally_chat_read_event_${eventId}`;
+    setLastReadCount(parseInt(localStorage.getItem(readKey) || '0'));
     let cancelled = false;
-    getGroupMessages(channelId).then(msgs => { if (!cancelled) setLiveMessages(msgs); });
+    getEventMessages(eventId).then(msgs => { if (!cancelled) setLiveMessages(msgs); });
     const interval = setInterval(() => {
-      getGroupMessages(channelId).then(msgs => { if (!cancelled) setLiveMessages(msgs); });
+      getEventMessages(eventId).then(msgs => { if (!cancelled) setLiveMessages(msgs); });
     }, 5000);
-    const unsub = subscribeToGroupMessages(channelId, msg => {
+    const unsub = subscribeToEventMessages(eventId, msg => {
       if (!cancelled) setLiveMessages(prev => prev.some(m => m.id === msg.id) ? prev : [...prev, msg]);
     });
     return () => { cancelled = true; clearInterval(interval); unsub(); };
-  }, [channelId]);
+  }, [eventId]);
+
+  useEffect(() => {
+    const unknownIds = [...new Set(liveMessages.map(m => m.userId).filter(id => id && !(id in previewAvatarMap)))];
+    if (unknownIds.length === 0) return;
+    getProfilesByIds(unknownIds).then(map => setPreviewAvatarMap(prev => ({ ...prev, ...map })));
+  }, [liveMessages]);
 
   if (!event) return null;
 
@@ -70,7 +71,7 @@ export default function EventDetails({ event, onBack, onUpdateEvent, activeTab, 
     : (currentUserName && attendees.some(a => a.name === currentUserName)));
 
   function openChat() {
-    localStorage.setItem(`rally_chat_read_${channelId}`, String(liveMessages.length));
+    localStorage.setItem(`rally_chat_read_event_${eventId}`, String(liveMessages.length));
     setLastReadCount(liveMessages.length);
     onOpenChat(event);
   }
@@ -85,6 +86,7 @@ export default function EventDetails({ event, onBack, onUpdateEvent, activeTab, 
       location: event.location || '',
       tags: event.tags || [],
       visibility: event.visibility || 'public',
+      coverUrl: event.coverUrl || '',
     });
     setShowEdit(true);
   }
@@ -95,14 +97,14 @@ export default function EventDetails({ event, onBack, onUpdateEvent, activeTab, 
         ? new Date(`${editForm.date}T${editForm.time}`).toISOString()
         : new Date(`${editForm.date}T00:00:00`).toISOString()
       : event.dateISO;
-    onUpdateEvent && onUpdateEvent({ ...event, title: editForm.title, dateISO, showTime: editForm.showTime && !!editForm.time, location: editForm.location, tags: editForm.tags, visibility: editForm.visibility });
+    onUpdateEvent && onUpdateEvent({ ...event, title: editForm.title, dateISO, showTime: editForm.showTime && !!editForm.time, location: editForm.location, tags: editForm.tags, visibility: editForm.visibility, coverUrl: editForm.coverUrl || null });
     setShowEdit(false);
   }
 
   function handleJoin() {
     if (!user) { onAuthRequired('Sign in to join this event'); return; }
     const name = currentUserName;
-    const initials = (name || 'You').split(' ').map(s => s[0]).slice(0, 2).join('').toUpperCase();
+    const initials = getInitials(name || 'You');
     const exists = attendees.some(a => a.name === name);
     const next = exists
       ? attendees.filter(a => a.name !== name)
@@ -113,27 +115,35 @@ export default function EventDetails({ event, onBack, onUpdateEvent, activeTab, 
   return (
     <main className="feed-root" style={{ overflowY: 'auto' }}>
       {/* Back + title */}
-      <header style={{ display: 'flex', alignItems: 'flex-start', gap: 12, marginBottom: 16 }}>
+      <header style={{ marginBottom: 16, display: 'flex', flexDirection: 'column', alignItems: 'flex-start' }}>
         <button
           onClick={onBack}
           style={{
             background: 'rgba(83,74,183,0.1)', border: 'none', borderRadius: 10,
             padding: '8px 12px', color: 'var(--purple)', fontWeight: 700,
-            cursor: 'pointer', flexShrink: 0, marginTop: 2,
+            cursor: 'pointer', marginBottom: 12,
           }}
         >
           ← Back
         </button>
-        <div style={{ flex: 1, minWidth: 0 }}>
-          <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: 6 }}>
-            {(tags.length > 0 ? tags : (category ? [category] : [])).map(tag => (
-              <span key={tag} className="category-pill">{tag}</span>
-            ))}
-            {trending && <span className="badge">Trending</span>}
-          </div>
-          <h2 style={{ margin: 0, fontSize: 22, color: '#111', lineHeight: 1.2 }}>{title}</h2>
+        <h2 style={{ margin: '0 0 6px', fontSize: 22, color: '#fff', lineHeight: 1.2 }}>{title}</h2>
+        <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', alignItems: 'center' }}>
+          {(tags.length > 0 ? tags : (category ? [category] : [])).map(tag => {
+            const tagDef = TAGS.find(t => t.id === tag);
+            const col = tagDef?.color || '#9D8FFF';
+            const bg = tagDef?.bg || 'rgba(157,143,255,0.15)';
+            return <span key={tag} className="category-pill" style={{ color: col, background: bg }}>{tag}</span>;
+          })}
+          {trending && <span className="badge">Trending</span>}
         </div>
       </header>
+
+      {/* Cover image */}
+      {event.coverUrl && (
+        <div style={{ borderRadius: 16, overflow: 'hidden', marginBottom: 12, width: '100%' }}>
+          <img src={event.coverUrl} alt="" style={{ width: '100%', height: 180, objectFit: 'cover', display: 'block' }} />
+        </div>
+      )}
 
       {/* Details + RSVP */}
       <div className="card" style={{ marginBottom: 12 }}>
@@ -179,8 +189,7 @@ export default function EventDetails({ event, onBack, onUpdateEvent, activeTab, 
           <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
             {attendees.map((a, i) => {
               const color = a.color && a.color !== '#FFFFFF' ? a.color : avatarColor(a.name);
-              const initials = a.initials
-                || (a.name ? a.name.split(' ').map(s => s[0]).slice(0, 2).join('').toUpperCase() : '?');
+              const initials = a.initials || getInitials(a.name);
               return (
                 <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
                   {a.avatar_url
@@ -244,13 +253,18 @@ export default function EventDetails({ event, onBack, onUpdateEvent, activeTab, 
                 const isMe = user && grp[0].userId === user.id;
                 const senderColor = isMe ? 'var(--purple)' : avatarColor(grp[0].sender || '');
                 const senderName = isMe ? 'You' : (grp[0].sender || 'Unknown');
-                const initials = senderName.split(' ').map(s => s[0]).slice(0, 2).join('').toUpperCase();
+                const initials = getInitials(senderName);
+                const avatarUrl = isMe ? profile?.avatar_url : previewAvatarMap[grp[0].userId]?.avatar_url;
                 const lastMsg = grp[grp.length - 1];
                 return (
                   <div key={grp[0].id} style={{ display: 'flex', gap: 10 }}>
-                    <div style={{ width: 26, height: 26, borderRadius: '50%', background: senderColor, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 10, fontWeight: 700, color: '#fff', flexShrink: 0, alignSelf: 'flex-start' }}>
-                      {initials}
-                    </div>
+                    {avatarUrl ? (
+                      <img src={avatarUrl} alt={senderName} referrerPolicy="no-referrer" style={{ width: 26, height: 26, borderRadius: '50%', objectFit: 'cover', flexShrink: 0, alignSelf: 'flex-start' }} />
+                    ) : (
+                      <div style={{ width: 26, height: 26, borderRadius: '50%', background: senderColor, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 10, fontWeight: 700, color: '#fff', flexShrink: 0, alignSelf: 'flex-start' }}>
+                        {initials}
+                      </div>
+                    )}
                     <div style={{ flex: 1, minWidth: 0 }}>
                       <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, marginBottom: 2 }}>
                         <span style={{ fontSize: 13, fontWeight: 700, color: senderColor }}>{senderName}</span>
@@ -292,7 +306,7 @@ export default function EventDetails({ event, onBack, onUpdateEvent, activeTab, 
           if (!joined) { setShowJoinPrompt(true); return; }
           openChat();
         }}
-        style={{ width: '100%', padding: '12px', borderRadius: 12, marginBottom: 20, display: 'block', fontSize: 15 }}
+        style={{ width: '100%', padding: '14px', borderRadius: 14, marginBottom: 20, display: 'block', fontSize: 15, fontWeight: 700 }}
       >
         Open event chat
       </button>
@@ -303,6 +317,50 @@ export default function EventDetails({ event, onBack, onUpdateEvent, activeTab, 
             <h3 style={{ margin: '0 0 20px', fontSize: 18, fontWeight: 800, color: '#EEEEFF' }}>Edit Event</h3>
 
             <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+              {/* Cover photo */}
+              <div>
+                <label style={{ fontSize: 12, fontWeight: 700, color: '#8888AA', textTransform: 'uppercase', letterSpacing: '0.05em', display: 'block', marginBottom: 8 }}>Cover Photo</label>
+                <div
+                  onClick={() => coverInputRef.current?.click()}
+                  style={{ position: 'relative', width: '100%', height: 130, borderRadius: 12, background: editForm.coverUrl ? 'none' : 'rgba(255,255,255,0.04)', border: editForm.coverUrl ? 'none' : '1.5px dashed rgba(255,255,255,0.15)', overflow: 'hidden', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+                >
+                  {editForm.coverUrl ? (
+                    <img src={editForm.coverUrl} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                  ) : (
+                    <div style={{ textAlign: 'center', color: '#555577' }}>
+                      <svg viewBox="0 0 24 24" width="28" height="28" fill="currentColor" style={{ display: 'block', margin: '0 auto 6px' }}>
+                        <path d="M12 15.2a3.2 3.2 0 1 1 0-6.4 3.2 3.2 0 0 1 0 6.4zM9 2L7.17 4H4c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2h-3.17L15 2H9z"/>
+                      </svg>
+                      <span style={{ fontSize: 13, fontWeight: 600 }}>Add cover photo</span>
+                    </div>
+                  )}
+                  {editForm.coverUrl && (
+                    <div style={{ position: 'absolute', bottom: 8, right: 8, background: 'rgba(0,0,0,0.55)', borderRadius: 8, padding: '5px 10px', display: 'flex', alignItems: 'center', gap: 5 }}>
+                      {uploadingCover
+                        ? <div style={{ width: 12, height: 12, border: '2px solid rgba(255,255,255,0.3)', borderTopColor: '#fff', borderRadius: '50%', animation: 'spin 0.6s linear infinite' }} />
+                        : <svg viewBox="0 0 24 24" width="12" height="12" fill="white"><path d="M12 15.2a3.2 3.2 0 1 1 0-6.4 3.2 3.2 0 0 1 0 6.4zM9 2L7.17 4H4c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2h-3.17L15 2H9z"/></svg>
+                      }
+                      <span style={{ fontSize: 12, color: '#fff', fontWeight: 600 }}>Change</span>
+                    </div>
+                  )}
+                </div>
+                <input
+                  ref={coverInputRef}
+                  type="file"
+                  accept="image/*"
+                  style={{ display: 'none' }}
+                  onChange={async (e) => {
+                    const file = e.target.files?.[0];
+                    if (!file) return;
+                    setUploadingCover(true);
+                    const url = await uploadEventCover(event.id, file);
+                    setUploadingCover(false);
+                    if (url) setEditForm(f => ({ ...f, coverUrl: url }));
+                    e.target.value = '';
+                  }}
+                />
+              </div>
+
               <div>
                 <label style={{ fontSize: 12, fontWeight: 700, color: '#8888AA', textTransform: 'uppercase', letterSpacing: '0.05em', display: 'block', marginBottom: 6 }}>Title</label>
                 <input className="text-input" value={editForm.title} onChange={e => setEditForm(f => ({ ...f, title: e.target.value }))} style={{ width: '100%', boxSizing: 'border-box' }} />

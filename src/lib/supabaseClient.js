@@ -28,6 +28,7 @@ export async function getPublicEvents() {
       .from('events')
       .select('*')
       .eq('personal', false)
+      .eq('visibility', 'public')
       .order('date_iso', { ascending: true });
     if (error) throw error;
     return data || [];
@@ -109,6 +110,8 @@ export function mapGroupRow(r) {
     eventTitle: r.event_title,
     events: r.events || [],
     createdBy: r.created_by,
+    logoColor: r.logo_color || null,
+    logoUrl: r.logo_url || null,
   };
 }
 
@@ -153,6 +156,60 @@ export async function insertGroup(group) {
     return data?.[0] ? mapGroupRow(data[0]) : null;
   } catch (e) {
     console.warn('insertGroup error', e.message || e);
+    return null;
+  }
+}
+
+export async function uploadAvatarImage(userId, file) {
+  try {
+    const ext = file.name.split('.').pop() || 'jpg';
+    const path = `${userId}/avatar.${ext}`;
+    const { error } = await supabase.storage
+      .from('avatars')
+      .upload(path, file, { upsert: true, contentType: file.type });
+    if (error) throw error;
+    const { data: { publicUrl } } = supabase.storage
+      .from('avatars')
+      .getPublicUrl(path);
+    return publicUrl;
+  } catch (e) {
+    console.warn('uploadAvatarImage error', e.message || e);
+    return null;
+  }
+}
+
+export async function uploadEventCover(eventId, file) {
+  try {
+    const ext = file.name.split('.').pop() || 'jpg';
+    const path = `${eventId}/cover.${ext}`;
+    const { error } = await supabase.storage
+      .from('event-covers')
+      .upload(path, file, { upsert: true, contentType: file.type });
+    if (error) throw error;
+    const { data: { publicUrl } } = supabase.storage
+      .from('event-covers')
+      .getPublicUrl(path);
+    return publicUrl;
+  } catch (e) {
+    console.warn('uploadEventCover error', e.message || e);
+    return null;
+  }
+}
+
+export async function uploadGroupLogo(groupId, file) {
+  try {
+    const ext = file.name.split('.').pop() || 'jpg';
+    const path = `${groupId}/logo.${ext}`;
+    const { error } = await supabase.storage
+      .from('group-logos')
+      .upload(path, file, { upsert: true, contentType: file.type });
+    if (error) throw error;
+    const { data: { publicUrl } } = supabase.storage
+      .from('group-logos')
+      .getPublicUrl(path);
+    return publicUrl;
+  } catch (e) {
+    console.warn('uploadGroupLogo error', e.message || e);
     return null;
   }
 }

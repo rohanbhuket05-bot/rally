@@ -1,41 +1,126 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import './HomeFeed.css';
 
-import { getSchoolFromEmail, getSchoolFromDomain, SCHOOLS } from '../data/schools';
+import { getSchoolFromEmail, SCHOOLS, getDomainsForSchool } from '../data/schools';
+import SchoolLogo from './SchoolLogo';
 import FriendsPanel from './FriendsPanel';
-import { isSupabaseConfigured, signInWithOtp, signInWithProvider, checkUsernameAvailable, getFriendNotifications } from '../lib/supabaseClient';
+import { isSupabaseConfigured, signInWithOtp, signInWithProvider, checkUsernameAvailable, getFriendNotifications, sendEduVerification, verifyEduCode, uploadAvatarImage } from '../lib/supabaseClient';
 import { validateUsername } from '../lib/usernameValidation';
+import { CITIES, formatDate, getInitials } from '../lib/utils';
 
-const placeholderFriendNames = new Set(['Maya', 'Leo', 'Ava', 'Jon']);
+const EV_DELETE_WIDTH = 160;
+const EV_SWIPE_THRESHOLD = 140;
 
-const CITIES = [
-  'Atlanta, GA','Austin, TX','Baltimore, MD','Boston, MA','Charlotte, NC',
-  'Chicago, IL','Cincinnati, OH','Cleveland, OH','Columbus, OH','Dallas, TX',
-  'Denver, CO','Detroit, MI','El Paso, TX','Fort Worth, TX','Fresno, CA',
-  'Houston, TX','Indianapolis, IN','Jacksonville, FL','Kansas City, MO','Las Vegas, NV',
-  'Long Beach, CA','Los Angeles, CA','Louisville, KY','Memphis, TN','Mesa, AZ',
-  'Miami, FL','Milwaukee, WI','Minneapolis, MN','Nashville, TN','New Orleans, LA',
-  'New York, NY','Oakland, CA','Oklahoma City, OK','Omaha, NE','Philadelphia, PA',
-  'Phoenix, AZ','Portland, OR','Raleigh, NC','Sacramento, CA','San Antonio, TX',
-  'San Diego, CA','San Francisco, CA','San Jose, CA','Seattle, WA','Tampa, FL',
-  'Tucson, AZ','Tulsa, OK','Virginia Beach, VA','Washington, DC',
-  'London, UK','Paris, France','Tokyo, Japan','Sydney, Australia','Toronto, Canada',
-  'Vancouver, Canada','Mexico City, Mexico','Berlin, Germany','Amsterdam, Netherlands',
-  'Barcelona, Spain','Madrid, Spain','Rome, Italy','Dubai, UAE','Singapore',
-  'Seoul, South Korea','Mumbai, India','Bangkok, Thailand','Hong Kong',
-];
+function SwipeableEventRow({ ev, onOpen, onDelete }) {
+  const [offset, setOffset] = useState(0);
+  const [transitioning, setTransitioning] = useState(false);
+  const [showConfirm, setShowConfirm] = useState(false);
+  const touchStartX = useRef(null);
+  const touchStartY = useRef(null);
+  const isScrolling = useRef(false);
+  const offsetRef = useRef(0);
+  const didDrag = useRef(false);
 
-export default function Profile({ user, profile = {}, onUpdateProfile = () => {}, activeTab = 'profile', onNavigate = () => {}, onOpenGroup = () => {}, events = [], groups: allGroups = [], onAddEvent = () => {}, onUpdateEvent = () => {}, onDeleteEvent = () => {}, onSignOut = () => {}, onAuthRequired = () => {}, darkMode = false, onToggleDark = () => {}, onViewFriend = () => {} }) {
+  function onDragStart(clientX, clientY) {
+    touchStartX.current = clientX;
+    touchStartY.current = clientY;
+    isScrolling.current = false;
+    didDrag.current = false;
+    setTransitioning(false);
+  }
+
+  function onDragMove(clientX, clientY) {
+    if (touchStartX.current === null) return;
+    const dx = clientX - touchStartX.current;
+    const dy = clientY - touchStartY.current;
+    if (isScrolling.current) return;
+    if (Math.abs(dy) > Math.abs(dx)) { isScrolling.current = true; return; }
+    if (Math.abs(dx) > 5) didDrag.current = true;
+    const newOffset = Math.max(-EV_DELETE_WIDTH, Math.min(0, dx));
+    offsetRef.current = newOffset;
+    setOffset(newOffset);
+  }
+
+  function onDragEnd() {
+    setTransitioning(true);
+    if (offsetRef.current <= -EV_SWIPE_THRESHOLD) {
+      setOffset(0);
+      offsetRef.current = 0;
+      setShowConfirm(true);
+    } else {
+      setOffset(0);
+      offsetRef.current = 0;
+    }
+    touchStartX.current = null;
+  }
+
+  return (
+    <div style={{ overflow: 'hidden', borderRadius: 16 }}>
+      {showConfirm && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 9999 }}>
+          <div style={{ background: '#1A1A2E', borderRadius: 16, padding: 24, maxWidth: 300, width: '85%', border: '1px solid rgba(255,255,255,0.1)' }}>
+            <h3 style={{ margin: '0 0 8px', fontSize: 17, color: '#EEEEFF' }}>Delete event?</h3>
+            <p style={{ margin: '0 0 20px', fontSize: 14, color: '#888', lineHeight: 1.5 }}>This action cannot be undone.</p>
+            <div style={{ display: 'flex', gap: 10 }}>
+              <button onClick={() => setShowConfirm(false)} style={{ flex: 1, padding: '10px', borderRadius: 10, border: '1px solid rgba(255,255,255,0.1)', background: 'transparent', color: '#EEEEFF', fontWeight: 600, fontSize: 14, cursor: 'pointer' }}>Cancel</button>
+              <button onClick={() => { setShowConfirm(false); onDelete(ev.id); }} style={{ flex: 1, padding: '10px', borderRadius: 10, border: 'none', background: '#E74C3C', color: '#fff', fontWeight: 700, fontSize: 14, cursor: 'pointer' }}>Delete</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Flex row: card + delete button side by side. Outer overflow:hidden reveals delete on swipe. */}
+      <div
+        onTouchStart={e => onDragStart(e.touches[0].clientX, e.touches[0].clientY)}
+        onTouchMove={e => { if (!isScrolling.current) e.preventDefault(); onDragMove(e.touches[0].clientX, e.touches[0].clientY); }}
+        onTouchEnd={onDragEnd}
+        onMouseDown={e => onDragStart(e.clientX, e.clientY)}
+        onMouseMove={e => { if (touchStartX.current !== null) onDragMove(e.clientX, e.clientY); }}
+        onMouseUp={onDragEnd}
+        onMouseLeave={onDragEnd}
+        style={{
+          display: 'flex',
+          width: `calc(100% + ${EV_DELETE_WIDTH}px)`,
+          transform: `translateX(${offset}px)`,
+          transition: transitioning ? 'transform 250ms ease' : 'none',
+          userSelect: 'none', WebkitUserSelect: 'none',
+        }}
+      >
+        <div className="card event-card" style={{ flex: 1, margin: 0, borderRadius: 16, minWidth: 0 }}>
+          <div
+            onClick={() => { if (!didDrag.current) onOpen(ev); }}
+            style={{ fontWeight: 700, fontSize: 14, textAlign: 'left', cursor: 'pointer', userSelect: 'none', WebkitUserSelect: 'none' }}
+          >{ev.title}</div>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 4 }}>
+            <span
+              onClick={() => { if (!didDrag.current) onOpen(ev); }}
+              style={{ fontSize: 12, color: '#aaa', cursor: 'pointer', userSelect: 'none', WebkitUserSelect: 'none' }}
+            >{[ev.location, ev.city].filter(Boolean).join(', ')}</span>
+            <span style={{ fontSize: 12, color: '#888', flexShrink: 0, userSelect: 'none', WebkitUserSelect: 'none' }}>{formatDate(ev.dateISO, ev.showTime)}</span>
+          </div>
+        </div>
+
+        <div
+          onClick={() => setShowConfirm(true)}
+          style={{ flex: `0 0 ${EV_DELETE_WIDTH}px`, background: '#E74C3C', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}
+        >
+          <span style={{ color: '#fff', fontWeight: 700, fontSize: 13 }}>Delete</span>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+export default function Profile({ user, profile = {}, onUpdateProfile = () => {}, activeTab = 'profile', onNavigate = () => {}, onOpenGroup = () => {}, events = [], groups: allGroups = [], onAddEvent = () => {}, onUpdateEvent = () => {}, onDeleteEvent = () => {}, onSignOut = () => {}, onAuthRequired = () => {}, darkMode = false, onToggleDark = () => {}, onViewFriend = () => {}, onOpenDm = () => {} }) {
   const [name, setName] = useState(() => profile.name || localStorage.getItem('rally_name') || '');
   const [bio, setBio] = useState(() => profile.bio || localStorage.getItem('rally_bio') || '');
   const [username, setUsername] = useState(() => profile.username || localStorage.getItem('rally_username') || '');
   const [pronouns, setPronouns] = useState(() => profile.pronouns || localStorage.getItem('rally_pronouns') || '');
   const [editingProfile, setEditingProfile] = useState(false);
+  const [uploadingAvatar, setUploadingAvatar] = useState(false);
+  const avatarInputRef = useRef(null);
   const [usernameStatus, setUsernameStatus] = useState('idle'); // idle | checking | available | taken | invalid
   const [usernameError, setUsernameError] = useState(null);
-
-  const getInitials = (n) => n.split(' ').filter(Boolean).map(s=>s[0]).slice(0,2).join('').toUpperCase();
-
 
   const getStoredCheers = () => {
     try {
@@ -89,7 +174,7 @@ export default function Profile({ user, profile = {}, onUpdateProfile = () => {}
     localStorage.setItem('rally_username', finalUsername);
     localStorage.setItem('rally_pronouns', pronouns);
     setEditingProfile(false);
-    onUpdateProfile({ name: newName, bio: newBio, username: finalUsername, friends: [], pronouns });
+    onUpdateProfile({ name: newName, bio: newBio, username: finalUsername, friends: profile.friends || [], pronouns, avatar_url: profile.avatar_url || '' });
   };
   // `events` and handlers are provided by App (single source of truth)
   const [showSettings, setShowSettings] = useState(false);
@@ -112,12 +197,19 @@ export default function Profile({ user, profile = {}, onUpdateProfile = () => {}
   const [form, setForm] = useState({ title: '', month: '', day: '', time: '', location: '', city: '' });
   const [showCitySuggestions, setShowCitySuggestions] = useState(false);
 
-  const [attended, setAttended] = useState([]);
   const [media, setMedia] = useState([]);
   const [cheers, setCheers] = useState({ count: getStoredCheers(), givers: [] });
   const groups = user ? allGroups.filter(g => (g.members || []).some(m => m.user_id === user.id)) : [];
   const [showFriendsPanel, setShowFriendsPanel] = useState(false);
   const [friendNotifCount, setFriendNotifCount] = useState(0);
+
+  // .edu verification flow
+  const [showVerifyModal, setShowVerifyModal] = useState(false);
+  const [verifyStep, setVerifyStep] = useState('email'); // 'email' | 'code' | 'success'
+  const [verifyEmail, setVerifyEmail] = useState('');
+  const [verifyCode, setVerifyCode] = useState('');
+  const [verifyLoading, setVerifyLoading] = useState(false);
+  const [verifyError, setVerifyError] = useState(null);
 
   useEffect(() => {
     if (!user) return;
@@ -135,6 +227,55 @@ export default function Profile({ user, profile = {}, onUpdateProfile = () => {}
         localStorage.setItem('rally_seen_accepted', String(acceptedTotal));
       });
       setFriendNotifCount(0);
+    }
+  }
+
+  function openVerifyModal() {
+    setShowSchoolPicker(false);
+    setSchoolSearch('');
+    setVerifyStep('email');
+    setVerifyEmail('');
+    setVerifyCode('');
+    setVerifyError(null);
+    setShowVerifyModal(true);
+  }
+
+  async function handleSendCode() {
+    const email = verifyEmail.trim().toLowerCase();
+    if (!email) return;
+    const domain = email.split('@')[1] || '';
+    const expectedDomains = getDomainsForSchool(school);
+    if (!domain.endsWith('.edu')) {
+      setVerifyError('Must be a .edu email address.');
+      return;
+    }
+    if (expectedDomains.length > 0 && !expectedDomains.includes(domain)) {
+      setVerifyError(`Must be a @${expectedDomains[0]} email for ${school}.`);
+      return;
+    }
+    setVerifyLoading(true);
+    setVerifyError(null);
+    const { success, error } = await sendEduVerification(email, school);
+    setVerifyLoading(false);
+    if (success) {
+      setVerifyStep('code');
+    } else {
+      setVerifyError(error || 'Failed to send code. Try again.');
+    }
+  }
+
+  async function handleVerifyCode() {
+    if (verifyCode.length !== 6) return;
+    setVerifyLoading(true);
+    setVerifyError(null);
+    const { success, error } = await verifyEduCode(verifyEmail.trim().toLowerCase(), verifyCode);
+    setVerifyLoading(false);
+    if (success) {
+      localStorage.setItem('rally_school_verified', school);
+      onUpdateProfile({ name, bio, username, friends: [], school, school_verified: true });
+      setVerifyStep('success');
+    } else {
+      setVerifyError(error || 'Invalid or expired code. Try again.');
     }
   }
 
@@ -198,7 +339,7 @@ export default function Profile({ user, profile = {}, onUpdateProfile = () => {}
   return (
     <main className="feed-root" style={{ height: '100vh', overflow: 'hidden', paddingBottom: 0 }}>
       <header className="feed-header" style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
-        <div>
+        <div style={{ textAlign: 'left' }}>
           <h1 style={{ margin: 0 }}>Profile</h1>
           <p className="tagline" style={{ margin: 0 }}>{name || 'Set up your profile'}</p>
         </div>
@@ -283,18 +424,21 @@ export default function Profile({ user, profile = {}, onUpdateProfile = () => {}
 
             {/* Avatar + username + real name */}
             <div style={{ display: 'flex', alignItems: 'center', gap: 14, marginBottom: 10 }}>
-              {user?.user_metadata?.avatar_url ? (
-                <img
-                  src={user.user_metadata.avatar_url}
-                  alt={name}
-                  referrerPolicy="no-referrer"
-                  style={{ width: 56, height: 56, borderRadius: '50%', objectFit: 'cover', flexShrink: 0, border: '2px solid rgba(255,255,255,0.1)' }}
-                />
-              ) : (
-                <div style={{ width: 56, height: 56, borderRadius: '50%', background: 'linear-gradient(180deg,var(--light-purple),#fff)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 20, color: 'var(--purple)', fontWeight: 800, flexShrink: 0 }}>
-                  {getInitials(name)}
-                </div>
-              )}
+              {(() => {
+                const avatarSrc = profile?.avatar_url || user?.user_metadata?.avatar_url;
+                return avatarSrc ? (
+                  <img
+                    src={avatarSrc}
+                    alt={name}
+                    referrerPolicy="no-referrer"
+                    style={{ width: 56, height: 56, borderRadius: '50%', objectFit: 'cover', flexShrink: 0, border: '2px solid rgba(255,255,255,0.1)' }}
+                  />
+                ) : (
+                  <div style={{ width: 56, height: 56, borderRadius: '50%', background: 'linear-gradient(180deg,var(--light-purple),#fff)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 20, color: 'var(--purple)', fontWeight: 800, flexShrink: 0 }}>
+                    {getInitials(name)}
+                  </div>
+                );
+              })()}
               <div style={{ flex: 1, minWidth: 0 }}>
                 <h2 style={{ margin: 0, fontSize: 20, textAlign: 'left' }}>{username ? `@${username}` : 'Set your handle'}</h2>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 3 }}>
@@ -309,14 +453,12 @@ export default function Profile({ user, profile = {}, onUpdateProfile = () => {}
               {school ? (
                 <button
                   onClick={() => setShowSchoolPicker(true)}
-                  style={{ background:'rgba(56,189,248,0.15)', color:'#38bdf8', fontSize:12, padding:'6px 10px', fontWeight:700, border:'none', borderRadius:999, cursor:'pointer', display:'flex', alignItems:'center', gap:5 }}
+                  style={{ background:'rgba(255,255,255,0.07)', color:'#EEEEFF', fontSize:12, padding:'4px 10px 4px 5px', fontWeight:700, border:'1px solid rgba(255,255,255,0.1)', borderRadius:999, cursor:'pointer', display:'flex', alignItems:'center', gap:6 }}
                 >
-                  <svg viewBox="0 0 24 24" width="12" height="12" fill="currentColor"><path d="M12 3L1 9l4 2.18V17h2v-4.82l1 .55V17c0 2.76 2.24 5 5 5s5-2.24 5-5v-4.27l2-1.09V17h2V11.18L23 9 12 3zm5 14c0 1.66-1.34 3-3 3s-3-1.34-3-3v-3.73l3 1.64 3-1.64V17z"/></svg>
+                  <SchoolLogo school={school} size={20} />
                   {school}
                   {schoolVerified && (
-                    <span style={{ display:'inline-flex', alignItems:'center', justifyContent:'center', width:14, height:14, borderRadius:'50%', background:'#38bdf8' }}>
-                      <svg viewBox="0 0 24 24" width="9" height="9" fill="currentColor"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41L9 16.17z"/></svg>
-                    </span>
+                    <svg viewBox="0 0 24 24" width="13" height="13" fill="var(--teal)" flexShrink="0"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41L9 16.17z"/></svg>
                   )}
                 </button>
               ) : (
@@ -334,6 +476,102 @@ export default function Profile({ user, profile = {}, onUpdateProfile = () => {}
             </div>
 
             {bio && <p style={{ margin: '10px 0 0', color: '#EEEEFF', textAlign: 'left', fontSize: 14, lineHeight: 1.5 }}>{bio}</p>}
+
+          {/* .edu Verification modal */}
+          {showVerifyModal && (() => {
+            const expectedDomains = getDomainsForSchool(school);
+            const placeholder = expectedDomains.length > 0 ? `you@${expectedDomains[0]}` : 'you@university.edu';
+            return (
+              <div className="modal-overlay" onClick={() => setShowVerifyModal(false)}>
+                <div className="modal" style={{ padding: 24 }} onClick={e => e.stopPropagation()}>
+
+                  {verifyStep === 'email' && (
+                    <>
+                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
+                        <h3 style={{ margin: 0, fontSize: 17 }}>Verify student status</h3>
+                        <button onClick={() => setShowVerifyModal(false)} style={{ background: 'none', border: 'none', fontSize: 22, cursor: 'pointer', color: '#888', lineHeight: 1, padding: '0 2px' }}>×</button>
+                      </div>
+                      <p style={{ margin: '0 0 4px', fontSize: 14 }}>Enter your <strong>{school}</strong> email to get a verification code.</p>
+                      {expectedDomains.length > 0 && (
+                        <p style={{ margin: '0 0 14px', fontSize: 12, color: '#888' }}>Must end in @{expectedDomains[0]}</p>
+                      )}
+                      <input
+                        className="text-input"
+                        type="email"
+                        placeholder={placeholder}
+                        value={verifyEmail}
+                        onChange={e => { setVerifyEmail(e.target.value); setVerifyError(null); }}
+                        style={{ marginBottom: verifyError ? 8 : 14 }}
+                        autoFocus
+                      />
+                      {verifyError && <div style={{ fontSize: 12, color: '#E74C3C', marginBottom: 12 }}>{verifyError}</div>}
+                      <button
+                        className="join"
+                        style={{ width: '100%', padding: 13, fontSize: 15 }}
+                        disabled={verifyLoading || !verifyEmail.trim()}
+                        onClick={handleSendCode}
+                      >
+                        {verifyLoading ? 'Sending…' : 'Send code'}
+                      </button>
+                    </>
+                  )}
+
+                  {verifyStep === 'code' && (
+                    <>
+                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
+                        <h3 style={{ margin: 0, fontSize: 17 }}>Check your email</h3>
+                        <button onClick={() => setShowVerifyModal(false)} style={{ background: 'none', border: 'none', fontSize: 22, cursor: 'pointer', color: '#888', lineHeight: 1, padding: '0 2px' }}>×</button>
+                      </div>
+                      <p style={{ margin: '0 0 16px', fontSize: 14, lineHeight: 1.5 }}>
+                        We sent a 6-digit code to <strong>{verifyEmail}</strong>. It expires in 10 minutes.
+                      </p>
+                      <input
+                        className="text-input"
+                        type="text"
+                        inputMode="numeric"
+                        autoComplete="one-time-code"
+                        maxLength={6}
+                        placeholder="000000"
+                        value={verifyCode}
+                        onChange={e => { setVerifyCode(e.target.value.replace(/\D/g, '').slice(0, 6)); setVerifyError(null); }}
+                        style={{ marginBottom: verifyError ? 8 : 14, fontSize: 26, textAlign: 'center', letterSpacing: '0.35em', fontWeight: 700 }}
+                        autoFocus
+                      />
+                      {verifyError && <div style={{ fontSize: 12, color: '#E74C3C', marginBottom: 12 }}>{verifyError}</div>}
+                      <button
+                        className="join"
+                        style={{ width: '100%', padding: 13, fontSize: 15, marginBottom: 10 }}
+                        disabled={verifyLoading || verifyCode.length !== 6}
+                        onClick={handleVerifyCode}
+                      >
+                        {verifyLoading ? 'Verifying…' : 'Verify'}
+                      </button>
+                      <button
+                        onClick={() => { setVerifyStep('email'); setVerifyCode(''); setVerifyError(null); }}
+                        style={{ background: 'none', border: 'none', color: 'var(--purple)', fontSize: 13, cursor: 'pointer', width: '100%', padding: '4px 0' }}
+                      >
+                        ← Use a different email
+                      </button>
+                    </>
+                  )}
+
+                  {verifyStep === 'success' && (
+                    <div style={{ textAlign: 'center', padding: '8px 0' }}>
+                      <div style={{ width: 60, height: 60, borderRadius: '50%', background: 'var(--light-teal)', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 16px' }}>
+                        <svg viewBox="0 0 24 24" fill="var(--teal)" width="30" height="30"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41L9 16.17z"/></svg>
+                      </div>
+                      <h3 style={{ margin: '0 0 8px', fontSize: 19 }}>You're verified!</h3>
+                      <p style={{ margin: '0 0 22px', fontSize: 14 }}>Your {school} student status is confirmed.</p>
+                      <button className="join" style={{ width: '100%', padding: 13, fontSize: 15 }} onClick={() => setShowVerifyModal(false)}>
+                        Done
+                      </button>
+                    </div>
+                  )}
+
+                </div>
+              </div>
+            );
+          })()}
 
             {showSchoolPicker && (
               <div className="modal-overlay" onClick={() => { setShowSchoolPicker(false); setSchoolSearch(''); }}>
@@ -385,10 +623,10 @@ export default function Profile({ user, profile = {}, onUpdateProfile = () => {}
                         <div style={{ fontSize:11, color:'#888', marginTop:2 }}>Get a checkmark on your {school} badge</div>
                       </div>
                       <button
-                        disabled
-                        style={{ fontSize:12, fontWeight:700, color:'var(--purple)', background:'none', border:'1px solid var(--purple)', borderRadius:8, padding:'5px 10px', opacity:0.5, cursor:'not-allowed' }}
+                        onClick={openVerifyModal}
+                        style={{ fontSize:12, fontWeight:700, color:'var(--purple)', background:'none', border:'1px solid var(--purple)', borderRadius:8, padding:'5px 10px', cursor:'pointer' }}
                       >
-                        Coming soon
+                        Verify
                       </button>
                     </div>
                   )}
@@ -412,6 +650,50 @@ export default function Profile({ user, profile = {}, onUpdateProfile = () => {}
           </>
         ) : (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+            {/* Avatar picker */}
+            <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 4 }}>
+              <div style={{ position: 'relative', width: 72, height: 72 }}>
+                {(() => {
+                  const avatarSrc = profile?.avatar_url || user?.user_metadata?.avatar_url;
+                  return avatarSrc ? (
+                    <img src={avatarSrc} alt={name} referrerPolicy="no-referrer" style={{ width: 72, height: 72, borderRadius: '50%', objectFit: 'cover', border: '2px solid rgba(255,255,255,0.1)' }} />
+                  ) : (
+                    <div style={{ width: 72, height: 72, borderRadius: '50%', background: 'linear-gradient(180deg,var(--light-purple),#fff)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 26, color: 'var(--purple)', fontWeight: 800 }}>
+                      {getInitials(name)}
+                    </div>
+                  );
+                })()}
+                <button
+                  type="button"
+                  onClick={() => avatarInputRef.current?.click()}
+                  disabled={uploadingAvatar}
+                  style={{ position: 'absolute', bottom: 0, right: 0, width: 26, height: 26, borderRadius: '50%', background: 'var(--purple)', border: '2.5px solid var(--card-bg, #1a1a2e)', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', padding: 0 }}
+                >
+                  {uploadingAvatar ? (
+                    <div style={{ width: 10, height: 10, border: '2px solid rgba(255,255,255,0.3)', borderTopColor: '#fff', borderRadius: '50%', animation: 'spin 0.6s linear infinite' }} />
+                  ) : (
+                    <svg viewBox="0 0 24 24" width="13" height="13" fill="white" aria-hidden="true">
+                      <path d="M12 15.2a3.2 3.2 0 1 1 0-6.4 3.2 3.2 0 0 1 0 6.4zM9 2L7.17 4H4c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2h-3.17L15 2H9z"/>
+                    </svg>
+                  )}
+                </button>
+                <input
+                  ref={avatarInputRef}
+                  type="file"
+                  accept="image/*"
+                  style={{ display: 'none' }}
+                  onChange={async (e) => {
+                    const file = e.target.files?.[0];
+                    if (!file || !user) return;
+                    setUploadingAvatar(true);
+                    const url = await uploadAvatarImage(user.id, file);
+                    setUploadingAvatar(false);
+                    if (url) onUpdateProfile({ ...profile, avatar_url: url });
+                    e.target.value = '';
+                  }}
+                />
+              </div>
+            </div>
             <label style={{ fontSize: 13, color: '#666' }}>Username</label>
             <input
               className="text-input"
@@ -478,7 +760,7 @@ export default function Profile({ user, profile = {}, onUpdateProfile = () => {}
         </div>
         {showFriendsPanel && (
           <div className="card" style={{ padding: 16 }}>
-            <FriendsPanel user={user} onViewFriend={onViewFriend} />
+            <FriendsPanel user={user} onViewFriend={onViewFriend} onOpenDm={onOpenDm} />
         </div>
         )}
       </section>
@@ -580,18 +862,7 @@ export default function Profile({ user, profile = {}, onUpdateProfile = () => {}
 
         <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginTop: 8 }}>
           {(showAllEvents ? upcomingEvents : upcomingEvents.slice(0, 3)).map((ev) => (
-            <div key={ev.id} className="card event-card" onClick={() => openEvent(ev)}>
-              <button className="delete-btn" aria-label="Delete event" onClick={(e) => { e.stopPropagation(); setDeleteTarget(ev.id); setShowConfirm(true); }}>
-                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="14" height="14" fill="currentColor"><path d="M18.3 5.71a1 1 0 0 0-1.41 0L12 10.59 7.11 5.7A1 1 0 0 0 5.7 7.11L10.59 12l-4.9 4.89a1 1 0 1 0 1.41 1.41L12 13.41l4.89 4.9a1 1 0 0 0 1.41-1.41L13.41 12l4.9-4.89a1 1 0 0 0 0-1.4z"/></svg>
-              </button>
-              <div style={{ fontWeight: 700, fontSize: 14, textAlign: 'left' }}>{ev.title}</div>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 4 }}>
-                <span style={{ fontSize: 12, color: '#aaa' }}>{[ev.location, ev.city].filter(Boolean).join(', ')}</span>
-                <span style={{ fontSize: 12, color: '#888', flexShrink: 0 }}>
-                  {ev.dateISO ? (ev.showTime ? new Date(ev.dateISO).toLocaleString(undefined, { weekday: 'short', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' }) : new Date(ev.dateISO).toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' })) : 'Date TBD'}
-                </span>
-              </div>
-            </div>
+            <SwipeableEventRow key={ev.id} ev={ev} onOpen={openEvent} onDelete={onDeleteEvent} />
           ))}
 
         {selectedEvent && (
@@ -664,7 +935,7 @@ export default function Profile({ user, profile = {}, onUpdateProfile = () => {}
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 4 }}>
                 <span style={{ fontSize: 12, color: '#aaa' }}>{[ev.location, ev.city].filter(Boolean).join(', ')}</span>
                 <span style={{ fontSize: 12, color: '#888', flexShrink: 0 }}>
-                  {ev.dateISO ? (ev.showTime ? new Date(ev.dateISO).toLocaleString(undefined, { weekday: 'short', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' }) : new Date(ev.dateISO).toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' })) : 'Date TBD'}
+                  {formatDate(ev.dateISO, ev.showTime)}
                 </span>
               </div>
             </div>

@@ -4,17 +4,12 @@ import {
   getIncomingFriendRequests, getOutgoingFriendRequests,
   acceptFriendRequest, declineFriendRequest, removeFriend,
 } from '../lib/supabaseClient';
+import { avatarColor } from '../lib/avatarColor';
+import { getInitials } from '../lib/utils';
 import './HomeFeed.css';
 
-const AVATAR_COLORS = ['#534AB7', '#D4537E', '#1D9E75', '#EF9F27', '#667EEA', '#9B59B6'];
-function avatarColor(name = '') {
-  let h = 0;
-  for (let i = 0; i < name.length; i++) h = name.charCodeAt(i) + ((h << 5) - h);
-  return AVATAR_COLORS[Math.abs(h) % AVATAR_COLORS.length];
-}
-
 function Avatar({ name, avatarUrl, size = 38 }) {
-  const initials = (name || '?').split(' ').map(s => s[0]).slice(0, 2).join('').toUpperCase();
+  const initials = getInitials(name);
   if (avatarUrl) {
     return (
       <img

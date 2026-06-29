@@ -1,19 +1,14 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { getGroupMessages, sendGroupMessage, subscribeToGroupMessages, isSupabaseConfigured } from '../lib/supabaseClient';
+import { getGroupMessages, sendGroupMessage, subscribeToGroupMessages, isSupabaseConfigured, getProfilesByIds } from '../lib/supabaseClient';
+import { avatarColor } from '../lib/avatarColor';
+import { getInitials } from '../lib/utils';
 import './HomeFeed.css';
-
-
-const AVATAR_COLORS = ['#534AB7','#D4537E','#1D9E75','#EF9F27','#667EEA','#9B59B6'];
-function avatarColor(name = '') {
-  let h = 0;
-  for (let i = 0; i < name.length; i++) h = name.charCodeAt(i) + ((h << 5) - h);
-  return AVATAR_COLORS[Math.abs(h) % AVATAR_COLORS.length];
-}
 
 export default function GroupChat({ activeTab = 'group-chat', onNavigate = () => {}, group, user, profile }) {
   const [messages, setMessages] = useState([]);
   const [draft, setDraft] = useState('');
   const [sending, setSending] = useState(false);
+  const [avatarMap, setAvatarMap] = useState({});
   const bottomRef = useRef(null);
 
   const groupId = group?.id;
@@ -41,6 +36,13 @@ export default function GroupChat({ activeTab = 'group-chat', onNavigate = () =>
     });
     return unsub;
   }, [groupId, useSupabase]);
+
+  // Fetch avatars for senders not yet in avatarMap
+  useEffect(() => {
+    const unknownIds = [...new Set(messages.map(m => m.userId).filter(id => id && !(id in avatarMap)))];
+    if (unknownIds.length === 0) return;
+    getProfilesByIds(unknownIds).then(map => setAvatarMap(prev => ({ ...prev, ...map })));
+  }, [messages]);
 
   // Scroll to bottom on new messages
   useEffect(() => {
@@ -124,14 +126,19 @@ export default function GroupChat({ activeTab = 'group-chat', onNavigate = () =>
               return grps.map((grp) => {
                 const isMe = grp[0].userId === user?.id;
                 const displayName = isMe ? (profile?.name || profile?.username || 'You') : (grp[0].sender || 'Unknown');
-                const initials = displayName.split(' ').map(s => s[0]).slice(0, 2).join('').toUpperCase();
+                const initials = getInitials(displayName);
                 const color = isMe ? 'var(--purple)' : avatarColor(grp[0].sender || '');
+                const avatarUrl = isMe ? profile?.avatar_url : avatarMap[grp[0].userId]?.avatar_url;
                 const lastMsg = grp[grp.length - 1];
                 return (
                   <div key={grp[0].id} style={{ display: 'flex', gap: 12, marginBottom: 14 }}>
-                    <div style={{ width: 36, height: 36, borderRadius: '50%', background: color, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 13, fontWeight: 700, color: '#fff', flexShrink: 0, alignSelf: 'flex-start' }}>
-                      {initials}
-                    </div>
+                    {avatarUrl ? (
+                      <img src={avatarUrl} alt={displayName} referrerPolicy="no-referrer" style={{ width: 36, height: 36, borderRadius: '50%', objectFit: 'cover', flexShrink: 0, alignSelf: 'flex-start' }} />
+                    ) : (
+                      <div style={{ width: 36, height: 36, borderRadius: '50%', background: color, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 13, fontWeight: 700, color: '#fff', flexShrink: 0, alignSelf: 'flex-start' }}>
+                        {initials}
+                      </div>
+                    )}
                     <div style={{ flex: 1, minWidth: 0 }}>
                       <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, marginBottom: 4 }}>
                         <span style={{ fontSize: 14, fontWeight: 700, color }}>{displayName}</span>
