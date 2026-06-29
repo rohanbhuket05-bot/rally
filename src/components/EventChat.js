@@ -35,7 +35,7 @@ export default function EventChat({ event, user, profile, onBack }) {
     const unknownIds = [...new Set(messages.map(m => m.userId).filter(id => id && !(id in avatarMap)))];
     if (unknownIds.length === 0) return;
     getProfilesByIds(unknownIds).then(map => setAvatarMap(prev => ({ ...prev, ...map })));
-  }, [messages]);
+  }, [messages, avatarMap]);
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' });

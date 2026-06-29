@@ -20,6 +20,9 @@ import SpontaneousCompose from './components/SpontaneousCompose';
 import Campus from './components/Campus';
 import { isSupabaseConfigured, signOut, getUser, onAuthStateChange, getEvents as sbGetEvents, insertEvent as sbInsertEvent, updateEvent as sbUpdateEvent, updateEventAttendees as sbUpdateEventAttendees, deleteEvent as sbDeleteEvent, getGroups as sbGetGroups, insertGroup as sbInsertGroup, updateGroup as sbUpdateGroup, deleteGroup as sbDeleteGroup, leaveGroup as sbLeaveGroup, getProfile, upsertProfile, createOrGetDm } from './lib/supabaseClient';
 
+const MAIN_TABS = ['home', 'explore', 'campus', 'groups', 'profile', 'post'];
+const PERSISTENT_TABS = [...MAIN_TABS, 'group', 'group-chat', 'friend-profile'];
+
 function App() {
   const [user, setUser] = useState(null);
   const [showUsernamePrompt, setShowUsernamePrompt] = useState(false);
@@ -39,8 +42,6 @@ function App() {
     friends: (() => { try { return JSON.parse(localStorage.getItem('rally_friends') || '[]'); } catch(e) { return []; } })(),
   });
   const [authModalMessage, setAuthModalMessage] = useState(null); // null = hidden, string = shown
-  const MAIN_TABS = ['home', 'explore', 'campus', 'groups', 'profile', 'post'];
-  const PERSISTENT_TABS = [...MAIN_TABS, 'group', 'group-chat', 'friend-profile'];
   const [activeTab, setActiveTabRaw] = useState(() => {
     const saved = localStorage.getItem('rally_active_tab');
     // Reloading on group-chat causes a blank screen — redirect to groups until fixed
@@ -261,7 +262,7 @@ function App() {
     setActiveEventId(event.id);
     setActiveEventData(event);
     setActiveTab(current => { setPreviousTab(current); return 'event-details'; });
-  }, []);
+  }, [setActiveTab]);
 
   const navigateFromTab = useCallback((tab) => {
     if (tab === 'spontaneous') {
@@ -269,12 +270,12 @@ function App() {
     } else {
       setActiveTab(tab);
     }
-  }, []);
+  }, [setActiveTab]);
 
   const openCreateGroup = useCallback((context = {}) => {
     setCreateGroupContext(context);
     setActiveTab(current => { setPreviousTab(current); return 'create-group'; });
-  }, []);
+  }, [setActiveTab]);
 
   const handleGroupCreated = useCallback((groupData) => {
     const membersWithId = (groupData.members || []).map(m =>
@@ -294,7 +295,7 @@ function App() {
         }
       });
     }
-  }, [user]);
+  }, [user, setActiveTab]);
 
   const updateGroup = useCallback((updated) => {
     setGroups(s => s.map(g => g.id === updated.id ? updated : g));

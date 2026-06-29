@@ -197,7 +197,6 @@ export default function Profile({ user, profile = {}, onUpdateProfile = () => {}
   const [form, setForm] = useState({ title: '', month: '', day: '', time: '', location: '', city: '' });
   const [showCitySuggestions, setShowCitySuggestions] = useState(false);
 
-  const [media, setMedia] = useState([]);
   const [cheers, setCheers] = useState({ count: getStoredCheers(), givers: [] });
   const groups = user ? allGroups.filter(g => (g.members || []).some(m => m.user_id === user.id)) : [];
   const [showFriendsPanel, setShowFriendsPanel] = useState(false);
@@ -972,14 +971,6 @@ export default function Profile({ user, profile = {}, onUpdateProfile = () => {}
           </div>
         </section>
 
-        <section style={{ marginTop: 14, width: '100%' }}>
-          <h3 style={{ margin: '6px 0', textAlign: 'left' }}>Media</h3>
-          <div className="media-grid">
-            {media.map(m => (
-              <div key={m.id} className="media-item">Photo</div>
-            ))}
-          </div>
-        </section>
       </div>
 
       </div>{/* end scrollable content */}

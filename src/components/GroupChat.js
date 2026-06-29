@@ -42,7 +42,7 @@ export default function GroupChat({ activeTab = 'group-chat', onNavigate = () =>
     const unknownIds = [...new Set(messages.map(m => m.userId).filter(id => id && !(id in avatarMap)))];
     if (unknownIds.length === 0) return;
     getProfilesByIds(unknownIds).then(map => setAvatarMap(prev => ({ ...prev, ...map })));
-  }, [messages]);
+  }, [messages, avatarMap]);
 
   // Scroll to bottom on new messages
   useEffect(() => {

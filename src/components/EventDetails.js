@@ -47,7 +47,7 @@ export default function EventDetails({ event, onBack, onUpdateEvent, activeTab, 
     const unknownIds = [...new Set(liveMessages.map(m => m.userId).filter(id => id && !(id in previewAvatarMap)))];
     if (unknownIds.length === 0) return;
     getProfilesByIds(unknownIds).then(map => setPreviewAvatarMap(prev => ({ ...prev, ...map })));
-  }, [liveMessages]);
+  }, [liveMessages, previewAvatarMap]);
 
   if (!event) return null;
 
