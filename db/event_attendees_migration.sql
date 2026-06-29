@@ -4,7 +4,7 @@
 
 CREATE TABLE IF NOT EXISTS event_attendees (
   id          uuid        PRIMARY KEY DEFAULT gen_random_uuid(),
-  event_id    bigint      NOT NULL REFERENCES events(id) ON DELETE CASCADE,
+  event_id    uuid        NOT NULL REFERENCES events(id) ON DELETE CASCADE,
   user_id     uuid        NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
   name        text,
   initials    text,
