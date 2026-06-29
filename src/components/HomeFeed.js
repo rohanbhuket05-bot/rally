@@ -7,7 +7,7 @@ import SchoolLogo from './SchoolLogo';
 import { avatarColor } from '../lib/avatarColor';
 import { getInitials } from '../lib/utils';
 
-const DAY_LABELS = ['M', 'T', 'W', 'T', 'F', 'S', 'S'];
+const DAY_LETTERS = ['M','T','W','T','F','S','S'];
 
 function getWeekDays(ref = new Date()) {
   const day = ref.getDay();
@@ -25,7 +25,6 @@ function toDateKey(d) { return new Date(d).toISOString().slice(0, 10); }
 export default function HomeFeed({ activeTab = 'home', onNavigate = () => {}, events = [], onAddEvent = () => {}, onUpdateEvent = () => {}, onDeleteEvent = () => {}, onOpenEvent = () => {}, user = null, profile = null, onAuthRequired = () => {}, groups = [], onOpenGroup = () => {} }) {
   const [campusEvents, setCampusEvents] = useState([]);
   const todayKey = toDateKey(new Date());
-  const [selectedDay, setSelectedDay] = useState(todayKey);
   const [spontaneousPosts, setSpontaneousPosts] = useState([]);
   const [viewingStories, setViewingStories] = useState(false);
   const [storyStartIndex, setStoryStartIndex] = useState(0);
@@ -214,83 +213,68 @@ export default function HomeFeed({ activeTab = 'home', onNavigate = () => {}, ev
         )}
       </section>
 
-      {/* Calendar section */}
+      {/* Calendar — 7×2 grid */}
       {(() => {
         const allCalEvents = [...events, ...campusEvents];
-        const dayEvents = allCalEvents.filter(ev => ev.dateISO && toDateKey(ev.dateISO) === selectedDay);
         const now = new Date();
         const nextWeekRef = new Date(now);
         nextWeekRef.setDate(now.getDate() + 7);
         const twoWeekDays = [...getWeekDays(now), ...getWeekDays(nextWeekRef)];
-        const SHORT_DAYS = ['Mon','Tue','Wed','Thu','Fri','Sat','Sun'];
 
         return (
           <section style={{ marginBottom: 20 }}>
-            <h3 style={{ margin: '0 0 12px' }}>Calendar</h3>
+            <h3 style={{ margin: '0 0 10px' }}>Calendar</h3>
 
-            {/* 2-week horizontally scrollable strip */}
-            <div style={{
-              display: 'flex', gap: 8, overflowX: 'auto', paddingBottom: 4,
-              scrollbarWidth: 'none', marginLeft: -16, marginRight: -16,
-              paddingLeft: 16, paddingRight: 16,
-            }}>
-              {twoWeekDays.map((d, i) => {
+            {/* Day-letter header */}
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: 4, marginBottom: 4 }}>
+              {DAY_LETTERS.map((l, i) => (
+                <div key={i} style={{ textAlign: 'center', fontSize: 10, fontWeight: 700, color: '#484860', letterSpacing: '0.05em' }}>
+                  {l}
+                </div>
+              ))}
+            </div>
+
+            {/* 7×2 grid */}
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: 4 }}>
+              {twoWeekDays.map((d) => {
                 const key = toDateKey(d);
                 const isToday = key === todayKey;
-                const isSelected = key === selectedDay;
+                const isPast = key < todayKey;
                 const dayEvs = allCalEvents.filter(ev => ev.dateISO && toDateKey(ev.dateISO) === key);
+
                 return (
-                  <button key={key} onClick={() => setSelectedDay(key)} style={{
-                    flexShrink: 0, width: 88,
-                    borderRadius: 14, border: 'none',
-                    background: isSelected ? 'var(--purple)'
-                      : isToday ? 'rgba(83,74,183,0.14)'
-                      : 'rgba(255,255,255,0.04)',
-                    outline: isToday && !isSelected ? '1.5px solid rgba(83,74,183,0.5)' : 'none',
-                    cursor: 'pointer', padding: '10px 8px 10px',
-                    display: 'flex', flexDirection: 'column', alignItems: 'flex-start',
-                    gap: 3, transition: 'background 150ms', textAlign: 'left',
+                  <div key={key} style={{
+                    borderRadius: 10,
+                    background: isToday ? 'rgba(83,74,183,0.18)' : 'rgba(255,255,255,0.04)',
+                    outline: isToday ? '1.5px solid var(--purple)' : '1px solid rgba(255,255,255,0.05)',
+                    padding: '7px 4px 6px',
+                    minHeight: 68,
+                    display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 3,
+                    opacity: isPast ? 0.38 : 1,
                   }}>
-                    <span style={{ fontSize: 11, fontWeight: 700, letterSpacing: '0.04em', color: isSelected ? 'rgba(255,255,255,0.65)' : '#555' }}>
-                      {SHORT_DAYS[i % 7]}
-                    </span>
-                    <span style={{ fontSize: 22, fontWeight: 900, lineHeight: 1, marginBottom: 5, color: isSelected ? '#fff' : isToday ? 'var(--purple)' : '#EEEEFF' }}>
+                    <span style={{ fontSize: 14, fontWeight: 800, color: isToday ? 'var(--purple)' : '#EEEEFF', lineHeight: 1, marginBottom: 2 }}>
                       {d.getDate()}
                     </span>
                     {dayEvs.slice(0, 2).map((ev, j) => (
-                      <div key={j} style={{
-                        width: '100%', padding: '3px 6px', borderRadius: 6, boxSizing: 'border-box',
-                        background: isSelected ? 'rgba(255,255,255,0.18)' : 'rgba(83,74,183,0.22)',
-                        fontSize: 10, fontWeight: 600, lineHeight: 1.4,
-                        color: isSelected ? '#fff' : 'var(--purple)',
+                      <div key={j} onClick={() => onOpenEvent(ev)} style={{
+                        width: '100%', padding: '2px 3px', borderRadius: 4, boxSizing: 'border-box',
+                        background: 'rgba(83,74,183,0.32)',
+                        fontSize: 9, fontWeight: 700, lineHeight: 1.35,
+                        color: '#C4BAFF',
                         overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+                        cursor: 'pointer',
                       }}>
                         {ev.title}
                       </div>
                     ))}
                     {dayEvs.length > 2 && (
-                      <span style={{ fontSize: 10, fontWeight: 600, color: isSelected ? 'rgba(255,255,255,0.55)' : '#555', paddingLeft: 2 }}>
-                        +{dayEvs.length - 2} more
+                      <span style={{ fontSize: 8, fontWeight: 700, color: '#555' }}>
+                        +{dayEvs.length - 2}
                       </span>
                     )}
-                  </button>
+                  </div>
                 );
               })}
-            </div>
-
-            {/* Events for selected day */}
-            <div style={{ marginTop: 16 }}>
-              {dayEvents.length > 0 ? (
-                <div className="cards" style={{ marginBottom: 0 }}>
-                  {dayEvents.map(ev => (
-                    <EventCard key={ev.id} event={ev} onJoin={handleJoin} currentUserName={currentUserName} currentUserId={user?.id} onOpenDetails={onOpenEvent} />
-                  ))}
-                </div>
-              ) : (
-                <div style={{ textAlign: 'center', padding: '20px 0 8px', color: '#444', fontSize: 14 }}>
-                  Nothing planned
-                </div>
-              )}
             </div>
           </section>
         );
