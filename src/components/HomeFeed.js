@@ -7,9 +7,25 @@ import SchoolLogo from './SchoolLogo';
 import { avatarColor } from '../lib/avatarColor';
 import { getInitials } from '../lib/utils';
 
+const DAY_LABELS = ['M', 'T', 'W', 'T', 'F', 'S', 'S'];
+
+function getWeekDays(ref = new Date()) {
+  const day = ref.getDay();
+  const monday = new Date(ref);
+  monday.setDate(ref.getDate() - ((day === 0 ? 7 : day) - 1));
+  return Array.from({ length: 7 }, (_, i) => {
+    const d = new Date(monday);
+    d.setDate(monday.getDate() + i);
+    return d;
+  });
+}
+
+function toDateKey(d) { return new Date(d).toISOString().slice(0, 10); }
+
 export default function HomeFeed({ activeTab = 'home', onNavigate = () => {}, events = [], onAddEvent = () => {}, onUpdateEvent = () => {}, onDeleteEvent = () => {}, onOpenEvent = () => {}, user = null, profile = null, onAuthRequired = () => {}, groups = [], onOpenGroup = () => {} }) {
-  const [showAllEvents, setShowAllEvents] = React.useState(false);
   const [campusEvents, setCampusEvents] = useState([]);
+  const todayKey = toDateKey(new Date());
+  const [selectedDay, setSelectedDay] = useState(todayKey);
   const [spontaneousPosts, setSpontaneousPosts] = useState([]);
   const [viewingStories, setViewingStories] = useState(false);
   const [storyStartIndex, setStoryStartIndex] = useState(0);
@@ -198,25 +214,73 @@ export default function HomeFeed({ activeTab = 'home', onNavigate = () => {}, ev
         )}
       </section>
 
-      <section style={{ marginBottom: 12 }}>
-        <h3
-          style={{ margin: '6px 0', display: 'flex', alignItems: 'center', gap: 6, cursor: events.length > 3 ? 'pointer' : undefined }}
-          onClick={() => events.length > 3 && setShowAllEvents(s => !s)}
-        >
-          Upcoming
-          {events.length > 3 && (
-            <span style={{ display: 'inline-flex', alignItems: 'center', gap: 3, color: 'var(--purple)', fontSize: 11, fontWeight: 600 }}>
-              {!showAllEvents && `+${events.length - 3}`}
-              <span style={{ transition: 'transform 200ms', display: 'inline-block', transform: showAllEvents ? 'rotate(180deg)' : 'rotate(0deg)' }}>▼</span>
-            </span>
-          )}
-        </h3>
-        <div className="cards">
-          {(showAllEvents ? events : events.slice(0, 3)).map((ev) => (
-            <EventCard key={ev.id} event={ev} onJoin={handleJoin} currentUserName={currentUserName} currentUserId={user?.id} onOpenDetails={onOpenEvent} />
-          ))}
-        </div>
-      </section>
+      {/* Calendar section */}
+      {(() => {
+        const allCalEvents = [...events, ...campusEvents];
+        const weekDays = getWeekDays();
+        const dayEvents = allCalEvents.filter(ev => ev.dateISO && toDateKey(ev.dateISO) === selectedDay);
+        const upcomingExtra = allCalEvents
+          .filter(ev => ev.dateISO && toDateKey(ev.dateISO) > toDateKey(weekDays[6]))
+          .sort((a, b) => new Date(a.dateISO) - new Date(b.dateISO));
+
+        return (
+          <section style={{ marginBottom: 20 }}>
+            <h3 style={{ margin: '0 0 12px' }}>Calendar</h3>
+
+            {/* Week strip */}
+            <div style={{ display: 'flex', gap: 6, marginBottom: 16 }}>
+              {weekDays.map((d, i) => {
+                const key = toDateKey(d);
+                const isToday = key === todayKey;
+                const isSelected = key === selectedDay;
+                const hasEvents = allCalEvents.some(ev => ev.dateISO && toDateKey(ev.dateISO) === key);
+                return (
+                  <button key={key} onClick={() => setSelectedDay(key)} style={{
+                    flex: 1, padding: '10px 0 8px', borderRadius: 12, border: 'none',
+                    background: isSelected ? 'var(--purple)' : isToday ? 'rgba(83,74,183,0.14)' : 'rgba(255,255,255,0.04)',
+                    cursor: 'pointer', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 3,
+                    outline: isToday && !isSelected ? '1px solid rgba(83,74,183,0.4)' : 'none',
+                    transition: 'background 150ms',
+                  }}>
+                    <span style={{ fontSize: 10, fontWeight: 700, color: isSelected ? 'rgba(255,255,255,0.75)' : '#666', letterSpacing: '0.04em' }}>
+                      {DAY_LABELS[i]}
+                    </span>
+                    <span style={{ fontSize: 16, fontWeight: 800, color: isSelected ? '#fff' : isToday ? 'var(--purple)' : '#EEEEFF', lineHeight: 1 }}>
+                      {d.getDate()}
+                    </span>
+                    <div style={{ width: 4, height: 4, borderRadius: '50%', background: hasEvents ? (isSelected ? 'rgba(255,255,255,0.7)' : 'var(--purple)') : 'transparent', marginTop: 1 }} />
+                  </button>
+                );
+              })}
+            </div>
+
+            {/* Events for selected day */}
+            {dayEvents.length > 0 ? (
+              <div className="cards" style={{ marginBottom: 0 }}>
+                {dayEvents.map(ev => (
+                  <EventCard key={ev.id} event={ev} onJoin={handleJoin} currentUserName={currentUserName} currentUserId={user?.id} onOpenDetails={onOpenEvent} />
+                ))}
+              </div>
+            ) : (
+              <div style={{ textAlign: 'center', padding: '22px 0 8px', color: '#444', fontSize: 14 }}>
+                Nothing planned
+              </div>
+            )}
+
+            {/* Upcoming beyond this week */}
+            {upcomingExtra.length > 0 && (
+              <div style={{ marginTop: 16 }}>
+                <div style={{ fontSize: 11, fontWeight: 700, color: '#555', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 8 }}>Coming up</div>
+                <div className="cards" style={{ marginBottom: 0 }}>
+                  {upcomingExtra.slice(0, 3).map(ev => (
+                    <EventCard key={ev.id} event={ev} onJoin={handleJoin} currentUserName={currentUserName} currentUserId={user?.id} onOpenDetails={onOpenEvent} />
+                  ))}
+                </div>
+              </div>
+            )}
+          </section>
+        );
+      })()}
 
       {(() => {
         const myGroups = groups.filter(g => g.members?.some(m => m.user_id && user ? m.user_id === user.id : false));
