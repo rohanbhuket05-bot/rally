@@ -471,11 +471,11 @@ export async function getProfile(userId) {
   }
 }
 
-export async function upsertProfile(userId, { name, bio, username, friends, school, school_verified, avatar_url, pronouns }) {
+export async function upsertProfile(userId, { name, bio, username, friends, school, school_verified, avatar_url, pronouns, grad_year, email }) {
   try {
     const { data, error } = await supabase
       .from('profiles')
-      .upsert({ id: userId, name, bio, username, friends: friends || [], school: school || '', school_verified: !!school_verified, avatar_url: avatar_url || '', pronouns: pronouns || '', updated_at: new Date().toISOString() })
+      .upsert({ id: userId, name, bio, username, friends: friends || [], school: school || '', school_verified: !!school_verified, avatar_url: avatar_url || '', pronouns: pronouns || '', ...(grad_year != null ? { grad_year } : {}), ...(email ? { email } : {}), updated_at: new Date().toISOString() })
       .select()
       .single();
     if (error) throw error;
@@ -582,7 +582,7 @@ export async function getOutgoingFriendRequests(userId) {
 
 export async function acceptFriendRequest(friendshipId) {
   try {
-    const { error } = await supabase.from('friendships').update({ status: 'accepted' }).eq('id', friendshipId);
+    const { error } = await supabase.from('friendships').update({ status: 'accepted', accepted_at: new Date().toISOString() }).eq('id', friendshipId);
     if (error) throw error;
     return true;
   } catch (e) {

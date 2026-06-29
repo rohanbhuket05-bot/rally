@@ -17,6 +17,8 @@ import UsernamePrompt from './components/UsernamePrompt';
 import BottomNav from './components/BottomNav';
 import SpontaneousCompose from './components/SpontaneousCompose';
 import Campus from './components/Campus';
+import LandingPage from './components/LandingPage';
+import OnboardingFlow from './components/OnboardingFlow';
 import { isSupabaseConfigured, signOut, getUser, onAuthStateChange, getEvents as sbGetEvents, insertEvent as sbInsertEvent, updateEvent as sbUpdateEvent, deleteEvent as sbDeleteEvent, joinEvent as sbJoinEvent, leaveEvent as sbLeaveEvent, getGroups as sbGetGroups, insertGroup as sbInsertGroup, updateGroup as sbUpdateGroup, deleteGroup as sbDeleteGroup, leaveGroup as sbLeaveGroup, getProfile, upsertProfile, createOrGetDm } from './lib/supabaseClient';
 
 const MAIN_TABS = ['home', 'campus', 'groups', 'profile', 'post'];
@@ -24,6 +26,8 @@ const PERSISTENT_TABS = [...MAIN_TABS, 'group', 'group-chat', 'friend-profile'];
 
 function App() {
   const [user, setUser] = useState(null);
+  const [authResolved, setAuthResolved] = useState(false);
+  const [showOnboarding, setShowOnboarding] = useState(false);
   const [showUsernamePrompt, setShowUsernamePrompt] = useState(false);
   const [darkMode, setDarkMode] = useState(() => {
     if (!localStorage.getItem('rally_dark_migrated_v1')) {
@@ -176,11 +180,12 @@ function App() {
     localStorage.setItem('rally_friends', JSON.stringify(loaded.friends));
     if (loaded.school) localStorage.setItem('rally_school', loaded.school);
     if (loaded.school_verified) localStorage.setItem('rally_school_verified', loaded.school);
-    // Persist Google avatar to profiles table on first sign-in
-    if (!data?.avatar_url && loaded.avatar_url) {
-      upsertProfile(userId, loaded);
+    // Persist Google avatar and email to profiles table on first sign-in
+    if (!data?.avatar_url && loaded.avatar_url || !data?.email) {
+      upsertProfile(userId, { ...loaded, email: u?.email || '' });
     }
-    if (!loaded.username) setShowUsernamePrompt(true);
+    if (!loaded.school) setShowOnboarding(true);
+    else if (!loaded.username) setShowUsernamePrompt(true);
   }, []);
 
   const handleUsernameChosen = useCallback(async (username) => {
@@ -202,11 +207,11 @@ function App() {
 
   // auth init — runs once, replaces the old AuthBar effect
   useEffect(() => {
-    if (!isSupabaseConfigured()) return;
+    if (!isSupabaseConfigured()) { setAuthResolved(true); return; }
     let mounted = true;
     (async () => {
       const u = await getUser();
-      if (mounted) { setUser(u); if (u) loadUserProfile(u.id, u); }
+      if (mounted) { setUser(u); if (u) loadUserProfile(u.id, u); setAuthResolved(true); }
     })();
     const unsub = onAuthStateChange((event, session) => {
       setUser(session?.user ?? null);
@@ -218,6 +223,16 @@ function App() {
   const onAuthRequired = useCallback((message = 'Sign in to continue') => {
     setAuthModalMessage(message);
   }, []);
+
+  const handleOnboardingComplete = useCallback(async ({ school, gradYear, username, name, avatarUrl }) => {
+    const updated = { ...profile, school, grad_year: gradYear, username, name, avatar_url: avatarUrl };
+    setProfile(updated);
+    localStorage.setItem('rally_school', school);
+    localStorage.setItem('rally_username', username);
+    localStorage.setItem('rally_name', name);
+    if (user) await upsertProfile(user.id, { ...updated, email: user.email });
+    setShowOnboarding(false);
+  }, [profile, user]);
 
   const addEvent = useCallback(async (evt) => {
     // optimistic add locally
@@ -321,6 +336,10 @@ function App() {
     setGroups(s => s.filter(g => g.id !== id));
     if (isSupabaseConfigured()) sbLeaveGroup(id);
   }, []);
+
+  if (!authResolved) return null;
+  if (!user) return <div className="dark-theme"><LandingPage /></div>;
+  if (showOnboarding) return <div className="dark-theme"><OnboardingFlow user={user} profile={profile} onComplete={handleOnboardingComplete} /></div>;
 
   return (
     <div className={`App${darkMode ? ' dark-theme' : ''}`}>
