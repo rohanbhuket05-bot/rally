@@ -21,8 +21,8 @@ CREATE INDEX IF NOT EXISTS idx_event_messages_event_id   ON event_messages (even
 CREATE INDEX IF NOT EXISTS idx_event_messages_created_at ON event_messages (created_at);
 
 -- friendships: queries filter by both user columns
-CREATE INDEX IF NOT EXISTS idx_friendships_user_id_1 ON friendships (user_id_1);
-CREATE INDEX IF NOT EXISTS idx_friendships_user_id_2 ON friendships (user_id_2);
+CREATE INDEX IF NOT EXISTS idx_friendships_requester_id ON friendships (requester_id);
+CREATE INDEX IF NOT EXISTS idx_friendships_addressee_id ON friendships (addressee_id);
 
 -- profiles: username lookups (search, invite flows)
 CREATE INDEX IF NOT EXISTS idx_profiles_username ON profiles (username);
