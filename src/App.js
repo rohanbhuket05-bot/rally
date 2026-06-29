@@ -3,7 +3,6 @@ import './styles/darkTheme.css';
 import { useState, useEffect, useCallback } from 'react';
 import HomeFeed from './components/HomeFeed';
 import Profile from './components/Profile';
-import Explore from './components/Explore';
 import Groups from './components/Groups';
 import Create from './components/Create';
 import GroupDetails from './components/GroupDetails';
@@ -20,7 +19,7 @@ import SpontaneousCompose from './components/SpontaneousCompose';
 import Campus from './components/Campus';
 import { isSupabaseConfigured, signOut, getUser, onAuthStateChange, getEvents as sbGetEvents, insertEvent as sbInsertEvent, updateEvent as sbUpdateEvent, deleteEvent as sbDeleteEvent, joinEvent as sbJoinEvent, leaveEvent as sbLeaveEvent, getGroups as sbGetGroups, insertGroup as sbInsertGroup, updateGroup as sbUpdateGroup, deleteGroup as sbDeleteGroup, leaveGroup as sbLeaveGroup, getProfile, upsertProfile, createOrGetDm } from './lib/supabaseClient';
 
-const MAIN_TABS = ['home', 'explore', 'campus', 'groups', 'profile', 'post'];
+const MAIN_TABS = ['home', 'campus', 'groups', 'profile', 'post'];
 const PERSISTENT_TABS = [...MAIN_TABS, 'group', 'group-chat', 'friend-profile'];
 
 function App() {
@@ -334,11 +333,8 @@ function App() {
       {activeTab === 'home' && (
         <HomeFeed activeTab={activeTab} onNavigate={navigateFromTab} events={events} onAddEvent={addEvent} onUpdateEvent={updateEvent} onDeleteEvent={deleteEvent} onOpenEvent={openEvent} user={user} profile={profile} onAuthRequired={onAuthRequired} groups={groups} onOpenGroup={(id) => { setActiveGroupId(id); setActiveTab('group'); }} />
       )}
-      {activeTab === 'explore' && (
-        <Explore activeTab={activeTab} onNavigate={setActiveTab} events={events.filter(e => !e.personal && e.visibility === 'public')} onOpenEvent={openEvent} onUpdateEvent={updateEvent} user={user} profile={profile} onAuthRequired={onAuthRequired} />
-      )}
       {activeTab === 'campus' && (
-        <Campus user={user} profile={profile} events={events} groups={groups} onOpenEvent={openEvent} onNavigate={setActiveTab} />
+        <Campus user={user} profile={profile} events={events.filter(e => !e.personal && e.visibility === 'public')} groups={groups} onOpenEvent={openEvent} onNavigate={setActiveTab} onUpdateEvent={updateEvent} onAuthRequired={onAuthRequired} />
       )}
       {activeTab === 'groups' && (
         <Groups

@@ -1,7 +1,7 @@
 import React, { useRef, useEffect, useState } from 'react';
 import './HomeFeed.css';
 
-const NAV_IDS = ['home', 'explore', 'campus', 'post', 'groups', 'profile'];
+const NAV_IDS = ['home', 'campus', 'post', 'groups', 'profile'];
 const GROUP_TABS = new Set(['groups', 'group', 'group-chat']);
 
 const ICONS = {
@@ -9,12 +9,6 @@ const ICONS = {
     <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" strokeWidth={active ? 2.8 : 1.8} strokeLinecap="round" strokeLinejoin="round">
       <path d="M3 9.5L12 3l9 6.5V20a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V9.5z"/>
       <path d="M9 21V12h6v9"/>
-    </svg>
-  ),
-  explore: (active) => (
-    <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" strokeWidth={active ? 2.8 : 1.8} strokeLinecap="round" strokeLinejoin="round">
-      <circle cx="11" cy="11" r="8"/>
-      <line x1="21" y1="21" x2="16.65" y2="16.65"/>
     </svg>
   ),
   campus: (active) => (

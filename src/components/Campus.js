@@ -1,10 +1,11 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import EventCard from './EventCard';
 import SchoolLogo from './SchoolLogo';
 import StoryViewer from './StoryViewer';
 import { getPublicEvents, getSpontaneousPosts, subscribeToSpontaneousPosts, deleteSpontaneousPost, isSupabaseConfigured } from '../lib/supabaseClient';
 import { getInitials } from '../lib/utils';
 import { avatarColor } from '../lib/avatarColor';
+import CATEGORIES from '../data/categories';
 import './HomeFeed.css';
 
 function timeAgo(iso) {
@@ -22,12 +23,17 @@ export default function Campus({
   groups = [],
   onOpenEvent = () => {},
   onNavigate = () => {},
+  onUpdateEvent = () => {},
+  onAuthRequired = () => {},
 }) {
-  const [campusEvents, setCampusEvents] = useState([]);
+  const [dbEvents, setDbEvents] = useState([]);
   const [loading, setLoading] = useState(true);
   const [spontaneousPosts, setSpontaneousPosts] = useState([]);
   const [viewingStories, setViewingStories] = useState(false);
   const [storyStartIndex, setStoryStartIndex] = useState(0);
+  const [selectedCategory, setSelectedCategory] = useState(null);
+  const [q, setQ] = useState('');
+  const [categoryOpen, setCategoryOpen] = useState(false);
 
   const school = profile?.school || localStorage.getItem('rally_school') || '';
   const schoolVerified = profile?.school_verified || false;
@@ -36,23 +42,20 @@ export default function Campus({
   useEffect(() => {
     if (!isSupabaseConfigured()) { setLoading(false); return; }
     getPublicEvents().then(rows => {
-      const campus = rows
-        .filter(r => (r.tags || []).includes('On Campus') || r.category === 'On Campus')
-        .map(r => ({
-          id: r.id,
-          title: r.title,
-          date: r.date,
-          dateISO: r.date_iso || r.dateISO,
-          showTime: r.show_time ?? r.showTime ?? false,
-          location: r.location,
-          attendees: r.attendees || [],
-          tags: r.tags || [],
-          category: r.category,
-          host: r.host,
-          user_id: r.user_id,
-          trending: r.trending,
-        }));
-      setCampusEvents(campus);
+      setDbEvents(rows.map(r => ({
+        id: r.id,
+        title: r.title,
+        date: r.date,
+        dateISO: r.date_iso || r.dateISO,
+        showTime: r.show_time ?? r.showTime ?? false,
+        location: r.location,
+        attendees: r.attendees || [],
+        tags: r.tags || [],
+        category: r.category,
+        host: r.host,
+        user_id: r.user_id,
+        trending: r.trending,
+      })));
       setLoading(false);
     });
   }, []);
@@ -67,21 +70,30 @@ export default function Campus({
     return unsub;
   }, [user]);
 
-  const myOnCampusEvents = events.filter(e =>
-    (e.tags || []).includes('On Campus') || e.category === 'On Campus'
-  );
-  const allCampusEvents = [
-    ...myOnCampusEvents,
-    ...campusEvents.filter(ce => !myOnCampusEvents.some(me => me.id === ce.id)),
-  ].sort((a, b) => {
-    if (!a.dateISO) return 1;
-    if (!b.dateISO) return -1;
-    return new Date(a.dateISO) - new Date(b.dateISO);
-  });
+  const allEvents = useMemo(() => {
+    const dbIds = new Set(dbEvents.map(e => e.id));
+    const localOnly = events.filter(e => !dbIds.has(e.id));
+    return [...dbEvents, ...localOnly].sort((a, b) => {
+      if (!a.dateISO) return 1;
+      if (!b.dateISO) return -1;
+      return new Date(a.dateISO) - new Date(b.dateISO);
+    });
+  }, [dbEvents, events]);
+
+  const filteredEvents = useMemo(() => {
+    const term = q.trim().toLowerCase();
+    const catFiltered = selectedCategory
+      ? allEvents.filter(e => e.category === selectedCategory || (e.tags || []).includes(selectedCategory))
+      : allEvents;
+    if (!term) return catFiltered;
+    return catFiltered.filter(e =>
+      (e.title || '').toLowerCase().includes(term) ||
+      (e.location || '').toLowerCase().includes(term)
+    );
+  }, [q, allEvents, selectedCategory]);
 
   const campusOrgs = groups.filter(g => g.type === 'club');
 
-  // Deduplicate posts by user, own story first
   const storyByUser = Object.values(
     spontaneousPosts.reduce((acc, p) => { if (!acc[p.userId]) acc[p.userId] = p; return acc; }, {})
   );
@@ -105,8 +117,8 @@ export default function Campus({
   return (
     <main className="feed-root" style={{ overflowY: 'auto' }}>
       <header className="feed-header">
-        <h1>Campus</h1>
-        <p className="tagline">Your school, your scene</p>
+        <h1>Scene</h1>
+        <p className="tagline">Everything happening at your school</p>
       </header>
 
       {/* School banner */}
@@ -151,13 +163,29 @@ export default function Campus({
           </svg>
           <div style={{ flex: 1, textAlign: 'left' }}>
             <div style={{ fontWeight: 700, fontSize: 15, marginBottom: 4 }}>Add your college</div>
-            <div style={{ fontSize: 13, color: '#888', marginBottom: 12 }}>Verify your .edu to unlock your campus feed</div>
+            <div style={{ fontSize: 13, color: '#888', marginBottom: 12 }}>Verify your .edu to see what's happening at your school</div>
             <button className="join" onClick={() => onNavigate('profile')} style={{ padding: '8px 20px', borderRadius: 10, fontSize: 13 }}>
               Verify school
             </button>
           </div>
         </div>
       )}
+
+      {/* Search */}
+      <section style={{ marginBottom: 20 }}>
+        <div style={{ position: 'relative' }}>
+          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="#8888AA" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ position: 'absolute', left: 13, top: '50%', transform: 'translateY(-50%)', pointerEvents: 'none' }}>
+            <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
+          </svg>
+          <input
+            className="text-input"
+            placeholder="Search events, places…"
+            value={q}
+            onChange={e => setQ(e.target.value)}
+            style={{ width: '100%', boxSizing: 'border-box', paddingLeft: 38 }}
+          />
+        </div>
+      </section>
 
       {/* Stories */}
       {user && (
@@ -272,11 +300,70 @@ export default function Campus({
         </section>
       )}
 
-      {/* Campus Events */}
+      {/* Browse by Category */}
+      {!q && (
+        <section style={{ marginBottom: 24 }}>
+          <button
+            onClick={() => setCategoryOpen(o => !o)}
+            style={{
+              width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+              background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)',
+              borderRadius: categoryOpen ? '12px 12px 0 0' : 12, padding: '13px 16px',
+              cursor: 'pointer', transition: 'border-radius 150ms',
+            }}
+          >
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+              <span style={{ fontWeight: 700, fontSize: 15, color: '#EEEEFF' }}>Browse by Category</span>
+              {selectedCategory && (
+                <span style={{ fontSize: 12, color: 'var(--purple)', fontWeight: 600, background: 'rgba(83,74,183,0.15)', borderRadius: 20, padding: '2px 10px' }}>
+                  {selectedCategory}
+                </span>
+              )}
+            </div>
+            <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="#8888AA" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" style={{ transform: categoryOpen ? 'rotate(180deg)' : 'none', transition: 'transform 200ms' }}>
+              <polyline points="6 9 12 15 18 9"/>
+            </svg>
+          </button>
+          {categoryOpen && (
+            <div style={{ border: '1px solid rgba(255,255,255,0.08)', borderTop: 'none', borderRadius: '0 0 12px 12px', padding: 10, display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 8 }}>
+              {CATEGORIES.map(c => {
+                const count = allEvents.filter(e => e.category === c.label || (e.tags || []).includes(c.label)).length;
+                const isSelected = selectedCategory === c.label;
+                return (
+                  <button
+                    key={c.label}
+                    onClick={() => { setSelectedCategory(isSelected ? null : c.label); setCategoryOpen(false); }}
+                    style={{
+                      display: 'flex', alignItems: 'center', gap: 12,
+                      background: isSelected ? `${c.color}18` : 'rgba(255,255,255,0.04)',
+                      border: `1px solid ${isSelected ? c.color : 'rgba(255,255,255,0.08)'}`,
+                      borderRadius: 10, padding: '11px 10px',
+                      cursor: 'pointer', textAlign: 'left',
+                      transition: 'border-color 150ms, background 150ms',
+                    }}
+                  >
+                    <div style={{ width: 36, height: 36, borderRadius: '50%', background: `${c.color}20`, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, color: c.color }}>
+                      {c.icon}
+                    </div>
+                    <div>
+                      <div style={{ fontWeight: 700, fontSize: 13, color: '#EEEEFF', lineHeight: 1.2 }}>{c.label}</div>
+                      {count > 0 && <div style={{ fontSize: 11, color: '#8888AA', marginTop: 2 }}>{count} event{count !== 1 ? 's' : ''}</div>}
+                    </div>
+                  </button>
+                );
+              })}
+            </div>
+          )}
+        </section>
+      )}
+
+      {/* Events */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
-        <h2 style={{ margin: 0, fontSize: 16, fontWeight: 800, textAlign: 'left' }}>Campus Events</h2>
+        <h2 style={{ margin: 0, fontSize: 16, fontWeight: 800, textAlign: 'left' }}>
+          {q ? 'Results' : selectedCategory ? `${selectedCategory} Events` : 'All Events'}
+        </h2>
         {!loading && (
-          <span style={{ fontSize: 12, color: '#888' }}>{allCampusEvents.length} event{allCampusEvents.length !== 1 ? 's' : ''}</span>
+          <span style={{ fontSize: 12, color: '#888' }}>{filteredEvents.length} event{filteredEvents.length !== 1 ? 's' : ''}</span>
         )}
       </div>
 
@@ -284,9 +371,9 @@ export default function Campus({
         <div className="card" style={{ padding: '28px', marginBottom: 24 }}>
           <div style={{ fontSize: 13, color: '#888', textAlign: 'left' }}>Loading events…</div>
         </div>
-      ) : allCampusEvents.length > 0 ? (
+      ) : filteredEvents.length > 0 ? (
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 10, marginBottom: 24 }}>
-          {allCampusEvents.map(ev => (
+          {filteredEvents.map(ev => (
             <EventCard
               key={ev.id}
               event={ev}
@@ -299,8 +386,9 @@ export default function Campus({
         </div>
       ) : (
         <div className="card" style={{ padding: '28px', marginBottom: 24 }}>
-          <div style={{ fontSize: 13, color: '#666', marginBottom: 4, textAlign: 'left' }}>No campus events yet</div>
-          <div style={{ fontSize: 12, color: '#888', textAlign: 'left' }}>Tag your events "On Campus" when creating them to see them here</div>
+          <div style={{ fontSize: 13, color: '#666', textAlign: 'left' }}>
+            {q ? `No events matching "${q}"` : selectedCategory ? `No ${selectedCategory} events yet` : 'No events yet'}
+          </div>
         </div>
       )}
 
