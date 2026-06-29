@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { getEventMessages, subscribeToEventMessages, isSupabaseConfigured, getProfilesByIds, uploadEventCover } from '../lib/supabaseClient';
+import { getEventMessages, subscribeToEventMessages, getEventAttendees, subscribeToEventAttendees, isSupabaseConfigured, getProfilesByIds, uploadEventCover } from '../lib/supabaseClient';
 import { avatarColor } from '../lib/avatarColor';
 import { getInitials } from '../lib/utils';
 import './HomeFeed.css';
@@ -27,6 +27,18 @@ export default function EventDetails({ event, onBack, onUpdateEvent, activeTab, 
   const coverInputRef = useRef(null);
 
   const eventId = event?.id ?? null;
+  const eventRef = useRef(event);
+  useEffect(() => { eventRef.current = event; }, [event]);
+
+  useEffect(() => {
+    if (!eventId || !isSupabaseConfigured()) return;
+    let cancelled = false;
+    const unsub = subscribeToEventAttendees(eventId, async () => {
+      const attendees = await getEventAttendees(eventId);
+      if (!cancelled) onUpdateEvent({ ...eventRef.current, attendees });
+    });
+    return () => { cancelled = true; unsub(); };
+  }, [eventId, onUpdateEvent]);
 
   useEffect(() => {
     if (!eventId || !isSupabaseConfigured()) return;

@@ -639,6 +639,31 @@ export async function sendGroupMessage(groupId, text, senderName) {
   }
 }
 
+export async function getEventAttendees(eventId) {
+  try {
+    const { data } = await supabase
+      .from('event_attendees')
+      .select('id, user_id, name, initials, avatar_url')
+      .eq('event_id', eventId);
+    return mapAttendees(data || []);
+  } catch(e) {
+    return [];
+  }
+}
+
+export function subscribeToEventAttendees(eventId, onChange) {
+  const channel = supabase
+    .channel(`event-attendees-${eventId}`)
+    .on('postgres_changes', {
+      event: '*',
+      schema: 'public',
+      table: 'event_attendees',
+      filter: `event_id=eq.${eventId}`,
+    }, () => onChange())
+    .subscribe();
+  return () => supabase.removeChannel(channel);
+}
+
 export function subscribeToGroupMessages(groupId, onMessage) {
   const channel = supabase
     .channel(`group-messages-${groupId}`)
