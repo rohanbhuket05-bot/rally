@@ -288,17 +288,13 @@ function App() {
   }, [setActiveTab]);
 
   const handleGroupCreated = useCallback((groupData) => {
-    const membersWithId = (groupData.members || []).map(m =>
-      m.role === 'admin' && user ? { ...m, user_id: user.id } : m
-    );
-    const enriched = { ...groupData, members: membersWithId };
     const tempId = Date.now();
-    const newGroup = { ...enriched, id: tempId };
+    const newGroup = { ...groupData, id: tempId, members: [] };
     setGroups(s => [newGroup, ...s]);
     setActiveGroupId(tempId);
     setActiveTab('group');
     if (isSupabaseConfigured() && user) {
-      sbInsertGroup(enriched).then(row => {
+      sbInsertGroup(groupData).then(row => {
         if (row) {
           setGroups(s => s.map(g => g.id === tempId ? row : g));
           setActiveGroupId(row.id);
@@ -310,10 +306,10 @@ function App() {
   const updateGroup = useCallback((updated) => {
     setGroups(s => s.map(g => g.id === updated.id ? updated : g));
     if (isSupabaseConfigured()) {
-      const payload = { members: updated.members };
+      const payload = {};
       if (updated.logoColor !== undefined) payload.logo_color = updated.logoColor;
       if (updated.logoUrl !== undefined) payload.logo_url = updated.logoUrl;
-      sbUpdateGroup(updated.id, payload);
+      if (Object.keys(payload).length > 0) sbUpdateGroup(updated.id, payload);
     }
   }, []);
 

@@ -10,6 +10,11 @@ export function isSupabaseConfigured() {
 }
 
 const ATTENDEES_SELECT = 'event_attendees(id, user_id, name, initials, avatar_url)';
+const MEMBERS_SELECT = 'group_members(id, user_id, role, profiles(id, name, username, avatar_url))';
+
+function nameToInitials(name) {
+  return (name || '').split(' ').filter(Boolean).map(w => w[0]).join('').toUpperCase().slice(0, 2) || '?';
+}
 
 function mapAttendees(rows) {
   return (rows || []).map(a => ({
@@ -142,7 +147,14 @@ export function mapGroupRow(r) {
     description: r.description,
     type: r.type || 'club',
     privacy: r.privacy || 'public',
-    members: r.members || [],
+    members: (r.group_members || []).map(m => ({
+      user_id: m.user_id,
+      role: m.role || 'member',
+      name: m.profiles?.name || '',
+      initials: nameToInitials(m.profiles?.name),
+      avatar_url: m.profiles?.avatar_url || '',
+      color: '#FFFFFF',
+    })),
     icebreaker: r.icebreaker,
     eventTitle: r.event_title,
     events: r.events || [],
@@ -156,17 +168,20 @@ export async function getGroups() {
   try {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return [];
-    const [{ data: created, error: e1 }, { data: member, error: e2 }] = await Promise.all([
-      supabase.from('groups').select('*').eq('created_by', user.id),
-      supabase.from('groups').select('*').contains('members', [{ user_id: user.id }]),
-    ]);
-    if (e1) throw e1;
-    const all = [...(created || []), ...(e2 ? [] : (member || []))];
-    const seen = new Set();
-    return all
-      .filter(g => { if (seen.has(g.id)) return false; seen.add(g.id); return true; })
-      .sort((a, b) => new Date(b.created_at) - new Date(a.created_at))
-      .map(mapGroupRow);
+    const { data: membership } = await supabase
+      .from('group_members')
+      .select('group_id')
+      .eq('user_id', user.id);
+    if (!membership?.length) return [];
+    const groupIds = membership.map(m => m.group_id);
+    const { data, error } = await supabase
+      .from('groups')
+      .select(`*, ${MEMBERS_SELECT}`)
+      .in('id', groupIds)
+      .order('created_at', { ascending: false })
+      .limit(100);
+    if (error) throw error;
+    return (data || []).map(mapGroupRow);
   } catch (e) {
     console.warn('getGroups error', e.message || e);
     return [];
@@ -182,15 +197,22 @@ export async function insertGroup(group) {
       description: group.description || null,
       type: group.type || 'club',
       privacy: group.privacy || 'public',
-      members: group.members || [],
       icebreaker: group.icebreaker || null,
       event_title: group.eventTitle || null,
       events: group.events || [],
       created_by: user.id,
     };
-    const { data, error } = await supabase.from('groups').insert(payload).select();
+    const { data, error } = await supabase.from('groups').insert(payload).select('id');
     if (error) throw error;
-    return data?.[0] ? mapGroupRow(data[0]) : null;
+    const newGroupId = data?.[0]?.id;
+    if (!newGroupId) return null;
+    await supabase.from('group_members').insert({ group_id: newGroupId, user_id: user.id, role: 'admin' });
+    const { data: fresh } = await supabase
+      .from('groups')
+      .select(`*, ${MEMBERS_SELECT}`)
+      .eq('id', newGroupId)
+      .single();
+    return fresh ? mapGroupRow(fresh) : null;
   } catch (e) {
     console.warn('insertGroup error', e.message || e);
     return null;
@@ -266,16 +288,30 @@ export async function leaveGroup(groupId) {
   try {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) throw new Error('Not authenticated');
-    const { data: group, error: fetchError } = await supabase
-      .from('groups').select('members').eq('id', groupId).single();
-    if (fetchError) throw fetchError;
-    const updatedMembers = (group.members || []).filter(m => m.user_id !== user.id);
     const { error } = await supabase
-      .from('groups').update({ members: updatedMembers }).eq('id', groupId);
+      .from('group_members')
+      .delete()
+      .eq('group_id', groupId)
+      .eq('user_id', user.id);
     if (error) throw error;
     return true;
   } catch (e) {
     console.warn('leaveGroup error', e.message || e);
+    return false;
+  }
+}
+
+export async function removeGroupMember(groupId, userId) {
+  try {
+    const { error } = await supabase
+      .from('group_members')
+      .delete()
+      .eq('group_id', groupId)
+      .eq('user_id', userId);
+    if (error) throw error;
+    return true;
+  } catch (e) {
+    console.warn('removeGroupMember error', e.message || e);
     return false;
   }
 }
@@ -287,18 +323,22 @@ export async function deleteGroup(id) {
 
     const { data: group, error: fetchError } = await supabase
       .from('groups')
-      .select('members, created_by')
+      .select('created_by')
       .eq('id', id)
       .single();
     if (fetchError) throw fetchError;
 
-    const isAdmin = group.created_by === user.id ||
-      (group.members || []).some(m => m.user_id === user.id && m.role === 'admin');
-    if (!isAdmin) throw new Error('Only group admins can delete a group');
+    if (group.created_by !== user.id) {
+      const { data: membership } = await supabase
+        .from('group_members')
+        .select('role')
+        .eq('group_id', id)
+        .eq('user_id', user.id)
+        .single();
+      if (membership?.role !== 'admin') throw new Error('Only group admins can delete a group');
+    }
 
-    // Delete pending invites first (in case FK cascade isn't set)
     await supabase.from('group_invites').delete().eq('group_id', id);
-
     const { error } = await supabase.from('groups').delete().eq('id', id);
     if (error) throw error;
     return true;
@@ -335,7 +375,7 @@ export async function getGroupInvites(userId) {
     const groupIds = [...new Set(data.map(i => i.group_id))];
     const { data: groupRows } = await supabase
       .from('groups')
-      .select('id, name, type, description, members, privacy, icebreaker, event_title, events, created_by')
+      .select(`id, name, type, description, privacy, icebreaker, event_title, events, created_by, ${MEMBERS_SELECT}`)
       .in('id', groupIds);
     const groupMap = Object.fromEntries((groupRows || []).map(g => [g.id, mapGroupRow(g)]));
 
@@ -355,13 +395,27 @@ export async function getGroupInvites(userId) {
   }
 }
 
-export async function acceptGroupInvite(inviteId, memberEntry) {
-  const { data, error } = await supabase.rpc('accept_group_invite', {
-    p_invite_id: inviteId,
-    p_member_entry: memberEntry,
-  });
-  if (error) throw error;
-  return data ? mapGroupRow(data) : null;
+export async function acceptGroupInvite(inviteId) {
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) throw new Error('Not authenticated');
+  const { data: invite, error: invErr } = await supabase
+    .from('group_invites')
+    .select('group_id, invitee_id')
+    .eq('id', inviteId)
+    .single();
+  if (invErr) throw invErr;
+  if (invite.invitee_id !== user.id) throw new Error('Not your invite');
+  const { error: joinErr } = await supabase
+    .from('group_members')
+    .upsert({ group_id: invite.group_id, user_id: user.id, role: 'member' }, { onConflict: 'group_id,user_id' });
+  if (joinErr) throw joinErr;
+  await supabase.from('group_invites').delete().eq('id', inviteId);
+  const { data: groupData } = await supabase
+    .from('groups')
+    .select(`*, ${MEMBERS_SELECT}`)
+    .eq('id', invite.group_id)
+    .single();
+  return groupData ? mapGroupRow(groupData) : null;
 }
 
 export async function declineGroupInvite(inviteId) {

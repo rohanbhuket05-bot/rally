@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { getFriendships, searchUsersByUsername, sendGroupInvite, getOutgoingGroupInvites, isSupabaseConfigured, getGroupMessages, subscribeToGroupMessages, getProfilesByIds, uploadGroupLogo } from '../lib/supabaseClient';
+import { getFriendships, searchUsersByUsername, sendGroupInvite, getOutgoingGroupInvites, isSupabaseConfigured, getGroupMessages, subscribeToGroupMessages, getProfilesByIds, uploadGroupLogo, removeGroupMember } from '../lib/supabaseClient';
 import { avatarColor, AVATAR_COLORS } from '../lib/avatarColor';
 import { getInitials } from '../lib/utils';
 import { TYPE_COLORS, TYPE_LABELS } from '../lib/groupTypes';
@@ -169,9 +169,10 @@ export default function GroupDetails({
     onOpenChat();
   }
 
-  function handleRemoveMember(memberName) {
-    if (!isAdmin) return;
-    const updated = { ...group, members: members.filter(m => m.name !== memberName) };
+  function handleRemoveMember(userId) {
+    if (!isAdmin || !userId) return;
+    removeGroupMember(group.id, userId);
+    const updated = { ...group, members: members.filter(m => m.user_id !== userId) };
     onUpdateGroup && onUpdateGroup(updated);
   }
 
@@ -478,7 +479,7 @@ export default function GroupDetails({
                   ? <span className="category-pill" style={{ background: 'var(--light-purple)', color: 'var(--purple)', fontSize: 11 }}>Admin</span>
                   : isAdmin && (
                     <button
-                      onClick={() => handleRemoveMember(m.name)}
+                      onClick={() => handleRemoveMember(m.user_id)}
                       style={{ borderRadius: 8, padding: '5px 12px', fontSize: 12, background: 'rgba(231,76,60,0.08)', border: '1px solid rgba(231,76,60,0.2)', color: '#E74C3C', fontWeight: 600, cursor: 'pointer' }}
                     >Remove</button>
                   )

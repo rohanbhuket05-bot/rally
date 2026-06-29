@@ -38,19 +38,9 @@ export default function Groups({
 
   async function handleAccept(invite) {
     if (!user) return;
-    const displayName = localStorage.getItem('rally_name') || localStorage.getItem('rally_username') || 'You';
-    const initials = getInitials(displayName);
-    const memberEntry = {
-      name: displayName,
-      initials,
-      color: avatarColor(displayName),
-      role: 'member',
-      user_id: user.id,
-      avatar_url: profile?.avatar_url || '',
-    };
     setAcceptError('');
     try {
-      const group = await acceptGroupInvite(invite.id, memberEntry);
+      const group = await acceptGroupInvite(invite.id);
       if (group) {
         setInvites(s => s.filter(i => i.id !== invite.id));
         onGroupJoined(group);
