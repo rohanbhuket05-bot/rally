@@ -207,7 +207,7 @@ export async function uploadAvatarImage(userId, file) {
     if (error) throw error;
     const { data: { publicUrl } } = supabase.storage
       .from('avatars')
-      .getPublicUrl(path);
+      .getPublicUrl(path, { transform: { width: 200, height: 200, resize: 'cover' } });
     return publicUrl;
   } catch (e) {
     console.warn('uploadAvatarImage error', e.message || e);
@@ -225,7 +225,7 @@ export async function uploadEventCover(eventId, file) {
     if (error) throw error;
     const { data: { publicUrl } } = supabase.storage
       .from('event-covers')
-      .getPublicUrl(path);
+      .getPublicUrl(path, { transform: { width: 800, height: 480, resize: 'cover' } });
     return publicUrl;
   } catch (e) {
     console.warn('uploadEventCover error', e.message || e);
@@ -243,7 +243,7 @@ export async function uploadGroupLogo(groupId, file) {
     if (error) throw error;
     const { data: { publicUrl } } = supabase.storage
       .from('group-logos')
-      .getPublicUrl(path);
+      .getPublicUrl(path, { transform: { width: 200, height: 200, resize: 'cover' } });
     return publicUrl;
   } catch (e) {
     console.warn('uploadGroupLogo error', e.message || e);
