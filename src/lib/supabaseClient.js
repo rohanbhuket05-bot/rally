@@ -9,13 +9,30 @@ export function isSupabaseConfigured() {
   return true;
 }
 
+const ATTENDEES_SELECT = 'event_attendees(id, user_id, name, initials, avatar_url)';
+
+function mapAttendees(rows) {
+  return (rows || []).map(a => ({
+    user_id: a.user_id,
+    name: a.name || '',
+    initials: a.initials || '',
+    avatar_url: a.avatar_url || '',
+    color: '#FFFFFF',
+  }));
+}
+
 export async function getEvents() {
   try {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return [];
-    const { data, error } = await supabase.from('events').select('*').eq('user_id', user.id).order('date_iso', { ascending: true });
+    const { data, error } = await supabase
+      .from('events')
+      .select(`*, ${ATTENDEES_SELECT}`)
+      .eq('user_id', user.id)
+      .order('date_iso', { ascending: true })
+      .limit(200);
     if (error) throw error;
-    return data || [];
+    return (data || []).map(r => ({ ...r, attendees: mapAttendees(r.event_attendees) }));
   } catch (e) {
     console.warn('getEvents error', e.message || e);
     return [];
@@ -26,12 +43,13 @@ export async function getPublicEvents() {
   try {
     const { data, error } = await supabase
       .from('events')
-      .select('*')
+      .select(`*, ${ATTENDEES_SELECT}`)
       .eq('personal', false)
       .eq('visibility', 'public')
-      .order('date_iso', { ascending: true });
+      .order('date_iso', { ascending: true })
+      .limit(100);
     if (error) throw error;
-    return data || [];
+    return (data || []).map(r => ({ ...r, attendees: mapAttendees(r.event_attendees) }));
   } catch (e) {
     console.warn('getPublicEvents error', e.message || e);
     return [];
@@ -40,9 +58,14 @@ export async function getPublicEvents() {
 
 export async function getEventsByUserId(userId) {
   try {
-    const { data, error } = await supabase.from('events').select('*').eq('user_id', userId).order('date_iso', { ascending: true });
+    const { data, error } = await supabase
+      .from('events')
+      .select(`*, ${ATTENDEES_SELECT}`)
+      .eq('user_id', userId)
+      .order('date_iso', { ascending: true })
+      .limit(200);
     if (error) throw error;
-    return data || [];
+    return (data || []).map(r => ({ ...r, attendees: mapAttendees(r.event_attendees) }));
   } catch (e) {
     console.warn('getEventsByUserId error', e.message || e);
     return [];
@@ -73,16 +96,30 @@ export async function updateEvent({ id, ...rest }) {
   }
 }
 
-export async function updateEventAttendees(eventId, attendees) {
+export async function joinEvent(eventId, { userId, name, initials, avatarUrl }) {
   try {
-    const { error } = await supabase.rpc('update_event_attendees', {
-      p_event_id: eventId,
-      p_attendees: attendees,
-    });
+    const { error } = await supabase.from('event_attendees').upsert(
+      { event_id: eventId, user_id: userId, name, initials, avatar_url: avatarUrl },
+      { onConflict: 'event_id,user_id' }
+    );
     if (error) throw error;
     return true;
   } catch (e) {
-    console.warn('updateEventAttendees error', e.message || e);
+    console.warn('joinEvent error', e.message || e);
+    return false;
+  }
+}
+
+export async function leaveEvent(eventId, userId) {
+  try {
+    const { error } = await supabase.from('event_attendees')
+      .delete()
+      .eq('event_id', eventId)
+      .eq('user_id', userId);
+    if (error) throw error;
+    return true;
+  } catch (e) {
+    console.warn('leaveEvent error', e.message || e);
     return false;
   }
 }
@@ -575,7 +612,8 @@ export async function getGroupMessages(groupId) {
       .from('group_messages')
       .select('*')
       .eq('group_id', String(groupId))
-      .order('created_at', { ascending: true });
+      .order('created_at', { ascending: true })
+      .limit(100);
     if (error) { console.error('getGroupMessages error', error); return []; }
     return (data || []).map(mapMessageRow);
   } catch (e) {
@@ -631,7 +669,8 @@ export async function getEventMessages(eventId) {
       .from('event_messages')
       .select('*')
       .eq('event_id', eventId)
-      .order('created_at', { ascending: true });
+      .order('created_at', { ascending: true })
+      .limit(100);
     if (error) { console.error('getEventMessages error', error); return []; }
     return (data || []).map(mapEventMessageRow);
   } catch (e) {
@@ -767,16 +806,21 @@ export async function verifyEduCode(email, token) {
   }
 }
 
+const _profileCache = new Map();
+
 export async function getProfilesByIds(ids) {
   if (!ids || ids.length === 0) return {};
-  try {
-    const { data, error } = await supabase
-      .from('profiles')
-      .select('id, avatar_url, name, username')
-      .in('id', ids);
-    if (error) return {};
-    return Object.fromEntries(data.map(p => [p.id, { avatar_url: p.avatar_url, name: p.name, username: p.username }]));
-  } catch { return {}; }
+  const uncached = ids.filter(id => !_profileCache.has(id));
+  if (uncached.length > 0) {
+    try {
+      const { data } = await supabase
+        .from('profiles')
+        .select('id, avatar_url, name, username')
+        .in('id', uncached);
+      if (data) data.forEach(p => _profileCache.set(p.id, { avatar_url: p.avatar_url, name: p.name, username: p.username }));
+    } catch {}
+  }
+  return Object.fromEntries(ids.filter(id => _profileCache.has(id)).map(id => [id, _profileCache.get(id)]));
 }
 
 export async function createSpontaneousPost({ text, location, senderName, avatarUrl, userId }) {

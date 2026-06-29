@@ -18,7 +18,7 @@ import UsernamePrompt from './components/UsernamePrompt';
 import BottomNav from './components/BottomNav';
 import SpontaneousCompose from './components/SpontaneousCompose';
 import Campus from './components/Campus';
-import { isSupabaseConfigured, signOut, getUser, onAuthStateChange, getEvents as sbGetEvents, insertEvent as sbInsertEvent, updateEvent as sbUpdateEvent, updateEventAttendees as sbUpdateEventAttendees, deleteEvent as sbDeleteEvent, getGroups as sbGetGroups, insertGroup as sbInsertGroup, updateGroup as sbUpdateGroup, deleteGroup as sbDeleteGroup, leaveGroup as sbLeaveGroup, getProfile, upsertProfile, createOrGetDm } from './lib/supabaseClient';
+import { isSupabaseConfigured, signOut, getUser, onAuthStateChange, getEvents as sbGetEvents, insertEvent as sbInsertEvent, updateEvent as sbUpdateEvent, deleteEvent as sbDeleteEvent, joinEvent as sbJoinEvent, leaveEvent as sbLeaveEvent, getGroups as sbGetGroups, insertGroup as sbInsertGroup, updateGroup as sbUpdateGroup, deleteGroup as sbDeleteGroup, leaveGroup as sbLeaveGroup, getProfile, upsertProfile, createOrGetDm } from './lib/supabaseClient';
 
 const MAIN_TABS = ['home', 'explore', 'campus', 'groups', 'profile', 'post'];
 const PERSISTENT_TABS = [...MAIN_TABS, 'group', 'group-chat', 'friend-profile'];
@@ -231,7 +231,7 @@ function App() {
     });
 
     if (isSupabaseConfigured()){
-      const created = await sbInsertEvent({ title: evt.title, date_iso: evt.dateISO, show_time: evt.showTime, location: evt.location, city: evt.city || '', host: temp.host || '', attendees: evt.attendees || [], personal: evt.personal ?? false, tags: evt.tags || [], visibility: evt.visibility || 'public', cover_url: evt.coverUrl || null });
+      const created = await sbInsertEvent({ title: evt.title, date_iso: evt.dateISO, show_time: evt.showTime, location: evt.location, city: evt.city || '', host: temp.host || '', personal: evt.personal ?? false, tags: evt.tags || [], visibility: evt.visibility || 'public', cover_url: evt.coverUrl || null });
       if (created) {
         setEvents(s => s.map(x => x.id === temp.id ? ({ id: created.id, title: created.title, dateISO: created.date_iso || created.dateISO, showTime: created.show_time ?? created.showTime, location: created.location, city: evt.city || '', host: temp.host || '', attendees: created.attendees || [], personal: evt.personal ?? created.personal ?? false, tags: created.tags || evt.tags || [], visibility: evt.visibility || created.visibility || (evt.personal ? 'private' : 'public'), user_id: created.user_id, coverUrl: created.cover_url || null }) : x));
       }
@@ -239,14 +239,24 @@ function App() {
   }, []);
 
   const updateEvent = useCallback(async (updated) => {
-    setEvents(s => s.some(x => x.id === updated.id) ? s.map(x => x.id === updated.id ? updated : x) : [...s, updated]);
+    let prevAttendees = [];
+    setEvents(s => {
+      const existing = s.find(x => x.id === updated.id);
+      prevAttendees = existing?.attendees || [];
+      return s.some(x => x.id === updated.id) ? s.map(x => x.id === updated.id ? updated : x) : [...s, updated];
+    });
     setActiveEventData(prev => prev?.id === updated.id ? updated : prev);
-    if (isSupabaseConfigured()) {
-      const isOwner = updated.user_id && user ? updated.user_id === user.id : true;
-      if (isOwner) {
-        await sbUpdateEvent({ id: updated.id, date_iso: updated.dateISO, show_time: updated.showTime, title: updated.title, location: updated.location, attendees: updated.attendees || [], tags: updated.tags || [], visibility: updated.visibility || 'public', cover_url: updated.coverUrl || null });
-      } else {
-        await sbUpdateEventAttendees(updated.id, updated.attendees || []);
+    if (isSupabaseConfigured() && user) {
+      const wasAttending = prevAttendees.some(a => a.user_id === user.id);
+      const isAttending = (updated.attendees || []).some(a => a.user_id === user.id);
+      if (!wasAttending && isAttending) {
+        const a = (updated.attendees || []).find(a => a.user_id === user.id);
+        await sbJoinEvent(updated.id, { userId: user.id, name: a?.name || '', initials: a?.initials || '', avatarUrl: a?.avatar_url || '' });
+      } else if (wasAttending && !isAttending) {
+        await sbLeaveEvent(updated.id, user.id);
+      }
+      if (updated.user_id === user.id) {
+        await sbUpdateEvent({ id: updated.id, date_iso: updated.dateISO, show_time: updated.showTime, title: updated.title, location: updated.location, tags: updated.tags || [], visibility: updated.visibility || 'public', cover_url: updated.coverUrl || null });
       }
     }
   }, [user]);
