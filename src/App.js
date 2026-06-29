@@ -72,7 +72,14 @@ function App() {
   }, [viewingFriendId]);
   const [createGroupContext, setCreateGroupContext] = useState(null);
   const [events, setEvents] = useState(() => {
-    try { return JSON.parse(localStorage.getItem('rally_events') || '[]'); } catch(e) { return []; }
+    try {
+      if (!localStorage.getItem('rally_events_migrated_v3')) {
+        localStorage.removeItem('rally_events');
+        localStorage.setItem('rally_events_migrated_v3', '1');
+        return [];
+      }
+      return JSON.parse(localStorage.getItem('rally_events') || '[]');
+    } catch(e) { return []; }
   });
   const [groups, setGroups] = useState(() => {
     try { return JSON.parse(localStorage.getItem('rally_groups') || '[]'); } catch(e) { return []; }
@@ -90,7 +97,7 @@ function App() {
       if (rows && rows.length > 0) {
         // Supabase is authoritative once it has data
         const fallbackHost = localStorage.getItem('rally_username') || localStorage.getItem('rally_name') || '';
-        setEvents(rows.map(r => ({ id: r.id, title: r.title, dateISO: r.date_iso || r.dateISO, showTime: r.show_time ?? r.showTime ?? true, location: r.location, city: r.city || '', host: r.host || (r.personal ? undefined : fallbackHost), attendees: r.attendees || [], personal: r.personal ?? false, tags: r.tags || [], visibility: r.visibility || 'public', user_id: r.user_id, coverUrl: r.cover_url || r.coverUrl || null })));
+        setEvents(rows.map(r => { const isPersonal = r.personal === true; return { id: r.id, title: r.title, dateISO: r.date_iso || r.dateISO, showTime: r.show_time ?? r.showTime ?? true, location: r.location, city: r.city || '', host: r.host || (isPersonal ? undefined : fallbackHost), attendees: r.attendees || [], personal: isPersonal, tags: r.tags || [], visibility: isPersonal ? 'private' : (r.visibility || 'public'), user_id: r.user_id, coverUrl: r.cover_url || r.coverUrl || null }; }));
       } else {
         // Supabase empty — migrate any localStorage events up
         const local = (() => { try { return JSON.parse(localStorage.getItem('rally_events') || '[]'); } catch(e) { return []; } })();
@@ -225,7 +232,7 @@ function App() {
     if (isSupabaseConfigured()){
       const created = await sbInsertEvent({ title: evt.title, date_iso: evt.dateISO, show_time: evt.showTime, location: evt.location, city: evt.city || '', host: temp.host || '', attendees: evt.attendees || [], personal: evt.personal ?? false, tags: evt.tags || [], visibility: evt.visibility || 'public', cover_url: evt.coverUrl || null });
       if (created) {
-        setEvents(s => s.map(x => x.id === temp.id ? ({ id: created.id, title: created.title, dateISO: created.date_iso || created.dateISO, showTime: created.show_time ?? created.showTime, location: created.location, city: evt.city || '', host: temp.host || '', attendees: created.attendees || [], personal: created.personal ?? false, tags: created.tags || evt.tags || [], visibility: created.visibility || evt.visibility || 'public', user_id: created.user_id, coverUrl: created.cover_url || null }) : x));
+        setEvents(s => s.map(x => x.id === temp.id ? ({ id: created.id, title: created.title, dateISO: created.date_iso || created.dateISO, showTime: created.show_time ?? created.showTime, location: created.location, city: evt.city || '', host: temp.host || '', attendees: created.attendees || [], personal: evt.personal ?? created.personal ?? false, tags: created.tags || evt.tags || [], visibility: evt.visibility || created.visibility || (evt.personal ? 'private' : 'public'), user_id: created.user_id, coverUrl: created.cover_url || null }) : x));
       }
     }
   }, []);
@@ -321,7 +328,7 @@ function App() {
         <HomeFeed activeTab={activeTab} onNavigate={navigateFromTab} events={events} onAddEvent={addEvent} onUpdateEvent={updateEvent} onDeleteEvent={deleteEvent} onOpenEvent={openEvent} user={user} profile={profile} onAuthRequired={onAuthRequired} groups={groups} onOpenGroup={(id) => { setActiveGroupId(id); setActiveTab('group'); }} />
       )}
       {activeTab === 'explore' && (
-        <Explore activeTab={activeTab} onNavigate={setActiveTab} events={events} onOpenEvent={openEvent} onUpdateEvent={updateEvent} user={user} profile={profile} onAuthRequired={onAuthRequired} />
+        <Explore activeTab={activeTab} onNavigate={setActiveTab} events={events.filter(e => !e.personal && e.visibility === 'public')} onOpenEvent={openEvent} onUpdateEvent={updateEvent} user={user} profile={profile} onAuthRequired={onAuthRequired} />
       )}
       {activeTab === 'campus' && (
         <Campus user={user} profile={profile} events={events} groups={groups} onOpenEvent={openEvent} onNavigate={setActiveTab} />

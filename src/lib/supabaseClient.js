@@ -681,3 +681,161 @@ export async function signInWithProvider(provider) {
     return { error: e };
   }
 }
+
+export async function createOrGetDm(otherUserId) {
+  try {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return null;
+    const ids = [user.id, otherUserId].sort();
+    const { data: existing } = await supabase
+      .from('dm_channels')
+      .select('id')
+      .contains('member_ids', ids)
+      .single();
+    if (existing) return existing;
+    const { data: created, error } = await supabase
+      .from('dm_channels')
+      .insert({ member_ids: ids })
+      .select('id')
+      .single();
+    if (error) { console.error('createOrGetDm error', error); return null; }
+    return created;
+  } catch (e) {
+    console.error('createOrGetDm exception', e.message || e);
+    return null;
+  }
+}
+
+export async function getSpontaneousPosts() {
+  try {
+    const { data, error } = await supabase
+      .from('spontaneous_posts')
+      .select('*')
+      .order('created_at', { ascending: false });
+    if (error) return [];
+    return data.map(r => ({
+      id: r.id,
+      userId: r.user_id,
+      senderName: r.sender_name,
+      avatarUrl: r.avatar_url,
+      text: r.text,
+      location: r.location,
+      createdAt: r.created_at,
+    }));
+  } catch { return []; }
+}
+
+export function subscribeToSpontaneousPosts(onInsert, onDelete) {
+  const channel = supabase
+    .channel('spontaneous-posts')
+    .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'spontaneous_posts' }, payload => {
+      const r = payload.new;
+      onInsert({ id: r.id, userId: r.user_id, senderName: r.sender_name, avatarUrl: r.avatar_url, text: r.text, location: r.location, createdAt: r.created_at });
+    })
+    .on('postgres_changes', { event: 'DELETE', schema: 'public', table: 'spontaneous_posts' }, payload => {
+      onDelete(payload.old.id);
+    })
+    .subscribe();
+  return () => supabase.removeChannel(channel);
+}
+
+export async function deleteSpontaneousPost(id) {
+  try {
+    await supabase.from('spontaneous_posts').delete().eq('id', id);
+  } catch (e) {
+    console.error('deleteSpontaneousPost error', e.message || e);
+  }
+}
+
+export async function sendEduVerification(email, school) {
+  try {
+    const { error } = await supabase.auth.signInWithOtp({ email, options: { shouldCreateUser: false } });
+    if (error) return { success: false, error: error.message };
+    return { success: true };
+  } catch (e) {
+    return { success: false, error: e.message || 'Failed to send code' };
+  }
+}
+
+export async function verifyEduCode(email, token) {
+  try {
+    const { error } = await supabase.auth.verifyOtp({ email, token, type: 'email' });
+    if (error) return { success: false, error: error.message };
+    return { success: true };
+  } catch (e) {
+    return { success: false, error: e.message || 'Invalid code' };
+  }
+}
+
+export async function getProfilesByIds(ids) {
+  if (!ids || ids.length === 0) return {};
+  try {
+    const { data, error } = await supabase
+      .from('profiles')
+      .select('id, avatar_url, name, username')
+      .in('id', ids);
+    if (error) return {};
+    return Object.fromEntries(data.map(p => [p.id, { avatar_url: p.avatar_url, name: p.name, username: p.username }]));
+  } catch { return {}; }
+}
+
+export async function createSpontaneousPost({ text, location, senderName, avatarUrl, userId }) {
+  try {
+    const { data, error } = await supabase
+      .from('spontaneous_posts')
+      .insert({ text, location, sender_name: senderName, avatar_url: avatarUrl, user_id: userId })
+      .select()
+      .single();
+    if (error) { console.error('createSpontaneousPost error', error); return null; }
+    return { id: data.id, userId: data.user_id, senderName: data.sender_name, avatarUrl: data.avatar_url, text: data.text, location: data.location, createdAt: data.created_at };
+  } catch (e) {
+    console.error('createSpontaneousPost exception', e.message || e);
+    return null;
+  }
+}
+
+function mapDmMessageRow(r) {
+  return { id: r.id, dmId: r.dm_id, userId: r.user_id, senderName: r.sender_name, avatarUrl: r.avatar_url, text: r.text, createdAt: r.created_at };
+}
+
+export async function getDmMessages(dmId) {
+  try {
+    const { data, error } = await supabase
+      .from('dm_messages')
+      .select('*')
+      .eq('dm_id', dmId)
+      .order('created_at', { ascending: true });
+    if (error) return [];
+    return data.map(mapDmMessageRow);
+  } catch { return []; }
+}
+
+export async function sendDmMessage(dmId, text, senderName, avatarUrl) {
+  try {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) throw new Error('Not authenticated');
+    const { data, error } = await supabase
+      .from('dm_messages')
+      .insert({ dm_id: dmId, user_id: user.id, sender_name: senderName, avatar_url: avatarUrl, text })
+      .select()
+      .single();
+    if (error) { console.error('sendDmMessage error', error); return null; }
+    return mapDmMessageRow(data);
+  } catch (e) {
+    console.error('sendDmMessage exception', e.message || e);
+    return null;
+  }
+}
+
+export function subscribeToDmMessages(dmId, onMessage) {
+  const channel = supabase
+    .channel(`dm-messages-${dmId}`)
+    .on('postgres_changes', {
+      event: 'INSERT',
+      schema: 'public',
+      table: 'dm_messages',
+      filter: `dm_id=eq.${dmId}`,
+    }, payload => onMessage(mapDmMessageRow(payload.new)))
+    .subscribe();
+  return () => supabase.removeChannel(channel);
+}

@@ -58,3 +58,10 @@ export function getSchoolFromDomain(domain) {
   if (!domain) return null;
   return EDU_DOMAINS[domain.toLowerCase()] || null;
 }
+
+export function getDomainsForSchool(school) {
+  if (!school) return [];
+  return Object.entries(EDU_DOMAINS)
+    .filter(([, name]) => name === school)
+    .map(([domain]) => domain);
+}

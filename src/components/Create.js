@@ -129,6 +129,7 @@ export default function Create({ onNavigate = () => {}, onCreateGroup = () => {}
         <h1>Create</h1>
         <p className="tagline">Launch something new for your crew.</p>
       </header>
+      <div className="scroll-area">
 
       <section className="create-grid">
         {createOptions.map((option) => (
@@ -340,6 +341,7 @@ export default function Create({ onNavigate = () => {}, onCreateGroup = () => {}
           </div>
         </div>
       )}
+      </div>
     </main>
   );
 }

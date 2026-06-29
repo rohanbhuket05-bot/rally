@@ -115,7 +115,7 @@ export default function Explore({ events = [], onNavigate = () => {}, onOpenEven
 
   const allPublicEvents = useMemo(() => {
     const dbIds = new Set(dbPublicEvents.map(e => e.id));
-    const localOnly = events.filter(e => !e.personal && !dbIds.has(e.id) && e.visibility === 'public');
+    const localOnly = events.filter(e => !dbIds.has(e.id));
     return [...dbPublicEvents, ...localOnly];
   }, [dbPublicEvents, events]);
 
@@ -151,6 +151,7 @@ export default function Explore({ events = [], onNavigate = () => {}, onOpenEven
         <h1>Explore</h1>
         <p className="tagline">Find happenings around you</p>
       </header>
+      <div className="scroll-area">
 
       <section style={{ marginBottom: 12 }}>
         <input
@@ -211,6 +212,7 @@ export default function Explore({ events = [], onNavigate = () => {}, onOpenEven
           })}
         </div>
       </section>
+      </div>
     </main>
   );
 }
