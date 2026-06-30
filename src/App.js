@@ -123,6 +123,7 @@ function App() {
       school: (data?.school) || '',
       school_verified: !!(data?.school_verified),
       avatar_url: (data?.avatar_url) || u?.user_metadata?.avatar_url || '',
+      grad_year: data?.grad_year || null,
     };
     setProfile(loaded);
     localStorage.setItem('rally_name', loaded.name);

@@ -2,6 +2,24 @@ import React from 'react';
 
 const CATEGORIES = [
   {
+    label: 'On Campus',
+    color: '#FFB420',
+    icon: (
+      <svg viewBox="0 0 24 24" fill="currentColor" width="20" height="20">
+        <path d="M12 3L1 9l4 2.18V17h2v-4.82l1 .55V17c0 2.76 2.24 5 5 5s5-2.24 5-5v-4.27l2 -1.09V17h2V11.18L23 9 12 3zm5 14c0 1.66-1.34 3-3 3s-3-1.34-3-3v-3.73l3 1.64 3-1.64V17z"/>
+      </svg>
+    ),
+  },
+  {
+    label: 'Social',
+    color: '#667EEA',
+    icon: (
+      <svg viewBox="0 0 24 24" fill="currentColor" width="20" height="20">
+        <path d="M16 11c1.66 0 2.99-1.34 2.99-3S17.66 5 16 5c-1.66 0-3 1.34-3 3s1.34 3 3 3zm-8 0c1.66 0 2.99-1.34 2.99-3S9.66 5 8 5C6.34 5 5 6.34 5 8s1.34 3 3 3zm0 2c-2.33 0-7 1.17-7 3.5V19h14v-2.5c0-2.33-4.67-3.5-7-3.5zm8 0c-.29 0-.62.02-.97.05 1.16.84 1.97 1.97 1.97 3.45V19h6v-2.5c0-2.33-4.67-3.5-7-3.5z"/>
+      </svg>
+    ),
+  },
+  {
     label: 'Music',
     color: '#9D8FFF',
     icon: (
@@ -21,28 +39,10 @@ const CATEGORIES = [
   },
   {
     label: 'Outdoors',
-    color: '#00E5A8',
+    color: '#F97316',
     icon: (
       <svg viewBox="0 0 24 24" fill="currentColor" width="20" height="20">
         <path d="M17 12h-5v5h5v-5zM16 1v2H8V1H6v2H5c-1.11 0-1.99.9-1.99 2L3 19c0 1.1.89 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2h-1V1h-2zm3 18H5V8h14v11z"/>
-      </svg>
-    ),
-  },
-  {
-    label: 'On Campus',
-    color: '#FFB420',
-    icon: (
-      <svg viewBox="0 0 24 24" fill="currentColor" width="20" height="20">
-        <path d="M12 3L1 9l4 2.18V17h2v-4.82l1 .55V17c0 2.76 2.24 5 5 5s5-2.24 5-5v-4.27l2 -1.09V17h2V11.18L23 9 12 3zm5 14c0 1.66-1.34 3-3 3s-3-1.34-3-3v-3.73l3 1.64 3-1.64V17z"/>
-      </svg>
-    ),
-  },
-  {
-    label: 'Social',
-    color: '#667EEA',
-    icon: (
-      <svg viewBox="0 0 24 24" fill="currentColor" width="20" height="20">
-        <path d="M16 11c1.66 0 2.99-1.34 2.99-3S17.66 5 16 5c-1.66 0-3 1.34-3 3s1.34 3 3 3zm-8 0c1.66 0 2.99-1.34 2.99-3S9.66 5 8 5C6.34 5 5 6.34 5 8s1.34 3 3 3zm0 2c-2.33 0-7 1.17-7 3.5V19h14v-2.5c0-2.33-4.67-3.5-7-3.5zm8 0c-.29 0-.62.02-.97.05 1.16.84 1.97 1.97 1.97 3.45V19h6v-2.5c0-2.33-4.67-3.5-7-3.5z"/>
       </svg>
     ),
   },
@@ -66,7 +66,7 @@ const CATEGORIES = [
   },
   {
     label: 'Gaming',
-    color: '#667EEA',
+    color: '#E74C3C',
     icon: (
       <svg viewBox="0 0 24 24" fill="currentColor" width="20" height="20">
         <path d="M21.58 16.09l-1.09-7.66C20.21 6.46 18.52 5 16.53 5H7.47C5.48 5 3.79 6.46 3.51 8.43l-1.09 7.66C2.2 17.63 3.39 19 4.94 19c.68 0 1.32-.27 1.8-.75L9 16h6l2.25 2.25c.48.48 1.13.75 1.8.75 1.56 0 2.75-1.37 2.53-2.91zM11 11H9v2H8v-2H6v-1h2V8h1v2h2v1zm4 1c-.55 0-1-.45-1-1s.45-1 1-1 1 .45 1 1-.45 1-1 1zm2-3c-.55 0-1-.45-1-1s.45-1 1-1 1 .45 1 1-.45 1-1 1z"/>

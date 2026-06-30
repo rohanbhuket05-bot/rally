@@ -269,7 +269,7 @@ export default function HomeFeed({ activeTab = 'home', onNavigate = () => {}, ev
                         fontSize: 9, fontWeight: 700, lineHeight: 1.35,
                         color: '#C4BAFF',
                         overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
-                        cursor: 'pointer',
+                        cursor: 'pointer', textAlign: 'left',
                       }}>
                         {ev.title}
                       </div>

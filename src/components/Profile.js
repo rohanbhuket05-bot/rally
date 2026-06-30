@@ -443,12 +443,14 @@ export default function Profile({ user, profile = {}, onUpdateProfile = () => {}
               {school ? (
                 <button
                   onClick={() => setShowSchoolPicker(true)}
-                  style={{ background:'rgba(255,255,255,0.07)', color:'#EEEEFF', fontSize:12, padding:'4px 10px 4px 5px', fontWeight:700, border:'1px solid rgba(255,255,255,0.1)', borderRadius:999, cursor:'pointer', display:'flex', alignItems:'center', gap:6 }}
+                  title={school}
+                  style={{ background:'none', border:'none', padding:0, cursor:'pointer', position:'relative', flexShrink:0, display:'flex', alignItems:'center', justifyContent:'center' }}
                 >
-                  <SchoolLogo school={school} size={20} />
-                  {school}
+                  <SchoolLogo school={school} size={36} style={{ borderRadius:'50%' }} />
                   {schoolVerified && (
-                    <svg viewBox="0 0 24 24" width="13" height="13" fill="var(--teal)" flexShrink="0"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41L9 16.17z"/></svg>
+                    <div style={{ position:'absolute', bottom:-2, right:-2, width:14, height:14, borderRadius:'50%', background:'rgba(29,158,117,0.55)', border:'2px solid #0A0A0F', display:'flex', alignItems:'center', justifyContent:'center' }}>
+                      <svg viewBox="0 0 24 24" width="8" height="8" fill="#fff"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41L9 16.17z"/></svg>
+                    </div>
                   )}
                 </button>
               ) : (
@@ -459,6 +461,9 @@ export default function Profile({ user, profile = {}, onUpdateProfile = () => {}
                   <svg viewBox="0 0 24 24" width="12" height="12" fill="currentColor"><path d="M12 3L1 9l4 2.18V17h2v-4.82l1 .55V17c0 2.76 2.24 5 5 5s5-2.24 5-5v-4.27l2-1.09V17h2V11.18L23 9 12 3zm5 14c0 1.66-1.34 3-3 3s-3-1.34-3-3v-3.73l3 1.64 3-1.64V17z"/></svg>
                   Join your university
                 </button>
+              )}
+              {profile.grad_year && (
+                <span className="category-pill" style={{ background:'rgba(255,255,255,0.06)', color:'#8888AA', fontSize:11, padding:'6px 10px' }}>Class of {profile.grad_year}</span>
               )}
               <span className="category-pill" style={{ background:'var(--light-teal)', color:'var(--teal)', fontSize:12, padding:'6px 10px' }}>{cheers.count} cheers</span>
               <span className="category-pill" style={{ background:'var(--light-purple)', color:'var(--purple)', fontSize:12, padding:'6px 10px' }}>{events.filter(e => !e.personal && e.dateISO && new Date(e.dateISO) < new Date()).length} hosted</span>

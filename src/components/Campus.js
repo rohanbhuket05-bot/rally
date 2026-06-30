@@ -8,6 +8,51 @@ import { avatarColor } from '../lib/avatarColor';
 import CATEGORIES from '../data/categories';
 import './HomeFeed.css';
 
+function OrgAvatar({ g, size = 44 }) {
+  return g.logoUrl
+    ? <img src={g.logoUrl} alt={g.name} style={{ width: size, height: size, borderRadius: size * 0.25, objectFit: 'cover', flexShrink: 0 }} />
+    : <div style={{ width: size, height: size, borderRadius: size * 0.25, background: g.logoColor || avatarColor(g.name), display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontWeight: 800, fontSize: size * 0.32, flexShrink: 0 }}>{getInitials(g.name)}</div>;
+}
+
+function OrgRow({ g, user, currentUserName }) {
+  const memberCount = g.members?.length || 0;
+  const isAdmin = g.members?.some(m => ((user && m.user_id === user.id) || m.name === currentUserName) && m.role === 'admin');
+  return (
+    <div className="card" style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '12px 14px', ...(isAdmin ? { border: '1px solid rgba(255,185,0,0.4)' } : {}) }}>
+      <OrgAvatar g={g} size={44} />
+      <div style={{ flex: 1, minWidth: 0, textAlign: 'left' }}>
+        <div style={{ fontWeight: 700, fontSize: 14, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{g.name}</div>
+        <div style={{ fontSize: 12, color: '#666', marginTop: 2 }}>{memberCount} member{memberCount !== 1 ? 's' : ''}</div>
+      </div>
+      {isAdmin && <span style={{ fontSize: 10, fontWeight: 700, color: '#EF9F27', background: 'rgba(239,159,39,0.12)', borderRadius: 6, padding: '3px 7px', flexShrink: 0 }}>Admin</span>}
+    </div>
+  );
+}
+
+function OrgCard({ g, user, currentUserName }) {
+  const memberCount = g.members?.length || 0;
+  const isAdmin = g.members?.some(m => ((user && m.user_id === user.id) || m.name === currentUserName) && m.role === 'admin');
+  const isMember = g.members?.some(m => (user && m.user_id === user.id) || m.name === currentUserName);
+  return (
+    <div className="card" style={{ padding: '16px', ...(isAdmin ? { border: '1px solid rgba(255,185,0,0.4)' } : {}) }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: g.description ? 10 : 0 }}>
+        <OrgAvatar g={g} size={52} />
+        <div style={{ flex: 1, minWidth: 0, textAlign: 'left' }}>
+          <div style={{ fontWeight: 800, fontSize: 15, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{g.name}</div>
+          <div style={{ fontSize: 12, color: '#666', marginTop: 3 }}>{memberCount} member{memberCount !== 1 ? 's' : ''}</div>
+          <div style={{ display: 'flex', gap: 5, marginTop: 5, flexWrap: 'wrap' }}>
+            {isMember && <span style={{ fontSize: 10, fontWeight: 700, color: 'var(--teal)', background: 'rgba(29,158,117,0.12)', borderRadius: 6, padding: '2px 7px' }}>Member</span>}
+            {isAdmin && <span style={{ fontSize: 10, fontWeight: 700, color: '#EF9F27', background: 'rgba(239,159,39,0.12)', borderRadius: 6, padding: '2px 7px' }}>Admin</span>}
+          </div>
+        </div>
+      </div>
+      {g.description && (
+        <p style={{ margin: 0, fontSize: 13, color: '#8888AA', lineHeight: 1.5, textAlign: 'left' }}>{g.description}</p>
+      )}
+    </div>
+  );
+}
+
 function timeAgo(iso) {
   const diff = (Date.now() - new Date(iso)) / 1000;
   if (diff < 60) return 'just now';
@@ -31,9 +76,11 @@ export default function Campus({
   const [spontaneousPosts, setSpontaneousPosts] = useState([]);
   const [viewingStories, setViewingStories] = useState(false);
   const [storyStartIndex, setStoryStartIndex] = useState(0);
-  const [selectedCategory, setSelectedCategory] = useState(null);
+  const [selectedCategories, setSelectedCategories] = useState([]);
   const [q, setQ] = useState('');
   const [categoryOpen, setCategoryOpen] = useState(false);
+  const [showOrgsPage, setShowOrgsPage] = useState(false);
+  const [orgSearch, setOrgSearch] = useState('');
 
   const school = profile?.school || localStorage.getItem('rally_school') || '';
   const schoolVerified = profile?.school_verified || false;
@@ -82,15 +129,15 @@ export default function Campus({
 
   const filteredEvents = useMemo(() => {
     const term = q.trim().toLowerCase();
-    const catFiltered = selectedCategory
-      ? allEvents.filter(e => e.category === selectedCategory || (e.tags || []).includes(selectedCategory))
+    const catFiltered = selectedCategories.length > 0
+      ? allEvents.filter(e => selectedCategories.some(cat => e.category === cat || (e.tags || []).includes(cat)))
       : allEvents;
     if (!term) return catFiltered;
     return catFiltered.filter(e =>
       (e.title || '').toLowerCase().includes(term) ||
       (e.location || '').toLowerCase().includes(term)
     );
-  }, [q, allEvents, selectedCategory]);
+  }, [q, allEvents, selectedCategories]);
 
   const campusOrgs = groups.filter(g => g.type === 'club');
 
@@ -302,7 +349,7 @@ export default function Campus({
 
       {/* Browse by Category */}
       {!q && (
-        <section style={{ marginBottom: 24 }}>
+        <section style={{ marginBottom: 24, position: 'relative', zIndex: 10 }}>
           <button
             onClick={() => setCategoryOpen(o => !o)}
             style={{
@@ -312,27 +359,30 @@ export default function Campus({
               cursor: 'pointer', transition: 'border-radius 150ms',
             }}
           >
-            <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-              <span style={{ fontWeight: 700, fontSize: 15, color: '#EEEEFF' }}>Browse by Category</span>
-              {selectedCategory && (
-                <span style={{ fontSize: 12, color: 'var(--purple)', fontWeight: 600, background: 'rgba(83,74,183,0.15)', borderRadius: 20, padding: '2px 10px' }}>
-                  {selectedCategory}
-                </span>
-              )}
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', flex: 1, minWidth: 0 }}>
+              <span style={{ fontWeight: 700, fontSize: 15, color: '#EEEEFF', flexShrink: 0 }}>Browse by Category</span>
+              {selectedCategories.map(cat => {
+                const color = CATEGORIES.find(c => c.label === cat)?.color || 'var(--purple)';
+                return (
+                  <span key={cat} style={{ fontSize: 11, color, fontWeight: 700, background: `${color}22`, borderRadius: 20, padding: '2px 9px', flexShrink: 0 }}>
+                    {cat}
+                  </span>
+                );
+              })}
             </div>
             <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="#8888AA" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" style={{ transform: categoryOpen ? 'rotate(180deg)' : 'none', transition: 'transform 200ms' }}>
               <polyline points="6 9 12 15 18 9"/>
             </svg>
           </button>
           {categoryOpen && (
-            <div style={{ border: '1px solid rgba(255,255,255,0.08)', borderTop: 'none', borderRadius: '0 0 12px 12px', padding: 10, display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 8 }}>
+            <div style={{ position: 'absolute', top: '100%', left: 0, right: 0, border: '1px solid rgba(255,255,255,0.08)', borderTop: 'none', borderRadius: '0 0 12px 12px', padding: 10, display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 8, background: '#13131A', boxShadow: '0 12px 32px rgba(0,0,0,0.6)' }}>
               {CATEGORIES.map(c => {
                 const count = allEvents.filter(e => e.category === c.label || (e.tags || []).includes(c.label)).length;
-                const isSelected = selectedCategory === c.label;
+                const isSelected = selectedCategories.includes(c.label);
                 return (
                   <button
                     key={c.label}
-                    onClick={() => { setSelectedCategory(isSelected ? null : c.label); setCategoryOpen(false); }}
+                    onClick={() => setSelectedCategories(prev => isSelected ? prev.filter(x => x !== c.label) : [...prev, c.label])}
                     style={{
                       display: 'flex', alignItems: 'center', gap: 12,
                       background: isSelected ? `${c.color}18` : 'rgba(255,255,255,0.04)',
@@ -360,7 +410,7 @@ export default function Campus({
       {/* Events */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
         <h2 style={{ margin: 0, fontSize: 16, fontWeight: 800, textAlign: 'left' }}>
-          {q ? 'Results' : selectedCategory ? `${selectedCategory} Events` : 'All Events'}
+          {q ? 'Results' : selectedCategories.length === 1 ? `${selectedCategories[0]} Events` : selectedCategories.length > 1 ? 'Filtered Events' : 'All Events'}
         </h2>
         {!loading && (
           <span style={{ fontSize: 12, color: '#888' }}>{filteredEvents.length} event{filteredEvents.length !== 1 ? 's' : ''}</span>
@@ -387,36 +437,93 @@ export default function Campus({
       ) : (
         <div className="card" style={{ padding: '28px', marginBottom: 24 }}>
           <div style={{ fontSize: 13, color: '#666', textAlign: 'left' }}>
-            {q ? `No events matching "${q}"` : selectedCategory ? `No ${selectedCategory} events yet` : 'No events yet'}
+            {q ? `No events matching "${q}"` : selectedCategories.length > 0 ? `No events in selected categories` : 'No events yet'}
           </div>
         </div>
       )}
 
-      {/* Campus Orgs */}
-      {campusOrgs.length > 0 && (
-        <section style={{ marginBottom: 16 }}>
-          <h2 style={{ margin: '0 0 10px', fontSize: 16, fontWeight: 800, textAlign: 'left' }}>Campus Organizations</h2>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 10 }}>
-            {campusOrgs.map(g => {
-              const memberCount = g.members?.length || 0;
-              const isAdmin = g.members?.some(m =>
-                ((user && m.user_id === user.id) || m.name === currentUserName) && m.role === 'admin'
-              );
-              return (
-                <div key={g.id} className="card" style={{ display: 'flex', flexDirection: 'row', alignItems: 'center', gap: 10, padding: '12px 14px', ...(isAdmin ? { border: '1px solid rgba(255,185,0,0.5)', boxShadow: '0 0 10px rgba(255,185,0,0.15), inset 0 0 10px rgba(255,185,0,0.03)' } : {}) }}>
-                  {g.logoUrl
-                    ? <img src={g.logoUrl} alt={g.name} style={{ width: 40, height: 40, borderRadius: 10, objectFit: 'cover', flexShrink: 0 }} />
-                    : <div style={{ width: 40, height: 40, borderRadius: 10, background: g.logoColor || avatarColor(g.name), display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontWeight: 800, fontSize: 14, flexShrink: 0 }}>{getInitials(g.name)}</div>
-                  }
-                  <div style={{ minWidth: 0, textAlign: 'left' }}>
-                    <div style={{ fontWeight: 700, fontSize: 13, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{g.name}</div>
-                    <div style={{ fontSize: 11, color: '#666', marginTop: 2 }}>{memberCount} member{memberCount !== 1 ? 's' : ''}</div>
-                  </div>
+      {/* Orgs — compact preview */}
+      <section style={{ marginBottom: 16 }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+          <h2 style={{ margin: 0, fontSize: 16, fontWeight: 800, textAlign: 'left' }}>Orgs</h2>
+          <button
+            onClick={() => setShowOrgsPage(true)}
+            style={{ background: 'none', border: 'none', color: 'var(--purple)', fontSize: 13, fontWeight: 700, cursor: 'pointer', padding: 0 }}
+          >
+            See all →
+          </button>
+        </div>
+        {campusOrgs.length === 0 ? (
+          <div className="card" style={{ padding: '20px 16px', textAlign: 'left' }}>
+            <div style={{ fontSize: 13, color: '#555' }}>No organizations yet. Create a group with type "club" to list it here.</div>
+          </div>
+        ) : (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+            {campusOrgs.slice(0, 3).map(g => <OrgRow key={g.id} g={g} user={user} currentUserName={currentUserName} />)}
+            {campusOrgs.length > 3 && (
+              <button
+                onClick={() => setShowOrgsPage(true)}
+                style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: 12, padding: '12px', fontSize: 13, fontWeight: 600, color: 'var(--purple)', cursor: 'pointer' }}
+              >
+                +{campusOrgs.length - 3} more organizations
+              </button>
+            )}
+          </div>
+        )}
+      </section>
+
+      {/* Orgs full-page overlay */}
+      {showOrgsPage && (
+        <div style={{ position: 'fixed', inset: 0, background: '#0A0A0F', zIndex: 200, display: 'flex', flexDirection: 'column', overflowY: 'auto' }}>
+          {/* Header */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '56px 20px 16px', borderBottom: '1px solid rgba(255,255,255,0.07)', flexShrink: 0 }}>
+            <button
+              onClick={() => setShowOrgsPage(false)}
+              style={{ background: 'rgba(255,255,255,0.07)', border: 'none', borderRadius: '50%', width: 36, height: 36, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', flexShrink: 0 }}
+            >
+              <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="#EEEEFF" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                <polyline points="15 18 9 12 15 6"/>
+              </svg>
+            </button>
+            <div>
+              <div style={{ fontSize: 18, fontWeight: 800, color: '#EEEEFF' }}>Organizations</div>
+              {campusOrgs.length > 0 && <div style={{ fontSize: 12, color: '#555', marginTop: 2 }}>{campusOrgs.length} org{campusOrgs.length !== 1 ? 's' : ''} at {profile?.school || 'your school'}</div>}
+            </div>
+          </div>
+
+          {/* Search */}
+          <div style={{ padding: '14px 20px', flexShrink: 0 }}>
+            <div style={{ position: 'relative' }}>
+              <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="#8888AA" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)', pointerEvents: 'none' }}>
+                <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
+              </svg>
+              <input
+                className="text-input"
+                placeholder="Search organizations…"
+                value={orgSearch}
+                onChange={e => setOrgSearch(e.target.value)}
+                autoFocus
+                style={{ width: '100%', boxSizing: 'border-box', paddingLeft: 36 }}
+              />
+            </div>
+          </div>
+
+          {/* Org list */}
+          <div style={{ flex: 1, padding: '0 20px 40px', display: 'flex', flexDirection: 'column', gap: 10 }}>
+            {(() => {
+              const term = orgSearch.trim().toLowerCase();
+              const filtered = term
+                ? campusOrgs.filter(g => (g.name || '').toLowerCase().includes(term) || (g.description || '').toLowerCase().includes(term))
+                : campusOrgs;
+              if (filtered.length === 0) return (
+                <div style={{ textAlign: 'center', padding: '40px 0', color: '#444', fontSize: 14 }}>
+                  {term ? `No orgs matching "${orgSearch}"` : 'No organizations yet'}
                 </div>
               );
-            })}
+              return filtered.map(g => <OrgCard key={g.id} g={g} user={user} currentUserName={currentUserName} />);
+            })()}
           </div>
-        </section>
+        </div>
       )}
 
       {viewingStories && storyCircles.length > 0 && (
