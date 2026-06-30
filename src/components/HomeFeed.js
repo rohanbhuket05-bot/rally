@@ -180,9 +180,11 @@ export default function HomeFeed({ activeTab = 'home', onNavigate = () => {}, ev
       {(() => {
         const allCalEvents = [...events, ...campusEvents];
         const now = new Date();
-        const nextWeekRef = new Date(now);
-        nextWeekRef.setDate(now.getDate() + 7);
-        const twoWeekDays = [...getWeekDays(now), ...getWeekDays(nextWeekRef)];
+        const fourWeekDays = [0, 7, 14, 21].map(offset => {
+          const ref = new Date(now);
+          ref.setDate(now.getDate() + offset);
+          return getWeekDays(ref);
+        }).flat();
 
         return (
           <section style={{ marginBottom: 20 }}>
@@ -197,9 +199,9 @@ export default function HomeFeed({ activeTab = 'home', onNavigate = () => {}, ev
               ))}
             </div>
 
-            {/* 7×2 grid */}
+            {/* 7×4 grid */}
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: 3 }}>
-              {twoWeekDays.map((d) => {
+              {fourWeekDays.map((d) => {
                 const key = toDateKey(d);
                 const isToday = key === todayKey;
                 const isPast = key < todayKey;
