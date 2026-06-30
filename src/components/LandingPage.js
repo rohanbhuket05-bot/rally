@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { isSupabaseConfigured, signInWithOtp, signInWithProvider } from '../lib/supabaseClient';
-import logo from '../assets/Sphera Logo v2.png';
+import logo from '../assets/Sphera Logo v2 Textless.png';
 import './HomeFeed.css';
 
 export default function LandingPage() {
@@ -26,28 +26,26 @@ export default function LandingPage() {
   return (
     <div style={{
       minHeight: '100dvh',
-      background: '#0A0A0F',
+      background: '#000000',
       display: 'flex',
       flexDirection: 'column',
       alignItems: 'center',
-      justifyContent: 'space-between',
-      padding: '60px 28px 48px',
+      padding: '0 28px 52px',
       boxSizing: 'border-box',
     }}>
 
-      {/* Top: branding */}
-      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', width: '100%' }}>
-        <img src={logo} alt="Sphera" style={{ width: 96, height: 96, borderRadius: '50%', objectFit: 'cover', marginBottom: 20 }} />
-
-        <div style={{ fontSize: 38, fontWeight: 900, color: '#EEEEFF', letterSpacing: '-1px', lineHeight: 1 }}>
+      {/* Branding */}
+      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', paddingTop: 60, paddingBottom: 40 }}>
+        <img src={logo} alt="Sphera" style={{ width: 110, height: 110, borderRadius: '50%', objectFit: 'cover', marginBottom: 24 }} />
+        <div style={{ fontSize: 40, fontWeight: 900, color: '#EEEEFF', letterSpacing: '-1px', lineHeight: 1, marginBottom: 10 }}>
           Sphera
         </div>
-        <div style={{ fontSize: 15, color: '#8888AA', marginTop: 10, fontWeight: 500, textAlign: 'center', lineHeight: 1.5 }}>
+        <div style={{ fontSize: 15, color: '#6666AA', fontWeight: 500, textAlign: 'center', lineHeight: 1.5 }}>
           Your campus social scene
         </div>
       </div>
 
-      {/* Bottom: auth */}
+      {/* Auth */}
       <div style={{ width: '100%', maxWidth: 390 }}>
         {!configured ? (
           <div style={{ color: '#888', fontSize: 13, padding: 16, background: 'rgba(255,255,255,0.04)', borderRadius: 12, textAlign: 'center' }}>
@@ -69,8 +67,8 @@ export default function LandingPage() {
               disabled={loading}
               style={{
                 width: '100%', padding: '15px', borderRadius: 14,
-                border: '1.5px solid rgba(255,255,255,0.12)',
-                background: 'rgba(255,255,255,0.06)',
+                border: '1.5px solid rgba(255,255,255,0.15)',
+                background: 'rgba(255,255,255,0.08)',
                 fontWeight: 700, fontSize: 15, cursor: 'pointer',
                 display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10,
                 color: '#EEEEFF', marginBottom: 12,
@@ -86,10 +84,10 @@ export default function LandingPage() {
               Continue with Google
             </button>
 
-            <div style={{ display: 'flex', alignItems: 'center', gap: 10, margin: '4px 0 12px', color: '#444', fontSize: 12 }}>
-              <div style={{ flex: 1, height: 1, background: 'rgba(255,255,255,0.08)' }} />
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10, margin: '4px 0 12px', color: '#333', fontSize: 12 }}>
+              <div style={{ flex: 1, height: 1, background: 'rgba(255,255,255,0.07)' }} />
               or
-              <div style={{ flex: 1, height: 1, background: 'rgba(255,255,255,0.08)' }} />
+              <div style={{ flex: 1, height: 1, background: 'rgba(255,255,255,0.07)' }} />
             </div>
 
             <form onSubmit={handleEmail} style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
@@ -99,13 +97,18 @@ export default function LandingPage() {
                 placeholder="your@university.edu"
                 value={email}
                 onChange={e => setEmail(e.target.value)}
-                style={{ width: '100%', boxSizing: 'border-box' }}
+                style={{ width: '100%', boxSizing: 'border-box', background: 'rgba(255,255,255,0.06)', border: '1.5px solid rgba(255,255,255,0.1)', color: '#EEEEFF' }}
               />
               <button
                 type="submit"
-                className="join"
                 disabled={loading}
-                style={{ width: '100%', padding: '14px', borderRadius: 14, fontSize: 15, opacity: loading ? 0.6 : 1 }}
+                style={{
+                  width: '100%', padding: '15px', borderRadius: 14, fontSize: 15,
+                  fontWeight: 700, letterSpacing: '0.01em', cursor: 'pointer', border: 'none',
+                  background: 'linear-gradient(135deg, #6C5CE7, #534AB7)',
+                  color: '#fff', opacity: loading ? 0.6 : 1,
+                  boxShadow: '0 2px 16px rgba(83,74,183,0.35)',
+                }}
               >
                 Send magic link
               </button>
@@ -113,7 +116,7 @@ export default function LandingPage() {
           </>
         )}
 
-        <div style={{ marginTop: 20, fontSize: 11, color: '#444', textAlign: 'center' }}>
+        <div style={{ marginTop: 20, fontSize: 11, color: '#333', textAlign: 'center' }}>
           By continuing you agree to Sphera's community guidelines.
         </div>
       </div>
