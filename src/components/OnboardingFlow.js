@@ -261,9 +261,9 @@ export default function OnboardingFlow({ user, profile, onComplete }) {
             outline: '2px dashed rgba(255,255,255,0.15)',
           }}>
             {avatarUrl ? (
-              <img src={avatarUrl} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: '50%' }} />
+              <img src={avatarUrl} alt="" style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover' }} />
             ) : (
-              <div style={{ width: '100%', height: '100%', borderRadius: '50%', background: 'rgba(83,74,183,0.3)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 36, fontWeight: 800, color: 'var(--purple)' }}>
+              <div style={{ position: 'absolute', inset: 0, background: 'rgba(83,74,183,0.3)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 36, fontWeight: 800, color: 'var(--purple)' }}>
                 {initials}
               </div>
             )}

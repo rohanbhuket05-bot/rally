@@ -115,7 +115,7 @@ export default function HomeFeed({ activeTab = 'home', onNavigate = () => {}, ev
             >
               <div style={{ position: 'relative', width: 62, height: 62 }}>
                 <div style={{ width: 62, height: 62, borderRadius: '50%', padding: 2, background: hasOwnStory ? 'linear-gradient(135deg, #EF9F27, #FF6BA8)' : 'rgba(255,255,255,0.1)' }}>
-                  <div style={{ width: '100%', height: '100%', borderRadius: '50%', background: '#0A0A0F', padding: 2 }}>
+                  <div style={{ width: '100%', height: '100%', borderRadius: '50%', background: '#0A0A0F', padding: 2, boxSizing: 'border-box' }}>
                     {profile?.avatar_url ? (
                       <img src={profile.avatar_url} alt="" referrerPolicy="no-referrer" style={{ width: '100%', height: '100%', borderRadius: '50%', objectFit: 'cover' }} />
                     ) : (
@@ -148,7 +148,7 @@ export default function HomeFeed({ activeTab = 'home', onNavigate = () => {}, ev
                   onClick={() => openStory(post.userId)}
                 >
                   <div style={{ width: 62, height: 62, borderRadius: '50%', padding: 2, background: 'linear-gradient(135deg, #EF9F27, #FF6BA8)' }}>
-                    <div style={{ width: '100%', height: '100%', borderRadius: '50%', background: '#0A0A0F', padding: 2 }}>
+                    <div style={{ width: '100%', height: '100%', borderRadius: '50%', background: '#0A0A0F', padding: 2, boxSizing: 'border-box' }}>
                       {post.avatarUrl ? (
                         <img src={post.avatarUrl} alt={post.senderName} referrerPolicy="no-referrer" style={{ width: '100%', height: '100%', borderRadius: '50%', objectFit: 'cover' }} />
                       ) : (
