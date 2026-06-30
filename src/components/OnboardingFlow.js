@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { SCHOOLS } from '../data/schools';
-import { checkUsernameAvailable, uploadAvatarImage } from '../lib/supabaseClient';
+import { checkUsernameAvailable, uploadAvatarImage, sendEduVerification, verifyEduCode } from '../lib/supabaseClient';
+import { getDomainsForSchool } from '../data/schools';
 import { validateUsername } from '../lib/usernameValidation';
 import './HomeFeed.css';
 
@@ -10,7 +11,7 @@ function getGradYears() {
   return [start, start + 1, start + 2, start + 3];
 }
 
-const TOTAL_STEPS = 5;
+const TOTAL_STEPS = 6;
 
 export default function OnboardingFlow({ user, profile, onComplete }) {
   const [step, setStep] = useState(1);
@@ -34,6 +35,15 @@ export default function OnboardingFlow({ user, profile, onComplete }) {
   const [avatarUrl, setAvatarUrl] = useState(profile?.avatar_url || '');
   const [uploading, setUploading] = useState(false);
   const fileRef = useRef(null);
+
+  // Step 6 — .edu verification
+  const [verifySubStep, setVerifySubStep] = useState('email'); // 'email' | 'code' | 'success'
+  const [verifyPrefix, setVerifyPrefix] = useState('');
+  const [verifyCode, setVerifyCode] = useState('');
+  const [verifyLoading, setVerifyLoading] = useState(false);
+  const [verifyError, setVerifyError] = useState(null);
+  const [eduVerified, setEduVerified] = useState(false);
+  const [eduEmail, setEduEmail] = useState('');
 
   const filtered = query.trim()
     ? SCHOOLS.filter(s => s.toLowerCase().includes(query.trim().toLowerCase()))
@@ -66,8 +76,35 @@ export default function OnboardingFlow({ user, profile, onComplete }) {
     setUploading(false);
   }
 
-  function handleFinish() {
-    onComplete({ school, gradYear, username: username.toLowerCase(), name, avatarUrl });
+  async function handleSendCode() {
+    setVerifyLoading(true);
+    setVerifyError(null);
+    const domain = getDomainsForSchool(school)[0] || '';
+    const fullEmail = `${verifyPrefix.trim().toLowerCase()}@${domain}`;
+    const { success, error } = await sendEduVerification(fullEmail, school);
+    setVerifyLoading(false);
+    if (success) setVerifySubStep('code');
+    else setVerifyError(error || 'Failed to send code. Try again.');
+  }
+
+  async function handleVerifyCode() {
+    setVerifyLoading(true);
+    setVerifyError(null);
+    const domain = getDomainsForSchool(school)[0] || '';
+    const fullEmail = `${verifyPrefix.trim().toLowerCase()}@${domain}`;
+    const { success, error } = await verifyEduCode(fullEmail, verifyCode.trim());
+    setVerifyLoading(false);
+    if (success) {
+      setEduVerified(true);
+      setEduEmail(fullEmail);
+      setVerifySubStep('success');
+    } else {
+      setVerifyError(error || 'Invalid code. Try again.');
+    }
+  }
+
+  function handleFinish(skipVerify = false) {
+    onComplete({ school, gradYear, username: username.toLowerCase(), name, avatarUrl, schoolVerified: !skipVerify && eduVerified, eduEmail: eduVerified ? eduEmail : null });
   }
 
   function back() { setStep(s => s - 1); }
@@ -286,18 +323,129 @@ export default function OnboardingFlow({ user, profile, onComplete }) {
           )}
 
           <div style={{ marginTop: 'auto', width: '100%', display: 'flex', flexDirection: 'column', gap: 10 }}>
-            <button onClick={handleFinish} disabled={uploading} className="join"
+            <button onClick={() => setStep(6)} disabled={uploading} className="join"
               style={{ width: '100%', padding: '15px', borderRadius: 14, fontSize: 16, opacity: uploading ? 0.5 : 1 }}>
-              {avatarUrl ? "Let's go" : "Let's go"}
+              Continue
             </button>
             {!avatarUrl && (
-              <button onClick={handleFinish} style={{ background: 'none', border: 'none', color: '#8888AA', fontSize: 14, cursor: 'pointer', padding: '8px' }}>
+              <button onClick={() => setStep(6)} style={{ background: 'none', border: 'none', color: '#8888AA', fontSize: 14, cursor: 'pointer', padding: '8px' }}>
                 Skip for now
               </button>
             )}
           </div>
         </div>
       )}
+
+      {/* ── Step 6: .edu Verification ── */}
+      {step === 6 && (() => {
+        const domain = getDomainsForSchool(school)[0] || '';
+        return (
+          <div style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
+            <BackButton onClick={back} />
+
+            {verifySubStep === 'email' && (
+              <>
+                <h1 style={{ margin: '0 0 6px', fontSize: 28, fontWeight: 900, color: '#EEEEFF', letterSpacing: '-0.5px' }}>
+                  Verify your student status
+                </h1>
+                <p style={{ margin: '0 0 28px', fontSize: 15, color: '#8888AA' }}>
+                  Enter your {school} email to get a verification code
+                </p>
+
+                {domain ? (
+                  <>
+                    <div style={{ display: 'flex', alignItems: 'center', background: 'rgba(255,255,255,0.04)', borderRadius: 12, border: '1px solid rgba(255,255,255,0.1)', overflow: 'hidden', marginBottom: 8 }}>
+                      <input
+                        className="text-input"
+                        placeholder="yourname"
+                        value={verifyPrefix}
+                        onChange={e => { setVerifyPrefix(e.target.value); setVerifyError(null); }}
+                        onKeyDown={e => { if (e.key === 'Enter' && verifyPrefix.trim() && !verifyLoading) handleSendCode(); }}
+                        autoFocus
+                        autoCapitalize="none"
+                        autoCorrect="off"
+                        style={{ flex: 1, border: 'none', borderRadius: 0, background: 'transparent', minWidth: 0 }}
+                      />
+                      <span style={{ padding: '0 14px', fontSize: 14, color: '#8888AA', fontWeight: 500, whiteSpace: 'nowrap', flexShrink: 0 }}>@{domain}</span>
+                    </div>
+                    {verifyError && <div style={{ fontSize: 13, color: '#E74C3C', marginBottom: 12 }}>{verifyError}</div>}
+                  </>
+                ) : (
+                  <p style={{ fontSize: 14, color: '#8888AA', marginBottom: 16 }}>
+                    We don't have a known .edu domain for {school} yet — you can verify from your profile later.
+                  </p>
+                )}
+
+                <div style={{ marginTop: 'auto', display: 'flex', flexDirection: 'column', gap: 10 }}>
+                  {domain && (
+                    <button onClick={handleSendCode} disabled={verifyLoading || !verifyPrefix.trim()} className="join"
+                      style={{ width: '100%', padding: '15px', borderRadius: 14, fontSize: 16, opacity: verifyPrefix.trim() && !verifyLoading ? 1 : 0.35 }}>
+                      {verifyLoading ? 'Sending…' : 'Send code'}
+                    </button>
+                  )}
+                  <button onClick={() => handleFinish(true)} style={{ background: 'none', border: 'none', color: '#8888AA', fontSize: 14, cursor: 'pointer', padding: '8px' }}>
+                    Verify later
+                  </button>
+                </div>
+              </>
+            )}
+
+            {verifySubStep === 'code' && (
+              <>
+                <h1 style={{ margin: '0 0 6px', fontSize: 28, fontWeight: 900, color: '#EEEEFF', letterSpacing: '-0.5px' }}>
+                  Check your email
+                </h1>
+                <p style={{ margin: '0 0 28px', fontSize: 15, color: '#8888AA' }}>
+                  We sent a 6-digit code to <strong style={{ color: '#EEEEFF' }}>{verifyPrefix}@{domain}</strong>
+                </p>
+
+                <input
+                  className="text-input"
+                  placeholder="000000"
+                  value={verifyCode}
+                  onChange={e => { setVerifyCode(e.target.value.replace(/\D/g, '').slice(0, 6)); setVerifyError(null); }}
+                  onKeyDown={e => { if (e.key === 'Enter' && verifyCode.length === 6 && !verifyLoading) handleVerifyCode(); }}
+                  inputMode="numeric"
+                  autoFocus
+                  style={{ letterSpacing: '0.3em', fontSize: 22, fontWeight: 700, textAlign: 'center', marginBottom: 8 }}
+                />
+                {verifyError && <div style={{ fontSize: 13, color: '#E74C3C', marginBottom: 12 }}>{verifyError}</div>}
+
+                <div style={{ marginTop: 'auto', display: 'flex', flexDirection: 'column', gap: 10 }}>
+                  <button onClick={handleVerifyCode} disabled={verifyLoading || verifyCode.length < 6} className="join"
+                    style={{ width: '100%', padding: '15px', borderRadius: 14, fontSize: 16, opacity: verifyCode.length === 6 && !verifyLoading ? 1 : 0.35 }}>
+                    {verifyLoading ? 'Verifying…' : 'Verify'}
+                  </button>
+                  <button onClick={() => { setVerifySubStep('email'); setVerifyCode(''); setVerifyError(null); }}
+                    style={{ background: 'none', border: 'none', color: '#8888AA', fontSize: 14, cursor: 'pointer', padding: '8px' }}>
+                    Use a different email
+                  </button>
+                </div>
+              </>
+            )}
+
+            {verifySubStep === 'success' && (
+              <>
+                <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 16, paddingBottom: 40 }}>
+                  <div style={{ width: 72, height: 72, borderRadius: '50%', background: 'rgba(83,74,183,0.2)', border: '2px solid var(--purple)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                    <svg viewBox="0 0 24 24" width="34" height="34" fill="none" stroke="var(--purple)" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                      <polyline points="20 6 9 17 4 12"/>
+                    </svg>
+                  </div>
+                  <div style={{ textAlign: 'center' }}>
+                    <div style={{ fontSize: 22, fontWeight: 800, color: '#EEEEFF', marginBottom: 6 }}>You're verified</div>
+                    <div style={{ fontSize: 15, color: '#8888AA' }}>{school} student confirmed</div>
+                  </div>
+                </div>
+                <button onClick={() => handleFinish(false)} className="join" style={{ width: '100%', padding: '15px', borderRadius: 14, fontSize: 16 }}>
+                  Let's go
+                </button>
+              </>
+            )}
+          </div>
+        );
+      })()}
+
     </div>
   );
 }

@@ -176,13 +176,14 @@ function App() {
     setAuthModalMessage(message);
   }, []);
 
-  const handleOnboardingComplete = useCallback(async ({ school, gradYear, username, name, avatarUrl }) => {
-    const updated = { ...profile, school, grad_year: gradYear, username, name, avatar_url: avatarUrl };
+  const handleOnboardingComplete = useCallback(async ({ school, gradYear, username, name, avatarUrl, schoolVerified, eduEmail }) => {
+    const updated = { ...profile, school, grad_year: gradYear, username, name, avatar_url: avatarUrl, school_verified: !!schoolVerified };
     setProfile(updated);
     localStorage.setItem('rally_school', school);
     localStorage.setItem('rally_username', username);
     localStorage.setItem('rally_name', name);
-    if (user) await upsertProfile(user.id, { ...updated, email: user.email });
+    if (schoolVerified) localStorage.setItem('rally_school_verified', school);
+    if (user) await upsertProfile(user.id, { ...updated, email: user.email, school_verified: !!schoolVerified });
     setShowOnboarding(false);
   }, [profile, user]);
 
