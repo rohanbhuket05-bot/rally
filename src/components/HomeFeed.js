@@ -304,8 +304,16 @@ export default function HomeFeed({ activeTab = 'home', onNavigate = () => {}, ev
 
         return (
           <div style={{ position: 'fixed', inset: 0, background: '#0A0A0F', zIndex: 200, display: 'flex', flexDirection: 'column', overflowY: 'auto' }}>
+            {/* Back */}
+            <button onClick={() => setShowFullCalendar(false)} style={{ background: 'none', border: 'none', padding: '52px 20px 0', cursor: 'pointer', color: '#8888AA', display: 'flex', alignItems: 'center', gap: 6, fontSize: 15, fontWeight: 600 }}>
+              <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                <polyline points="15 18 9 12 15 6"/>
+              </svg>
+              Back
+            </button>
+
             {/* Header */}
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '56px 20px 16px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px 20px 16px' }}>
               <button onClick={() => { const d = new Date(calMonth); d.setMonth(d.getMonth() - 1); setCalMonth(d); }}
                 style={{ background: 'none', border: 'none', color: '#8888AA', cursor: 'pointer', padding: 6, display: 'flex' }}>
                 <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
@@ -367,13 +375,7 @@ export default function HomeFeed({ activeTab = 'home', onNavigate = () => {}, ev
               })}
             </div>
 
-            {/* Close */}
-            <button onClick={() => setShowFullCalendar(false)} style={{
-              margin: '20px auto 40px', background: 'rgba(255,255,255,0.07)', border: 'none',
-              color: '#8888AA', borderRadius: 20, padding: '10px 28px', fontSize: 14, fontWeight: 600, cursor: 'pointer',
-            }}>
-              Close
-            </button>
+            <div style={{ height: 40 }} />
           </div>
         );
       })()}
