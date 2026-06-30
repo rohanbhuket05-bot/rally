@@ -3,7 +3,6 @@ import EventCard from './EventCard';
 import StoryViewer from './StoryViewer';
 import { getPublicEvents, getSpontaneousPosts, subscribeToSpontaneousPosts, deleteSpontaneousPost, isSupabaseConfigured } from '../lib/supabaseClient';
 import './HomeFeed.css';
-import SchoolLogo from './SchoolLogo';
 import { avatarColor } from '../lib/avatarColor';
 import { getInitials } from '../lib/utils';
 
@@ -62,8 +61,6 @@ export default function HomeFeed({ activeTab = 'home', onNavigate = () => {}, ev
   }, [user]);
 
   const currentUserName = localStorage.getItem('rally_name') || localStorage.getItem('rally_username') || '';
-  const school = profile?.school || localStorage.getItem('rally_school') || '';
-  const schoolVerified = profile?.school_verified || localStorage.getItem('rally_school_verified');
 
   // Deduplicate by user: most recent post per user
   const storyByUser = Object.values(
@@ -168,55 +165,16 @@ export default function HomeFeed({ activeTab = 'home', onNavigate = () => {}, ev
         </section>
       )}
 
-      {/* College section */}
-      <section style={{ marginBottom: 20 }}>
-        {school ? (
-          <div className="card" style={{ marginBottom: 12, padding: '14px 16px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-              <SchoolLogo school={school} size={42} />
-              <div style={{ textAlign: 'left' }}>
-                <div style={{ fontWeight: 800, fontSize: 15, color: '#EEEEFF', lineHeight: 1.2 }}>{school}</div>
-                <div style={{ fontSize: 12, color: '#8888AA', marginTop: 2 }}>
-                  {campusEvents.length > 0 ? `${campusEvents.length} campus event${campusEvents.length !== 1 ? 's' : ''}` : 'No campus events yet'}
-                </div>
-              </div>
-            </div>
-            {schoolVerified && (
-              <span className="category-pill" style={{ background: 'rgba(29,158,117,0.15)', color: 'var(--teal)', fontSize: 11, fontWeight: 700, flexShrink: 0 }}>
-                ✓ Verified
-              </span>
-            )}
+      {campusEvents.length > 0 && (
+        <section style={{ marginBottom: 20 }}>
+          <h3 style={{ margin: '0 0 10px', textAlign: 'left' }}>On Campus</h3>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 10 }}>
+            {campusEvents.slice(0, 4).map(ev => (
+              <EventCard key={ev.id} event={ev} onJoin={handleJoin} currentUserName={currentUserName} currentUserId={user?.id} onOpenDetails={onOpenEvent} compact />
+            ))}
           </div>
-        ) : user ? (
-          <div className="card" style={{ marginBottom: 12, padding: '14px 16px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, cursor: 'pointer' }} onClick={() => onNavigate('profile')}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-              <div style={{ width: 42, height: 42, borderRadius: 12, background: 'rgba(255,255,255,0.05)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-                <svg viewBox="0 0 24 24" fill="none" width="22" height="22" stroke="#8888AA" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/>
-                </svg>
-              </div>
-              <div style={{ textAlign: 'left' }}>
-                <div style={{ fontWeight: 700, fontSize: 14, color: '#EEEEFF' }}>Add your school</div>
-                <div style={{ fontSize: 12, color: '#8888AA', marginTop: 2 }}>See events happening on your campus</div>
-              </div>
-            </div>
-            <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="#8888AA" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0 }}>
-              <polyline points="9 18 15 12 9 6"/>
-            </svg>
-          </div>
-        ) : null}
-
-        {campusEvents.length > 0 && (
-          <>
-            <h3 style={{ margin: '0 0 10px', textAlign: 'left' }}>On Campus</h3>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 10 }}>
-              {campusEvents.slice(0, 4).map(ev => (
-                <EventCard key={ev.id} event={ev} onJoin={handleJoin} currentUserName={currentUserName} currentUserId={user?.id} onOpenDetails={onOpenEvent} compact />
-              ))}
-            </div>
-          </>
-        )}
-      </section>
+        </section>
+      )}
 
       {/* Calendar — 7×2 grid */}
       {(() => {
