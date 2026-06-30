@@ -304,29 +304,29 @@ export default function HomeFeed({ activeTab = 'home', onNavigate = () => {}, ev
 
         return (
           <div style={{ position: 'fixed', inset: 0, background: '#0A0A0F', zIndex: 200, display: 'flex', flexDirection: 'column', overflowY: 'auto' }}>
-            {/* Back */}
-            <button onClick={() => setShowFullCalendar(false)} style={{ background: 'none', border: 'none', padding: '52px 20px 0', cursor: 'pointer', color: '#8888AA', display: 'flex', alignItems: 'center', gap: 6, fontSize: 15, fontWeight: 600 }}>
-              <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                <polyline points="15 18 9 12 15 6"/>
-              </svg>
-              Back
-            </button>
-
             {/* Header */}
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px 20px 16px' }}>
-              <button onClick={() => { const d = new Date(calMonth); d.setMonth(d.getMonth() - 1); setCalMonth(d); }}
-                style={{ background: 'none', border: 'none', color: '#8888AA', cursor: 'pointer', padding: 6, display: 'flex' }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '52px 8px 16px' }}>
+              <button onClick={() => setShowFullCalendar(false)} style={{ background: 'none', border: 'none', padding: '10px 16px', cursor: 'pointer', color: '#8888AA', display: 'flex', alignItems: 'center', gap: 5, fontSize: 15, fontWeight: 600, minWidth: 80 }}>
                 <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
                   <polyline points="15 18 9 12 15 6"/>
                 </svg>
+                Back
               </button>
               <span style={{ fontWeight: 800, fontSize: 18, color: '#EEEEFF' }}>{monthName} {year}</span>
-              <button onClick={() => { const d = new Date(calMonth); d.setMonth(d.getMonth() + 1); setCalMonth(d); }}
-                style={{ background: 'none', border: 'none', color: '#8888AA', cursor: 'pointer', padding: 6, display: 'flex' }}>
-                <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                  <polyline points="9 18 15 12 9 6"/>
-                </svg>
-              </button>
+              <div style={{ display: 'flex', minWidth: 80, justifyContent: 'flex-end' }}>
+                <button onClick={() => { const d = new Date(calMonth); d.setMonth(d.getMonth() - 1); setCalMonth(d); }}
+                  style={{ background: 'none', border: 'none', color: '#8888AA', cursor: 'pointer', padding: '10px 8px', display: 'flex' }}>
+                  <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                    <polyline points="15 18 9 12 15 6"/>
+                  </svg>
+                </button>
+                <button onClick={() => { const d = new Date(calMonth); d.setMonth(d.getMonth() + 1); setCalMonth(d); }}
+                  style={{ background: 'none', border: 'none', color: '#8888AA', cursor: 'pointer', padding: '10px 8px', display: 'flex' }}>
+                  <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                    <polyline points="9 18 15 12 9 6"/>
+                  </svg>
+                </button>
+              </div>
             </div>
 
             {/* Day letters */}
@@ -375,7 +375,7 @@ export default function HomeFeed({ activeTab = 'home', onNavigate = () => {}, ev
               })}
             </div>
 
-            <div style={{ height: 40 }} />
+            <div style={{ height: 'calc(var(--bottom-nav-height) + env(safe-area-inset-bottom, 0px) + 16px)' }} />
           </div>
         );
       })()}
