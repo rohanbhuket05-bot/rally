@@ -32,6 +32,8 @@ export default function HomeFeed({ activeTab = 'home', onNavigate = () => {}, ev
   const [spontaneousPosts, setSpontaneousPosts] = useState([]);
   const [viewingStories, setViewingStories] = useState(false);
   const [storyStartIndex, setStoryStartIndex] = useState(0);
+  const [showFullCalendar, setShowFullCalendar] = useState(false);
+  const [calMonth, setCalMonth] = useState(() => { const d = new Date(); d.setDate(1); return d; });
 
   useEffect(() => {
     getPublicEvents().then(rows => {
@@ -188,7 +190,14 @@ export default function HomeFeed({ activeTab = 'home', onNavigate = () => {}, ev
 
         return (
           <section style={{ marginBottom: 20 }}>
-            <h3 style={{ margin: '0 0 10px', textAlign: 'left' }}>Calendar</h3>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
+              <h3 style={{ margin: 0, textAlign: 'left' }}>Calendar</h3>
+              <button onClick={() => setShowFullCalendar(true)} style={{ background: 'none', border: 'none', padding: 4, cursor: 'pointer', color: '#8888AA', display: 'flex', alignItems: 'center' }}>
+                <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/>
+                </svg>
+              </button>
+            </div>
 
             {/* Day-letter header */}
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: 4, marginBottom: 4 }}>
@@ -281,6 +290,93 @@ export default function HomeFeed({ activeTab = 'home', onNavigate = () => {}, ev
           onDelete={handleDeleteStory}
         />
       )}
+
+      {showFullCalendar && (() => {
+        const allCalEvents = [...events, ...campusEvents];
+        const year = calMonth.getFullYear();
+        const month = calMonth.getMonth();
+        const monthName = calMonth.toLocaleString('default', { month: 'long' });
+        const firstDow = new Date(year, month, 1).getDay();
+        const daysInMonth = new Date(year, month + 1, 0).getDate();
+        const cells = [];
+        for (let i = 0; i < firstDow; i++) cells.push(null);
+        for (let d = 1; d <= daysInMonth; d++) cells.push(new Date(year, month, d));
+
+        return (
+          <div style={{ position: 'fixed', inset: 0, background: '#0A0A0F', zIndex: 200, display: 'flex', flexDirection: 'column', overflowY: 'auto' }}>
+            {/* Header */}
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '56px 20px 16px' }}>
+              <button onClick={() => { const d = new Date(calMonth); d.setMonth(d.getMonth() - 1); setCalMonth(d); }}
+                style={{ background: 'none', border: 'none', color: '#8888AA', cursor: 'pointer', padding: 6, display: 'flex' }}>
+                <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                  <polyline points="15 18 9 12 15 6"/>
+                </svg>
+              </button>
+              <span style={{ fontWeight: 800, fontSize: 18, color: '#EEEEFF' }}>{monthName} {year}</span>
+              <button onClick={() => { const d = new Date(calMonth); d.setMonth(d.getMonth() + 1); setCalMonth(d); }}
+                style={{ background: 'none', border: 'none', color: '#8888AA', cursor: 'pointer', padding: 6, display: 'flex' }}>
+                <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                  <polyline points="9 18 15 12 9 6"/>
+                </svg>
+              </button>
+            </div>
+
+            {/* Day letters */}
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: 2, padding: '0 12px', marginBottom: 4 }}>
+              {DAY_LETTERS.map((l, i) => (
+                <div key={i} style={{ textAlign: 'center', fontSize: 11, fontWeight: 700, color: '#484860', letterSpacing: '0.05em' }}>{l}</div>
+              ))}
+            </div>
+
+            {/* Month grid */}
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: 3, padding: '0 12px', flex: 1 }}>
+              {cells.map((d, i) => {
+                if (!d) return <div key={`blank-${i}`} />;
+                const key = toDateKey(d);
+                const isToday = key === todayKey;
+                const isPast = key < todayKey;
+                const dayEvs = allCalEvents
+                  .filter(ev => ev.dateISO && toDateKey(ev.dateISO) === key)
+                  .sort((a, b) => new Date(a.dateISO) - new Date(b.dateISO));
+                return (
+                  <div key={key} style={{
+                    borderRadius: 8,
+                    background: isToday ? 'rgba(83,74,183,0.18)' : 'rgba(255,255,255,0.04)',
+                    boxShadow: isToday ? 'inset 0 0 0 1.5px var(--purple)' : 'inset 0 0 0 1px rgba(255,255,255,0.06)',
+                    padding: '6px 3px 5px',
+                    minHeight: 72,
+                    display: 'flex', flexDirection: 'column', alignItems: 'flex-start', gap: 2,
+                    opacity: isPast ? 0.38 : 1,
+                  }}>
+                    <span style={{ fontSize: 13, fontWeight: 600, color: isToday ? 'var(--purple)' : '#EEEEFF', lineHeight: 1, marginBottom: 2, paddingLeft: 3 }}>
+                      {d.getDate()}
+                    </span>
+                    {dayEvs.slice(0, 2).map((ev, j) => (
+                      <div key={j} onClick={() => { onOpenEvent(ev); setShowFullCalendar(false); }} style={{
+                        width: '100%', padding: '2px 3px', borderRadius: 4, boxSizing: 'border-box',
+                        background: 'rgba(83,74,183,0.32)', fontSize: 9, fontWeight: 700, lineHeight: 1.35,
+                        color: '#C4BAFF', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+                        cursor: 'pointer', textAlign: 'left',
+                      }}>{ev.title}</div>
+                    ))}
+                    {dayEvs.length > 2 && (
+                      <span style={{ fontSize: 8, fontWeight: 700, color: '#555' }}>+{dayEvs.length - 2}</span>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+
+            {/* Close */}
+            <button onClick={() => setShowFullCalendar(false)} style={{
+              margin: '20px auto 40px', background: 'rgba(255,255,255,0.07)', border: 'none',
+              color: '#8888AA', borderRadius: 20, padding: '10px 28px', fontSize: 14, fontWeight: 600, cursor: 'pointer',
+            }}>
+              Close
+            </button>
+          </div>
+        );
+      })()}
     </main>
   );
 }
