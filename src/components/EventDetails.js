@@ -150,10 +150,10 @@ export default function EventDetails({ event, onBack, onUpdateEvent, activeTab, 
 
   return (
     <main className="event-details-scroller" style={{
-      position: 'fixed', inset: 0, zIndex: 5,
+      position: 'fixed', top: 0, bottom: 0, zIndex: 5,
+      width: '100%', maxWidth: 520, left: '50%', transform: 'translateX(-50%)',
       overflowY: 'auto', scrollbarWidth: 'none', msOverflowStyle: 'none',
       background: '#08080E',
-      maxWidth: 520, left: '50%', transform: 'translateX(-50%)',
     }}>
 
       {/* Hero image */}
