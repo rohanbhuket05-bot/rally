@@ -7,20 +7,25 @@ import SchoolLogo from './SchoolLogo';
 import { avatarColor } from '../lib/avatarColor';
 import { getInitials } from '../lib/utils';
 
-const DAY_LETTERS = ['M','T','W','T','F','S','S'];
+const DAY_LETTERS = ['S','M','T','W','T','F','S'];
 
 function getWeekDays(ref = new Date()) {
-  const day = ref.getDay();
-  const monday = new Date(ref);
-  monday.setDate(ref.getDate() - ((day === 0 ? 7 : day) - 1));
+  const sunday = new Date(ref);
+  sunday.setDate(ref.getDate() - ref.getDay());
   return Array.from({ length: 7 }, (_, i) => {
-    const d = new Date(monday);
-    d.setDate(monday.getDate() + i);
+    const d = new Date(sunday);
+    d.setDate(sunday.getDate() + i);
     return d;
   });
 }
 
-function toDateKey(d) { return new Date(d).toISOString().slice(0, 10); }
+function toDateKey(d) {
+  const date = new Date(d);
+  const y = date.getFullYear();
+  const m = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  return `${y}-${m}-${day}`;
+}
 
 export default function HomeFeed({ activeTab = 'home', onNavigate = () => {}, events = [], onAddEvent = () => {}, onUpdateEvent = () => {}, onDeleteEvent = () => {}, onOpenEvent = () => {}, user = null, profile = null, onAuthRequired = () => {}, groups = [], onOpenGroup = () => {} }) {
   const [campusEvents, setCampusEvents] = useState([]);
@@ -223,7 +228,7 @@ export default function HomeFeed({ activeTab = 'home', onNavigate = () => {}, ev
 
         return (
           <section style={{ marginBottom: 20 }}>
-            <h3 style={{ margin: '0 0 10px' }}>Calendar</h3>
+            <h3 style={{ margin: '0 0 10px', textAlign: 'left' }}>Calendar</h3>
 
             {/* Day-letter header */}
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: 4, marginBottom: 4 }}>
@@ -240,7 +245,9 @@ export default function HomeFeed({ activeTab = 'home', onNavigate = () => {}, ev
                 const key = toDateKey(d);
                 const isToday = key === todayKey;
                 const isPast = key < todayKey;
-                const dayEvs = allCalEvents.filter(ev => ev.dateISO && toDateKey(ev.dateISO) === key);
+                const dayEvs = allCalEvents
+                  .filter(ev => ev.dateISO && toDateKey(ev.dateISO) === key)
+                  .sort((a, b) => new Date(a.dateISO) - new Date(b.dateISO));
 
                 return (
                   <div key={key} style={{
@@ -249,10 +256,10 @@ export default function HomeFeed({ activeTab = 'home', onNavigate = () => {}, ev
                     boxShadow: isToday ? 'inset 0 0 0 1.5px var(--purple)' : 'inset 0 0 0 1px rgba(255,255,255,0.06)',
                     padding: '6px 3px 5px',
                     minHeight: 72,
-                    display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2,
+                    display: 'flex', flexDirection: 'column', alignItems: 'flex-start', gap: 2,
                     opacity: isPast ? 0.38 : 1,
                   }}>
-                    <span style={{ fontSize: 14, fontWeight: 600, color: isToday ? 'var(--purple)' : '#EEEEFF', lineHeight: 1, marginBottom: 2 }}>
+                    <span style={{ fontSize: 14, fontWeight: 600, color: isToday ? 'var(--purple)' : '#EEEEFF', lineHeight: 1, marginBottom: 2, paddingLeft: 3 }}>
                       {d.getDate()}
                     </span>
                     {dayEvs.slice(0, 2).map((ev, j) => (
