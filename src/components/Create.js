@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { CITIES } from '../lib/utils';
 import './HomeFeed.css';
 
@@ -78,8 +78,11 @@ const VISIBILITY_OPTIONS = [
 export default function Create({ onNavigate = () => {}, onCreateGroup = () => {}, onAddEvent = () => {}, user = null, onAuthRequired = () => {} }) {
   const [showHostModal, setShowHostModal] = useState(false);
   const [form, setForm] = useState(EMPTY_FORM);
+  const [coverFile, setCoverFile] = useState(null);
+  const [coverPreview, setCoverPreview] = useState(null);
   const [showCitySuggestions, setShowCitySuggestions] = useState(false);
   const [showTagsMenu, setShowTagsMenu] = useState(false);
+  const coverInputRef = useRef(null);
   const tagsRef = useRef(null);
   useEffect(() => {
     if (!showTagsMenu) return;
@@ -114,8 +117,11 @@ export default function Create({ onNavigate = () => {}, onCreateGroup = () => {}
       visibility: form.visibility,
       attendees: [],
       personal: false,
+      coverFile: coverFile || null,
     });
     setForm(EMPTY_FORM);
+    setCoverFile(null);
+    setCoverPreview(null);
     setShowHostModal(false);
   }
 
@@ -155,10 +161,63 @@ export default function Create({ onNavigate = () => {}, onCreateGroup = () => {}
           <div className="modal" style={{ maxWidth: 420, padding: 24 }} onClick={e => e.stopPropagation()}>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20 }}>
               <h3 style={{ margin: 0, fontSize: 18 }}>Host an event</h3>
-              <button onClick={() => setShowHostModal(false)} style={{ background: 'none', border: 'none', fontSize: 20, cursor: 'pointer', color: '#888', lineHeight: 1, padding: '0 4px' }}>✕</button>
+              <button onClick={() => { setShowHostModal(false); setCoverFile(null); setCoverPreview(null); }} style={{ background: 'none', border: 'none', fontSize: 20, cursor: 'pointer', color: '#888', lineHeight: 1, padding: '0 4px' }}>✕</button>
             </div>
 
             <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+
+              {/* Cover photo */}
+              <div
+                onClick={() => coverInputRef.current?.click()}
+                style={{
+                  position: 'relative', width: '100%', height: 140, borderRadius: 12,
+                  background: coverPreview ? 'none' : 'rgba(255,255,255,0.04)',
+                  border: coverPreview ? 'none' : '1.5px dashed rgba(255,255,255,0.12)',
+                  overflow: 'hidden', cursor: 'pointer',
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                }}
+              >
+                {coverPreview ? (
+                  <img src={coverPreview} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                ) : (
+                  <div style={{ textAlign: 'center', color: '#555577' }}>
+                    <svg viewBox="0 0 24 24" width="26" height="26" fill="currentColor" style={{ display: 'block', margin: '0 auto 6px' }}>
+                      <path d="M12 15.2a3.2 3.2 0 1 1 0-6.4 3.2 3.2 0 0 1 0 6.4zM9 2L7.17 4H4c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2h-3.17L15 2H9z"/>
+                    </svg>
+                    <span style={{ fontSize: 13, fontWeight: 600 }}>Add cover photo</span>
+                    <div style={{ fontSize: 11, marginTop: 3, color: '#444466' }}>optional</div>
+                  </div>
+                )}
+                {coverPreview && (
+                  <div style={{ position: 'absolute', bottom: 8, right: 8, display: 'flex', gap: 6 }}>
+                    <div style={{ background: 'rgba(0,0,0,0.6)', borderRadius: 8, padding: '5px 10px', display: 'flex', alignItems: 'center', gap: 5 }}>
+                      <svg viewBox="0 0 24 24" width="12" height="12" fill="white"><path d="M12 15.2a3.2 3.2 0 1 1 0-6.4 3.2 3.2 0 0 1 0 6.4zM9 2L7.17 4H4c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2h-3.17L15 2H9z"/></svg>
+                      <span style={{ fontSize: 12, color: '#fff', fontWeight: 600 }}>Change</span>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={e => { e.stopPropagation(); setCoverFile(null); setCoverPreview(null); }}
+                      style={{ background: 'rgba(0,0,0,0.6)', border: 'none', borderRadius: 8, padding: '5px 10px', color: '#fff', fontSize: 12, fontWeight: 600, cursor: 'pointer' }}
+                    >
+                      Remove
+                    </button>
+                  </div>
+                )}
+                <input
+                  ref={coverInputRef}
+                  type="file"
+                  accept="image/*"
+                  style={{ display: 'none' }}
+                  onChange={e => {
+                    const file = e.target.files?.[0];
+                    if (!file) return;
+                    setCoverFile(file);
+                    setCoverPreview(URL.createObjectURL(file));
+                    e.target.value = '';
+                  }}
+                />
+              </div>
+
               <div>
                 <label style={{ fontSize: 13, color: '#888', display: 'block', marginBottom: 4 }}>Event name</label>
                 <input className="text-input" value={form.title} onChange={e => setForm({ ...form, title: e.target.value })} placeholder="Event name" autoFocus />
@@ -336,7 +395,17 @@ export default function Create({ onNavigate = () => {}, onCreateGroup = () => {}
                 <textarea className="text-input textarea" value={form.description} onChange={e => setForm({ ...form, description: e.target.value })} placeholder="What's this event about?" rows={3} />
               </div>
 
-              <button type="submit" className="join" style={{ width: '100%', padding: '12px', fontSize: 15, borderRadius: 12, marginTop: 4 }}>
+              <button
+                type="submit"
+                style={{
+                  width: '100%', padding: '15px', marginTop: 4,
+                  background: 'linear-gradient(180deg, #5F56CC 0%, #483FA8 100%)',
+                  color: '#fff', border: 'none', borderRadius: 14,
+                  fontSize: 15, fontWeight: 700, letterSpacing: '0.02em',
+                  cursor: 'pointer',
+                  boxShadow: '0 4px 16px rgba(83,74,183,0.45), inset 0 1px 0 rgba(255,255,255,0.12)',
+                }}
+              >
                 Post event
               </button>
             </form>

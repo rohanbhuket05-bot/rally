@@ -19,7 +19,7 @@ import SpontaneousCompose from './components/SpontaneousCompose';
 import Campus from './components/Campus';
 import LandingPage from './components/LandingPage';
 import OnboardingFlow from './components/OnboardingFlow';
-import { isSupabaseConfigured, signOut, getUser, onAuthStateChange, getEvents as sbGetEvents, insertEvent as sbInsertEvent, updateEvent as sbUpdateEvent, deleteEvent as sbDeleteEvent, joinEvent as sbJoinEvent, leaveEvent as sbLeaveEvent, getGroups as sbGetGroups, insertGroup as sbInsertGroup, updateGroup as sbUpdateGroup, deleteGroup as sbDeleteGroup, leaveGroup as sbLeaveGroup, getProfile, upsertProfile, createOrGetDm } from './lib/supabaseClient';
+import { isSupabaseConfigured, signOut, getUser, onAuthStateChange, getEvents as sbGetEvents, insertEvent as sbInsertEvent, updateEvent as sbUpdateEvent, deleteEvent as sbDeleteEvent, joinEvent as sbJoinEvent, leaveEvent as sbLeaveEvent, getGroups as sbGetGroups, insertGroup as sbInsertGroup, updateGroup as sbUpdateGroup, deleteGroup as sbDeleteGroup, leaveGroup as sbLeaveGroup, getProfile, upsertProfile, createOrGetDm, uploadEventCover as sbUploadEventCover } from './lib/supabaseClient';
 
 const MAIN_TABS = ['home', 'campus', 'groups', 'profile', 'post'];
 const PERSISTENT_TABS = [...MAIN_TABS, 'group', 'group-chat', 'friend-profile'];
@@ -199,7 +199,15 @@ function App() {
     if (isSupabaseConfigured()){
       const created = await sbInsertEvent({ title: evt.title, date_iso: evt.dateISO, show_time: evt.showTime, location: evt.location, city: evt.city || '', host: temp.host || '', personal: evt.personal ?? false, tags: evt.tags || [], visibility: evt.visibility || 'public', cover_url: evt.coverUrl || null });
       if (created) {
-        setEvents(s => s.map(x => x.id === temp.id ? ({ id: created.id, title: created.title, dateISO: created.date_iso || created.dateISO, showTime: created.show_time ?? created.showTime, location: created.location, city: evt.city || '', host: temp.host || '', attendees: created.attendees || [], personal: evt.personal ?? created.personal ?? false, tags: created.tags || evt.tags || [], visibility: evt.visibility || created.visibility || (evt.personal ? 'private' : 'public'), user_id: created.user_id, coverUrl: created.cover_url || null }) : x));
+        let coverUrl = created.cover_url || null;
+        if (evt.coverFile && created.id) {
+          const uploaded = await sbUploadEventCover(created.id, evt.coverFile);
+          if (uploaded) {
+            coverUrl = uploaded;
+            await sbUpdateEvent({ id: created.id, cover_url: uploaded });
+          }
+        }
+        setEvents(s => s.map(x => x.id === temp.id ? ({ id: created.id, title: created.title, dateISO: created.date_iso || created.dateISO, showTime: created.show_time ?? created.showTime, location: created.location, city: evt.city || '', host: temp.host || '', attendees: created.attendees || [], personal: evt.personal ?? created.personal ?? false, tags: created.tags || evt.tags || [], visibility: evt.visibility || created.visibility || (evt.personal ? 'private' : 'public'), user_id: created.user_id, coverUrl, description: evt.description || null }) : x));
       }
     }
   }, []);
@@ -222,7 +230,7 @@ function App() {
         await sbLeaveEvent(updated.id, user.id);
       }
       if (updated.user_id === user.id) {
-        await sbUpdateEvent({ id: updated.id, date_iso: updated.dateISO, show_time: updated.showTime, title: updated.title, location: updated.location, tags: updated.tags || [], visibility: updated.visibility || 'public', cover_url: updated.coverUrl || null });
+        await sbUpdateEvent({ id: updated.id, date_iso: updated.dateISO, show_time: updated.showTime, title: updated.title, location: updated.location, tags: updated.tags || [], visibility: updated.visibility || 'public', cover_url: updated.coverUrl || null, description: updated.description || null });
       }
     }
   }, [user]);

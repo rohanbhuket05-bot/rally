@@ -180,7 +180,8 @@ export default function HomeFeed({ activeTab = 'home', onNavigate = () => {}, ev
 
       {/* Calendar — 7×2 grid */}
       {(() => {
-        const allCalEvents = [...events, ...campusEvents];
+        const seen = new Set();
+        const allCalEvents = [...events, ...campusEvents].filter(ev => ev.id && !seen.has(ev.id) && seen.add(ev.id));
         const now = new Date();
         const fourWeekDays = [0, 7, 14, 21].map(offset => {
           const ref = new Date(now);
@@ -292,7 +293,8 @@ export default function HomeFeed({ activeTab = 'home', onNavigate = () => {}, ev
       )}
 
       {showFullCalendar && (() => {
-        const allCalEvents = [...events, ...campusEvents];
+        const seen = new Set();
+        const allCalEvents = [...events, ...campusEvents].filter(ev => ev.id && !seen.has(ev.id) && seen.add(ev.id));
         const year = calMonth.getFullYear();
         const month = calMonth.getMonth();
         const monthName = calMonth.toLocaleString('default', { month: 'long' });

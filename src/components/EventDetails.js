@@ -22,13 +22,22 @@ export default function EventDetails({ event, onBack, onUpdateEvent, activeTab, 
   const [showJoinPrompt, setShowJoinPrompt] = useState(false);
   const [showEdit, setShowEdit] = useState(false);
   const [editForm, setEditForm] = useState({});
-  const [previewAvatarMap, setPreviewAvatarMap] = useState({});
+  const [hostProfile, setHostProfile] = useState(null);
+  const [showFullscreen, setShowFullscreen] = useState(false);
   const [uploadingCover, setUploadingCover] = useState(false);
   const coverInputRef = useRef(null);
 
   const eventId = event?.id ?? null;
   const eventRef = useRef(event);
   useEffect(() => { eventRef.current = event; }, [event]);
+
+  useEffect(() => {
+    if (!event?.user_id || !isSupabaseConfigured()) return;
+    getProfilesByIds([event.user_id]).then(map => {
+      const p = map[event.user_id];
+      if (p) setHostProfile(p);
+    });
+  }, [event?.user_id]);
 
   useEffect(() => {
     if (!eventId || !isSupabaseConfigured()) return;
@@ -55,12 +64,6 @@ export default function EventDetails({ event, onBack, onUpdateEvent, activeTab, 
     return () => { cancelled = true; clearInterval(interval); unsub(); };
   }, [eventId]);
 
-  useEffect(() => {
-    const unknownIds = [...new Set(liveMessages.map(m => m.userId).filter(id => id && !(id in previewAvatarMap)))];
-    if (unknownIds.length === 0) return;
-    getProfilesByIds(unknownIds).then(map => setPreviewAvatarMap(prev => ({ ...prev, ...map })));
-  }, [liveMessages, previewAvatarMap]);
-
   if (!event) return null;
 
   const currentUserName = localStorage.getItem('rally_name') || localStorage.getItem('rally_username') || '';
@@ -82,7 +85,15 @@ export default function EventDetails({ event, onBack, onUpdateEvent, activeTab, 
     ? attendees.some(a => a.user_id === user.id)
     : (currentUserName && attendees.some(a => a.name === currentUserName)));
 
+  const unreadCount = Math.max(0, liveMessages.length - lastReadCount);
+  const displayTags = tags.length > 0 ? tags : (category ? [category] : []);
+  const hostName = hostProfile?.name || hostProfile?.username || event.host || '';
+  const hostInitials = getInitials(hostName || 'H');
+  const hostAvatarColor = avatarColor(hostName || 'host');
+
   function openChat() {
+    if (!user) { onAuthRequired('Sign in to access the chat'); return; }
+    if (!joined) { setShowJoinPrompt(true); return; }
     localStorage.setItem(`rally_chat_read_event_${eventId}`, String(liveMessages.length));
     setLastReadCount(liveMessages.length);
     onOpenChat(event);
@@ -99,17 +110,28 @@ export default function EventDetails({ event, onBack, onUpdateEvent, activeTab, 
       tags: event.tags || [],
       visibility: event.visibility || 'public',
       coverUrl: event.coverUrl || '',
+      description: event.description || '',
     });
     setShowEdit(true);
   }
 
   function handleEditSave() {
-    const dateISO = editForm.date
+    const iso = editForm.date
       ? editForm.showTime && editForm.time
         ? new Date(`${editForm.date}T${editForm.time}`).toISOString()
         : new Date(`${editForm.date}T00:00:00`).toISOString()
       : event.dateISO;
-    onUpdateEvent && onUpdateEvent({ ...event, title: editForm.title, dateISO, showTime: editForm.showTime && !!editForm.time, location: editForm.location, tags: editForm.tags, visibility: editForm.visibility, coverUrl: editForm.coverUrl || null });
+    onUpdateEvent && onUpdateEvent({
+      ...event,
+      title: editForm.title,
+      dateISO: iso,
+      showTime: editForm.showTime && !!editForm.time,
+      location: editForm.location,
+      tags: editForm.tags,
+      visibility: editForm.visibility,
+      coverUrl: editForm.coverUrl || null,
+      description: editForm.description,
+    });
     setShowEdit(false);
   }
 
@@ -124,217 +146,318 @@ export default function EventDetails({ event, onBack, onUpdateEvent, activeTab, 
     onUpdateEvent && onUpdateEvent({ ...event, attendees: next });
   }
 
+  const Divider = () => <div style={{ height: 1, background: 'rgba(255,255,255,0.07)', margin: '24px 0' }} />;
+
   return (
-    <main className="feed-root" style={{ overflowY: 'auto' }}>
-      {/* Back + title */}
-      <header style={{ marginBottom: 16, display: 'flex', flexDirection: 'column', alignItems: 'flex-start' }}>
+    <main className="event-details-scroller" style={{
+      position: 'fixed', inset: 0, zIndex: 5,
+      overflowY: 'auto', scrollbarWidth: 'none', msOverflowStyle: 'none',
+      background: '#08080E',
+      maxWidth: 520, left: '50%', transform: 'translateX(-50%)',
+    }}>
+
+      {/* Hero image */}
+      <div style={{ position: 'relative', width: '100%', flexShrink: 0 }}>
+        {event.coverUrl ? (
+          <img
+            src={event.coverUrl}
+            alt=""
+            onClick={() => setShowFullscreen(true)}
+            style={{ width: '100%', height: 'auto', display: 'block', cursor: 'zoom-in' }}
+          />
+        ) : (
+          <div style={{
+            width: '100%', height: 280,
+            background: 'linear-gradient(135deg, #1c1840 0%, #2d2260 50%, #1a1435 100%)',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+          }}>
+            <div style={{ fontSize: 96, fontWeight: 900, color: 'rgba(255,255,255,0.06)', lineHeight: 1, userSelect: 'none', letterSpacing: '-0.04em' }}>
+              {title?.charAt(0)?.toUpperCase() || '?'}
+            </div>
+          </div>
+        )}
+
+        {/* Bottom fade to page bg — only shown when there's a real cover photo */}
+        {event.coverUrl && (
+          <div style={{
+            position: 'absolute', bottom: 0, left: 0, right: 0, height: 100,
+            background: 'linear-gradient(to top, #08080E 0%, transparent 100%)',
+            pointerEvents: 'none',
+          }} />
+        )}
+
+        {/* Back button */}
         <button
           onClick={onBack}
           style={{
-            background: 'rgba(83,74,183,0.1)', border: 'none', borderRadius: 10,
-            padding: '8px 12px', color: 'var(--purple)', fontWeight: 700,
-            cursor: 'pointer', marginBottom: 12,
+            position: 'absolute', top: 16, left: 16,
+            width: 40, height: 40, borderRadius: '50%',
+            background: 'rgba(0,0,0,0.5)', backdropFilter: 'blur(10px)',
+            border: '1px solid rgba(255,255,255,0.12)',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            cursor: 'pointer', color: '#fff',
           }}
         >
-          ← Back
+          <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+            <polyline points="15 18 9 12 15 6"/>
+          </svg>
         </button>
-        <h2 style={{ margin: '0 0 6px', fontSize: 22, color: '#fff', lineHeight: 1.2 }}>{title}</h2>
-        <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', alignItems: 'center' }}>
-          {(tags.length > 0 ? tags : (category ? [category] : [])).map(tag => {
-            const tagDef = TAGS.find(t => t.id === tag);
-            const col = tagDef?.color || '#9D8FFF';
-            const bg = tagDef?.bg || 'rgba(157,143,255,0.15)';
-            return <span key={tag} className="category-pill" style={{ color: col, background: bg }}>{tag}</span>;
-          })}
-          {trending && <span className="badge">Trending</span>}
-        </div>
-      </header>
 
-      {/* Cover image */}
-      {event.coverUrl && (
-        <div style={{ borderRadius: 16, overflow: 'hidden', marginBottom: 12, width: '100%' }}>
-          <img src={event.coverUrl} alt="" style={{ width: '100%', height: 180, objectFit: 'cover', display: 'block' }} />
-        </div>
-      )}
-
-      {/* Details + RSVP */}
-      <div className="card" style={{ marginBottom: 12 }}>
-        <div className="card-meta" style={{ marginTop: 0 }}>
-          <div className="meta-row">
-            <span className="meta-label">When</span>
-            <span className="meta-value">{dateDisplay}</span>
-          </div>
-          <div className="meta-row">
-            <span className="meta-label">Where</span>
-            <span className="meta-value">{location || 'Location TBD'}</span>
-          </div>
-        </div>
-        {isHost ? (
-          <div style={{ marginTop: 14, paddingTop: 14, borderTop: '1px solid rgba(255,255,255,0.06)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 7, color: 'var(--purple)', fontWeight: 700, fontSize: 14 }}>
-              <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>
-              You're hosting
-            </div>
-            <button onClick={openEdit} style={{ background: 'none', border: '1px solid rgba(83,74,183,0.3)', borderRadius: 8, padding: '5px 12px', color: 'var(--purple)', fontWeight: 700, fontSize: 13, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 5 }}>
-              <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
-              Edit
-            </button>
-          </div>
-        ) : (
-          <button
-            onClick={handleJoin}
-            className={joined ? 'nav-action-btn joined' : 'join'}
-            style={{ marginTop: 14, width: '100%', padding: '12px 0', fontSize: 16, borderRadius: 12, display: 'flex', alignItems: 'center', justifyContent: 'center' }}
-          >
-            {joined ? (<><svg viewBox="0 0 12 12" width="14" height="14" fill="none" style={{ marginRight: 6 }}><path d="M1.5 6l3 3 6-6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></svg>Joined</>) : 'Join'}
-          </button>
-        )}
       </div>
 
-      {/* Who's going */}
-      <div className="card" style={{ marginBottom: 12 }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
-          <h3 style={{ margin: 0, fontSize: 15 }}>Who's going</h3>
-          <span className="badge" style={{ background: 'var(--teal)' }}>{attendees.length} going</span>
-        </div>
-        {attendees.length > 0 ? (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-            {attendees.map((a, i) => {
-              const color = a.color && a.color !== '#FFFFFF' ? a.color : avatarColor(a.name);
-              const initials = a.initials || getInitials(a.name);
+      {/* Content */}
+      <div style={{ padding: '20px 20px 120px' }}>
+
+        {/* Title */}
+        <h1 style={{ margin: '0 0 10px', fontSize: 27, fontWeight: 800, color: '#EEEEFF', lineHeight: 1.2, letterSpacing: '-0.01em' }}>
+          {title}
+        </h1>
+
+        {/* Tags */}
+        {(displayTags.length > 0 || trending) && (
+          <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: 22 }}>
+            {displayTags.map(tag => {
+              const tagDef = TAGS.find(t => t.id === tag);
+              const col = tagDef?.color || '#9D8FFF';
+              const bg = tagDef?.bg || 'rgba(157,143,255,0.15)';
               return (
-                <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                  {a.avatar_url
-                    ? <img src={a.avatar_url} alt={a.name} referrerPolicy="no-referrer" style={{ width: 36, height: 36, borderRadius: '50%', objectFit: 'cover', flexShrink: 0 }} />
-                    : <div className="avatar" style={{ backgroundColor: color, color: '#fff', flexShrink: 0, marginLeft: 0 }}>{initials}</div>
-                  }
-                  <span style={{ fontWeight: 600, fontSize: 14 }}>{a.name || 'Someone'}</span>
-                  {a.name === currentUserName && (
-                    <span style={{ fontSize: 11, color: 'var(--purple)', fontWeight: 700 }}>You</span>
-                  )}
-                </div>
+                <span key={tag} className="category-pill" style={{ color: col, background: bg }}>
+                  {tag}
+                </span>
               );
             })}
+            {trending && <span className="badge">Trending</span>}
           </div>
-        ) : (
-          <p style={{ color: '#888', fontSize: 14, margin: 0 }}>No one yet — be the first!</p>
         )}
-      </div>
 
-      {/* Event Chat */}
-      <div style={{ position: 'relative', marginBottom: 12 }}>
-        <div
-          className="group-chat-panel group-chat-preview"
-          onClick={() => {
-            if (!user) { onAuthRequired('Sign in to access the chat'); return; }
-            if (!joined) { setShowJoinPrompt(true); return; }
-            openChat();
-          }}
-          style={{ cursor: 'pointer', flex: 'none', filter: joined ? 'none' : 'blur(3px)', transition: 'filter 200ms', userSelect: 'none' }}
-        >
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: liveMessages.length > 0 ? 10 : 0 }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" width="16" height="16" style={{ color: 'var(--purple)', flexShrink: 0 }}>
+        {/* Date */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 12 }}>
+          <div style={{ width: 36, height: 36, borderRadius: 10, background: 'rgba(83,74,183,0.15)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+            <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="var(--purple)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/>
+            </svg>
+          </div>
+          <span style={{ fontSize: 15, color: '#CCCCEE', fontWeight: 500 }}>{dateDisplay}</span>
+        </div>
+
+        {/* Location */}
+        <div style={{ display: 'flex', alignItems: 'flex-start', gap: 12, marginBottom: 20 }}>
+          <div style={{ width: 36, height: 36, borderRadius: 10, background: 'rgba(83,74,183,0.15)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+            <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="var(--purple)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/>
+            </svg>
+          </div>
+          <div style={{ paddingTop: 4 }}>
+            <div style={{ fontSize: 15, color: '#CCCCEE', fontWeight: 500, lineHeight: 1.3 }}>
+              {location || 'Location TBD'}
+            </div>
+          </div>
+        </div>
+
+        {/* Map placeholder */}
+        <div style={{
+          borderRadius: 14, overflow: 'hidden', marginBottom: 24, height: 120,
+          background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.07)',
+          display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 8,
+          position: 'relative',
+        }}>
+          <div style={{
+            position: 'absolute', inset: 0,
+            backgroundImage: 'linear-gradient(rgba(255,255,255,0.025) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.025) 1px, transparent 1px)',
+            backgroundSize: '28px 28px',
+          }} />
+          <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="rgba(255,255,255,0.18)" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" style={{ position: 'relative' }}>
+            <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/>
+          </svg>
+          <span style={{ fontSize: 11, color: 'rgba(255,255,255,0.18)', fontWeight: 700, letterSpacing: '0.07em', textTransform: 'uppercase', position: 'relative' }}>
+            Map coming soon
+          </span>
+        </div>
+
+        {/* Action tile row — RSVP · Chat · Edit/Contact */}
+        <div style={{ display: 'flex', gap: 10, marginBottom: 24 }}>
+
+          {/* RSVP / Going tile */}
+          <button
+            onClick={isHost ? undefined : handleJoin}
+            style={{
+              flex: 1,
+              padding: '13px 0', borderRadius: 14, cursor: isHost ? 'default' : 'pointer',
+              background: 'rgba(255,255,255,0.05)',
+              border: joined || isHost ? '1px solid rgba(255,255,255,0.18)' : '1px solid rgba(255,255,255,0.09)',
+              color: joined || isHost ? '#EEEEFF' : '#AAAACC',
+              fontWeight: 700, fontSize: 14,
+              display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 5,
+              transition: 'all 180ms ease',
+              minWidth: 0,
+            }}
+          >
+            {isHost ? (
+              <>
+                <svg viewBox="0 0 24 24" width="17" height="17" fill="currentColor"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>
+                <span style={{ fontSize: 12 }}>Hosting</span>
+              </>
+            ) : joined ? (
+              <>
+                <svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+                <span style={{ fontSize: 12 }}>Going</span>
+              </>
+            ) : (
+              <>
+                <svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><line x1="19" y1="8" x2="19" y2="14"/><line x1="22" y1="11" x2="16" y2="11"/></svg>
+                <span style={{ fontSize: 12 }}>RSVP</span>
+              </>
+            )}
+          </button>
+
+          {/* Chat tile */}
+          <button
+            onClick={openChat}
+            style={{
+              flex: 1, padding: '13px 0', borderRadius: 14, cursor: 'pointer',
+              background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.09)',
+              color: '#AAAACC', fontWeight: 700, fontSize: 14,
+              display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 5,
+              position: 'relative',
+            }}
+          >
+            <svg viewBox="0 0 24 24" width="17" height="17" fill="currentColor" style={{ color: '#AAAACC' }}>
               <path d="M20 2H4c-1.1 0-2 .9-2 2v18l4-4h14c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2z"/>
             </svg>
-            <span style={{ fontWeight: 700, fontSize: 14 }}>Chat</span>
-          </div>
-          {(() => {
-            const newCount = Math.max(0, liveMessages.length - lastReadCount);
-            return newCount > 0
-              ? <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--pink)', background: 'var(--light-pink)', borderRadius: 20, padding: '3px 9px' }}>{newCount} new</span>
-              : <span style={{ fontSize: 11, color: '#666', fontWeight: 500 }}>up to date</span>;
-          })()}
-        </div>
+            <span style={{ fontSize: 12 }}>Chat</span>
+            {unreadCount > 0 && (
+              <div style={{
+                position: 'absolute', top: 8, right: 10,
+                background: '#FF6BA8', color: '#fff', borderRadius: '50%',
+                width: 16, height: 16, fontSize: 9, fontWeight: 700,
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+              }}>
+                {unreadCount > 9 ? '9+' : unreadCount}
+              </div>
+            )}
+          </button>
 
-        {liveMessages.length > 0 ? (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 7 }}>
-            {(() => {
-              const recent = liveMessages.slice(-3);
-              const grps = [];
-              recent.forEach(msg => {
-                const last = grps[grps.length - 1];
-                const lastMsg = last?.[last.length - 1];
-                const isCont = lastMsg && lastMsg.userId === msg.userId &&
-                  msg.createdAt && lastMsg.createdAt &&
-                  (new Date(msg.createdAt) - new Date(lastMsg.createdAt)) < 5 * 60 * 1000;
-                if (isCont) last.push(msg);
-                else grps.push([msg]);
-              });
-              return grps.map(grp => {
-                const isMe = user && grp[0].userId === user.id;
-                const senderColor = isMe ? 'var(--purple)' : avatarColor(grp[0].sender || '');
-                const senderName = isMe ? 'You' : (grp[0].sender || 'Unknown');
-                const initials = getInitials(senderName);
-                const avatarUrl = isMe ? profile?.avatar_url : previewAvatarMap[grp[0].userId]?.avatar_url;
-                const lastMsg = grp[grp.length - 1];
-                return (
-                  <div key={grp[0].id} style={{ display: 'flex', gap: 10 }}>
-                    {avatarUrl ? (
-                      <img src={avatarUrl} alt={senderName} referrerPolicy="no-referrer" style={{ width: 26, height: 26, borderRadius: '50%', objectFit: 'cover', flexShrink: 0, alignSelf: 'flex-start' }} />
-                    ) : (
-                      <div style={{ width: 26, height: 26, borderRadius: '50%', background: senderColor, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 10, fontWeight: 700, color: '#fff', flexShrink: 0, alignSelf: 'flex-start' }}>
-                        {initials}
-                      </div>
-                    )}
-                    <div style={{ flex: 1, minWidth: 0 }}>
-                      <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, marginBottom: 2 }}>
-                        <span style={{ fontSize: 13, fontWeight: 700, color: senderColor }}>{senderName}</span>
-                        <span style={{ fontSize: 11, color: '#555577' }}>{lastMsg.time}</span>
-                      </div>
-                      {grp.map(msg => (
-                        <div key={msg.id} style={{ fontSize: 13, color: '#BBBBDD', lineHeight: 1.5, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', textAlign: 'left' }}>
-                          {msg.text}
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                );
-              });
-            })()}
-          </div>
-        ) : (
-          <div style={{ color: '#555577', fontSize: 13 }}>No messages yet — tap to start the conversation.</div>
-        )}
-        </div>
-
-        {!joined && (
-          <div
-            onClick={() => { if (!user) { onAuthRequired('Sign in to access the chat'); return; } setShowJoinPrompt(true); }}
-            style={{ position: 'absolute', inset: 0, borderRadius: 26, cursor: 'pointer', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 6, background: 'rgba(0,0,0,0.18)' }}
+          {/* Edit (host) or Contact tile */}
+          <button
+            onClick={isHost ? openEdit : undefined}
+            style={{
+              flex: 1, padding: '13px 0', borderRadius: 14, cursor: isHost ? 'pointer' : 'default',
+              background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.09)',
+              color: '#AAAACC', fontWeight: 700, fontSize: 14,
+              display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 5,
+              opacity: isHost ? 1 : 0.45,
+            }}
           >
-            <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="#EEEEFF" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/>
-            </svg>
-            <span style={{ fontSize: 13, fontWeight: 700, color: '#EEEEFF' }}>Join to unlock chat</span>
+            {isHost ? (
+              <>
+                <svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
+                  <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
+                </svg>
+                <span style={{ fontSize: 12 }}>Edit</span>
+              </>
+            ) : (
+              <>
+                <svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
+                </svg>
+                <span style={{ fontSize: 12 }}>Contact</span>
+              </>
+            )}
+          </button>
+        </div>
+
+        <Divider />
+
+        {/* Host */}
+        <div style={{ marginBottom: 0 }}>
+          <div style={{ fontSize: 11, fontWeight: 700, color: '#555', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 14 }}>
+            Hosted by
           </div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+            {hostProfile?.avatar_url ? (
+              <img src={hostProfile.avatar_url} alt={hostName} referrerPolicy="no-referrer" style={{ width: 42, height: 42, borderRadius: '50%', objectFit: 'cover', flexShrink: 0 }} />
+            ) : (
+              <div style={{ width: 42, height: 42, borderRadius: '50%', background: hostAvatarColor, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 15, fontWeight: 700, color: '#fff', flexShrink: 0 }}>
+                {hostInitials}
+              </div>
+            )}
+            <span style={{ fontSize: 16, fontWeight: 700, color: '#EEEEFF' }}>{hostName || 'Unknown'}</span>
+          </div>
+        </div>
+
+        <Divider />
+
+        {/* Going */}
+        <div>
+          <div style={{ fontSize: 11, fontWeight: 700, color: '#555', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 14 }}>
+            {attendees.length > 0 ? `${attendees.length} Going` : 'Going'}
+          </div>
+          {attendees.length > 0 ? (
+            <>
+              <div style={{ display: 'flex', alignItems: 'center', marginBottom: 10 }}>
+                {attendees.slice(0, 5).map((a, i) => {
+                  const color = a.color && a.color !== '#FFFFFF' ? a.color : avatarColor(a.name);
+                  const initials = a.initials || getInitials(a.name);
+                  return (
+                    <div key={i} style={{ marginLeft: i === 0 ? 0 : -10, zIndex: 5 - i, position: 'relative' }}>
+                      {a.avatar_url ? (
+                        <img src={a.avatar_url} alt={a.name} referrerPolicy="no-referrer" style={{ width: 36, height: 36, borderRadius: '50%', objectFit: 'cover', border: '2.5px solid #2f3138', display: 'block' }} />
+                      ) : (
+                        <div style={{ width: 36, height: 36, borderRadius: '50%', background: color, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 12, fontWeight: 700, color: '#fff', border: '2.5px solid #2f3138' }}>
+                          {initials}
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+                {attendees.length > 5 && (
+                  <div style={{ marginLeft: -10, zIndex: 0, width: 36, height: 36, borderRadius: '50%', background: 'rgba(255,255,255,0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 11, fontWeight: 700, color: '#BBBBDD', border: '2.5px solid #2f3138' }}>
+                    +{attendees.length - 5}
+                  </div>
+                )}
+              </div>
+              <p style={{ margin: 0, fontSize: 13, color: '#777799', lineHeight: 1.5 }}>
+                {attendees.slice(0, 3).map(a => a.name).filter(Boolean).join(', ')}
+                {attendees.length > 3 && `, and ${attendees.length - 3} more`}
+              </p>
+            </>
+          ) : (
+            <p style={{ margin: 0, fontSize: 14, color: '#555577' }}>No one yet — be the first!</p>
+          )}
+        </div>
+
+        {/* Description */}
+        {event.description && (
+          <>
+            <Divider />
+            <div>
+              <div style={{ fontSize: 11, fontWeight: 700, color: '#555', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 14 }}>
+                About Event
+              </div>
+              <p style={{ margin: 0, fontSize: 15, color: '#AAAACC', lineHeight: 1.75 }}>
+                {event.description}
+              </p>
+            </div>
+          </>
         )}
       </div>
 
-      <button
-        className="join"
-        onClick={() => {
-          if (!user) { onAuthRequired('Sign in to join the chat'); return; }
-          if (!joined) { setShowJoinPrompt(true); return; }
-          openChat();
-        }}
-        style={{ width: '100%', padding: '14px', borderRadius: 14, marginBottom: 20, display: 'block', fontSize: 15, fontWeight: 700 }}
-      >
-        Open event chat
-      </button>
-
+      {/* Edit modal */}
       {showEdit && (
-        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 9999, padding: '0 20px' }} onClick={() => setShowEdit(false)}>
-          <div style={{ background: '#1A1A1E', borderRadius: 20, padding: '28px 20px 24px', width: '100%', maxWidth: 420, maxHeight: '85vh', overflowY: 'auto' }} onClick={e => e.stopPropagation()}>
-            <h3 style={{ margin: '0 0 20px', fontSize: 18, fontWeight: 800, color: '#EEEEFF' }}>Edit Event</h3>
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.65)', display: 'flex', alignItems: 'flex-end', justifyContent: 'center', zIndex: 9999 }} onClick={() => setShowEdit(false)}>
+          <div className="hide-scrollbar" style={{ background: '#1C1C22', borderRadius: '20px 20px 0 0', padding: '28px 20px 40px', width: '100%', maxWidth: 520, maxHeight: '90vh', overflowY: 'auto' }} onClick={e => e.stopPropagation()}>
+            <div style={{ width: 36, height: 4, borderRadius: 2, background: 'rgba(255,255,255,0.15)', margin: '0 auto 20px' }} />
+            <h3 style={{ margin: '0 0 22px', fontSize: 18, fontWeight: 800, color: '#EEEEFF' }}>Edit Event</h3>
 
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+
               {/* Cover photo */}
               <div>
-                <label style={{ fontSize: 12, fontWeight: 700, color: '#8888AA', textTransform: 'uppercase', letterSpacing: '0.05em', display: 'block', marginBottom: 8 }}>Cover Photo</label>
+                <label style={{ fontSize: 11, fontWeight: 700, color: '#666', textTransform: 'uppercase', letterSpacing: '0.06em', display: 'block', marginBottom: 8 }}>Cover Photo</label>
                 <div
                   onClick={() => coverInputRef.current?.click()}
-                  style={{ position: 'relative', width: '100%', height: 130, borderRadius: 12, background: editForm.coverUrl ? 'none' : 'rgba(255,255,255,0.04)', border: editForm.coverUrl ? 'none' : '1.5px dashed rgba(255,255,255,0.15)', overflow: 'hidden', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+                  style={{ position: 'relative', width: '100%', height: 130, borderRadius: 12, background: editForm.coverUrl ? 'none' : 'rgba(255,255,255,0.04)', border: editForm.coverUrl ? 'none' : '1.5px dashed rgba(255,255,255,0.12)', overflow: 'hidden', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
                 >
                   {editForm.coverUrl ? (
                     <img src={editForm.coverUrl} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
@@ -347,7 +470,7 @@ export default function EventDetails({ event, onBack, onUpdateEvent, activeTab, 
                     </div>
                   )}
                   {editForm.coverUrl && (
-                    <div style={{ position: 'absolute', bottom: 8, right: 8, background: 'rgba(0,0,0,0.55)', borderRadius: 8, padding: '5px 10px', display: 'flex', alignItems: 'center', gap: 5 }}>
+                    <div style={{ position: 'absolute', bottom: 8, right: 8, background: 'rgba(0,0,0,0.6)', borderRadius: 8, padding: '5px 10px', display: 'flex', alignItems: 'center', gap: 5 }}>
                       {uploadingCover
                         ? <div style={{ width: 12, height: 12, border: '2px solid rgba(255,255,255,0.3)', borderTopColor: '#fff', borderRadius: '50%', animation: 'spin 0.6s linear infinite' }} />
                         : <svg viewBox="0 0 24 24" width="12" height="12" fill="white"><path d="M12 15.2a3.2 3.2 0 1 1 0-6.4 3.2 3.2 0 0 1 0 6.4zM9 2L7.17 4H4c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2h-3.17L15 2H9z"/></svg>
@@ -373,36 +496,53 @@ export default function EventDetails({ event, onBack, onUpdateEvent, activeTab, 
                 />
               </div>
 
+              {/* Title */}
               <div>
-                <label style={{ fontSize: 12, fontWeight: 700, color: '#8888AA', textTransform: 'uppercase', letterSpacing: '0.05em', display: 'block', marginBottom: 6 }}>Title</label>
+                <label style={{ fontSize: 11, fontWeight: 700, color: '#666', textTransform: 'uppercase', letterSpacing: '0.06em', display: 'block', marginBottom: 6 }}>Title</label>
                 <input className="text-input" value={editForm.title} onChange={e => setEditForm(f => ({ ...f, title: e.target.value }))} style={{ width: '100%', boxSizing: 'border-box' }} />
               </div>
 
+              {/* Date + time */}
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
                 <div>
-                  <label style={{ fontSize: 12, fontWeight: 700, color: '#8888AA', textTransform: 'uppercase', letterSpacing: '0.05em', display: 'block', marginBottom: 6 }}>Date</label>
-                  <input type="date" className="text-input" value={editForm.date} onChange={e => setEditForm(f => ({ ...f, date: e.target.value }))} style={{ width: '100%', boxSizing: 'border-box' }} />
+                  <label style={{ fontSize: 11, fontWeight: 700, color: '#666', textTransform: 'uppercase', letterSpacing: '0.06em', display: 'block', marginBottom: 6 }}>Date</label>
+                  <input type="date" className="text-input" value={editForm.date} onChange={e => setEditForm(f => ({ ...f, date: e.target.value }))} style={{ width: '100%', boxSizing: 'border-box', colorScheme: 'dark' }} />
                 </div>
                 <div>
-                  <label style={{ fontSize: 12, fontWeight: 700, color: '#8888AA', textTransform: 'uppercase', letterSpacing: '0.05em', display: 'block', marginBottom: 6 }}>Time</label>
-                  <input type="time" className="text-input" value={editForm.time} onChange={e => setEditForm(f => ({ ...f, time: e.target.value, showTime: !!e.target.value }))} style={{ width: '100%', boxSizing: 'border-box' }} />
+                  <label style={{ fontSize: 11, fontWeight: 700, color: '#666', textTransform: 'uppercase', letterSpacing: '0.06em', display: 'block', marginBottom: 6 }}>Time</label>
+                  <input type="time" className="text-input" value={editForm.time} onChange={e => setEditForm(f => ({ ...f, time: e.target.value, showTime: !!e.target.value }))} style={{ width: '100%', boxSizing: 'border-box', colorScheme: 'dark' }} />
                 </div>
               </div>
 
+              {/* Location */}
               <div>
-                <label style={{ fontSize: 12, fontWeight: 700, color: '#8888AA', textTransform: 'uppercase', letterSpacing: '0.05em', display: 'block', marginBottom: 6 }}>Location</label>
+                <label style={{ fontSize: 11, fontWeight: 700, color: '#666', textTransform: 'uppercase', letterSpacing: '0.06em', display: 'block', marginBottom: 6 }}>Location</label>
                 <input className="text-input" value={editForm.location} onChange={e => setEditForm(f => ({ ...f, location: e.target.value }))} style={{ width: '100%', boxSizing: 'border-box' }} />
               </div>
 
+              {/* Description */}
               <div>
-                <label style={{ fontSize: 12, fontWeight: 700, color: '#8888AA', textTransform: 'uppercase', letterSpacing: '0.05em', display: 'block', marginBottom: 8 }}>Tags</label>
+                <label style={{ fontSize: 11, fontWeight: 700, color: '#666', textTransform: 'uppercase', letterSpacing: '0.06em', display: 'block', marginBottom: 6 }}>Description</label>
+                <textarea
+                  className="text-input textarea"
+                  value={editForm.description}
+                  onChange={e => setEditForm(f => ({ ...f, description: e.target.value }))}
+                  placeholder="What's this event about?"
+                  rows={3}
+                  style={{ width: '100%', boxSizing: 'border-box' }}
+                />
+              </div>
+
+              {/* Tags */}
+              <div>
+                <label style={{ fontSize: 11, fontWeight: 700, color: '#666', textTransform: 'uppercase', letterSpacing: '0.06em', display: 'block', marginBottom: 8 }}>Tags</label>
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 6 }}>
                   {TAGS.map(tag => {
                     const selected = (editForm.tags || []).includes(tag.id);
                     return (
                       <button key={tag.id} onClick={() => setEditForm(f => ({ ...f, tags: selected ? f.tags.filter(t => t !== tag.id) : [...(f.tags || []), tag.id] }))}
                         style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '8px 10px', borderRadius: 10, border: `1px solid ${selected ? tag.color : 'rgba(255,255,255,0.08)'}`, background: selected ? tag.bg : 'rgba(255,255,255,0.03)', cursor: 'pointer', textAlign: 'left' }}>
-                        <div style={{ width: 10, height: 10, borderRadius: '50%', background: selected ? tag.color : 'rgba(255,255,255,0.15)', flexShrink: 0, transition: 'background 150ms' }} />
+                        <div style={{ width: 10, height: 10, borderRadius: '50%', background: selected ? tag.color : 'rgba(255,255,255,0.15)', flexShrink: 0 }} />
                         <span style={{ fontSize: 13, fontWeight: 600, color: selected ? tag.color : '#AAAACC' }}>{tag.id}</span>
                       </button>
                     );
@@ -410,12 +550,13 @@ export default function EventDetails({ event, onBack, onUpdateEvent, activeTab, 
                 </div>
               </div>
 
+              {/* Visibility */}
               <div>
-                <label style={{ fontSize: 12, fontWeight: 700, color: '#8888AA', textTransform: 'uppercase', letterSpacing: '0.05em', display: 'block', marginBottom: 8 }}>Visibility</label>
+                <label style={{ fontSize: 11, fontWeight: 700, color: '#666', textTransform: 'uppercase', letterSpacing: '0.06em', display: 'block', marginBottom: 8 }}>Visibility</label>
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 8 }}>
                   {[{ id: 'public', label: 'Public' }, { id: 'friends', label: 'Friends' }, { id: 'private', label: 'Private' }].map(v => (
                     <button key={v.id} onClick={() => setEditForm(f => ({ ...f, visibility: v.id }))}
-                      style={{ padding: '9px 0', borderRadius: 10, border: `1px solid ${editForm.visibility === v.id ? 'var(--purple)' : 'rgba(255,255,255,0.08)'}`, background: editForm.visibility === v.id ? 'var(--light-purple)' : 'rgba(255,255,255,0.03)', color: editForm.visibility === v.id ? 'var(--purple)' : '#AAAACC', fontWeight: 700, fontSize: 13, cursor: 'pointer' }}>
+                      style={{ padding: '9px 0', borderRadius: 10, border: `1px solid ${editForm.visibility === v.id ? 'var(--purple)' : 'rgba(255,255,255,0.08)'}`, background: editForm.visibility === v.id ? 'rgba(83,74,183,0.15)' : 'rgba(255,255,255,0.03)', color: editForm.visibility === v.id ? 'var(--purple)' : '#AAAACC', fontWeight: 700, fontSize: 13, cursor: 'pointer' }}>
                       {v.label}
                     </button>
                   ))}
@@ -425,29 +566,74 @@ export default function EventDetails({ event, onBack, onUpdateEvent, activeTab, 
 
             <div style={{ display: 'flex', gap: 10, marginTop: 24 }}>
               <button onClick={() => setShowEdit(false)} style={{ flex: 1, padding: '12px', borderRadius: 12, border: '1px solid rgba(255,255,255,0.1)', background: 'none', color: '#8888AA', fontWeight: 700, fontSize: 14, cursor: 'pointer' }}>Cancel</button>
-              <button onClick={handleEditSave} className="join" style={{ flex: 2, padding: '12px', borderRadius: 12, fontSize: 15 }}>Save Changes</button>
+              <button
+                onClick={handleEditSave}
+                style={{
+                  flex: 2, padding: '13px', borderRadius: 12, border: 'none', fontSize: 15, fontWeight: 700,
+                  letterSpacing: '0.02em', cursor: 'pointer',
+                  background: 'linear-gradient(180deg, #5F56CC 0%, #483FA8 100%)',
+                  color: '#fff',
+                  boxShadow: '0 4px 16px rgba(83,74,183,0.45), inset 0 1px 0 rgba(255,255,255,0.12)',
+                }}
+              >
+                Save Changes
+              </button>
             </div>
           </div>
         </div>
       )}
 
-      {showJoinPrompt && (
+      {/* Fullscreen image lightbox */}
+      {showFullscreen && event.coverUrl && (
         <div
-          style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 9999, padding: '0 24px' }}
-          onClick={() => setShowJoinPrompt(false)}
+          onClick={() => setShowFullscreen(false)}
+          style={{
+            position: 'fixed', inset: 0, zIndex: 99999,
+            background: 'rgba(0,0,0,0.92)', backdropFilter: 'blur(12px)',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            padding: 20,
+          }}
         >
-          <div
-            style={{ background: '#1A1A1E', borderRadius: 20, padding: '32px 24px 28px', width: '100%', maxWidth: 360 }}
-            onClick={e => e.stopPropagation()}
+          <button
+            onClick={() => setShowFullscreen(false)}
+            style={{
+              position: 'absolute', top: 16, right: 16,
+              width: 40, height: 40, borderRadius: '50%',
+              background: 'rgba(255,255,255,0.1)', border: '1px solid rgba(255,255,255,0.15)',
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              cursor: 'pointer', color: '#fff',
+            }}
           >
-            <div style={{ display: 'none' }} />
-            <div style={{ width: 52, height: 52, borderRadius: '50%', background: 'var(--light-purple)', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 16px' }}>
+            <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+              <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+            </svg>
+          </button>
+          <img
+            src={event.coverUrl}
+            alt={event.title}
+            onClick={e => e.stopPropagation()}
+            style={{
+              maxWidth: '100%', maxHeight: '100%',
+              borderRadius: 12,
+              objectFit: 'contain',
+              boxShadow: '0 24px 80px rgba(0,0,0,0.6)',
+            }}
+          />
+        </div>
+      )}
+
+      {/* Join prompt */}
+      {showJoinPrompt && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.6)', display: 'flex', alignItems: 'flex-end', justifyContent: 'center', zIndex: 9999 }} onClick={() => setShowJoinPrompt(false)}>
+          <div style={{ background: '#1C1C22', borderRadius: '20px 20px 0 0', padding: '28px 24px 44px', width: '100%', maxWidth: 520 }} onClick={e => e.stopPropagation()}>
+            <div style={{ width: 36, height: 4, borderRadius: 2, background: 'rgba(255,255,255,0.15)', margin: '0 auto 24px' }} />
+            <div style={{ width: 52, height: 52, borderRadius: '50%', background: 'rgba(83,74,183,0.15)', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 16px' }}>
               <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="var(--purple)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                 <rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/>
               </svg>
             </div>
             <h3 style={{ margin: '0 0 8px', fontSize: 18, fontWeight: 800, textAlign: 'center', color: '#EEEEFF' }}>Members only</h3>
-            <p style={{ margin: '0 0 24px', fontSize: 14, color: '#8888AA', textAlign: 'center', lineHeight: 1.6 }}>
+            <p style={{ margin: '0 0 24px', fontSize: 14, color: '#8888AA', textAlign: 'center', lineHeight: 1.65 }}>
               Join this event to access the group chat and coordinate with everyone going.
             </p>
             <button
@@ -457,10 +643,7 @@ export default function EventDetails({ event, onBack, onUpdateEvent, activeTab, 
             >
               Join Event
             </button>
-            <button
-              onClick={() => setShowJoinPrompt(false)}
-              style={{ width: '100%', padding: '12px', marginTop: 10, background: 'none', border: 'none', color: '#8888AA', fontSize: 14, cursor: 'pointer', fontWeight: 600 }}
-            >
+            <button onClick={() => setShowJoinPrompt(false)} style={{ width: '100%', padding: '12px', marginTop: 10, background: 'none', border: 'none', color: '#8888AA', fontSize: 14, cursor: 'pointer', fontWeight: 600 }}>
               Not now
             </button>
           </div>
