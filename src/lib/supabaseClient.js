@@ -247,7 +247,7 @@ export async function uploadEventCover(eventId, file) {
     if (error) throw error;
     const { data: { publicUrl } } = supabase.storage
       .from('event-covers')
-      .getPublicUrl(path, { transform: { width: 800, height: 480, resize: 'cover' } });
+      .getPublicUrl(path);
     return publicUrl;
   } catch (e) {
     console.warn('uploadEventCover error', e.message || e);

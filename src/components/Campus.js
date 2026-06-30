@@ -102,6 +102,10 @@ export default function Campus({
         host: r.host,
         user_id: r.user_id,
         trending: r.trending,
+        coverUrl: r.cover_url || null,
+        description: r.description || null,
+        visibility: r.visibility || 'public',
+        city: r.city || '',
       })));
       setLoading(false);
     });
