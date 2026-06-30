@@ -87,13 +87,13 @@ Deno.serve(async (req: Request) => {
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        from: 'Rally <verify@rallywithus.net>',
+        from: 'Sphera <verify@joinsphera.com>',
         to: edu_email,
-        subject: `${code} is your Rally verification code`,
+        subject: `${code} is your Sphera verification code`,
         html: `
           <div style="font-family:sans-serif;max-width:480px;margin:0 auto;padding:32px">
             <h2 style="margin:0 0 8px;font-size:24px">Verify your student status</h2>
-            <p style="color:#666;margin:0 0 24px">Enter this code in Rally to confirm your ${school} email.</p>
+            <p style="color:#666;margin:0 0 24px">Enter this code in Sphera to confirm your ${school} email.</p>
             <div style="background:#f5f5ff;border-radius:12px;padding:24px;text-align:center;letter-spacing:0.3em;font-size:36px;font-weight:700;color:#534AB7">${code}</div>
             <p style="color:#999;font-size:13px;margin-top:20px">This code expires in 10 minutes. If you didn't request this, you can ignore this email.</p>
           </div>

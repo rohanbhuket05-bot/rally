@@ -37,10 +37,10 @@ export default function LandingPage() {
 
       {/* Top: branding */}
       <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', width: '100%' }}>
-        <img src={logo} alt="Rally" style={{ width: 96, height: 96, borderRadius: '50%', objectFit: 'cover', marginBottom: 20 }} />
+        <img src={logo} alt="Sphera" style={{ width: 96, height: 96, borderRadius: '50%', objectFit: 'cover', marginBottom: 20 }} />
 
         <div style={{ fontSize: 38, fontWeight: 900, color: '#EEEEFF', letterSpacing: '-1px', lineHeight: 1 }}>
-          Rally
+          Sphera
         </div>
         <div style={{ fontSize: 15, color: '#8888AA', marginTop: 10, fontWeight: 500, textAlign: 'center', lineHeight: 1.5 }}>
           Your campus social scene
@@ -114,7 +114,7 @@ export default function LandingPage() {
         )}
 
         <div style={{ marginTop: 20, fontSize: 11, color: '#444', textAlign: 'center' }}>
-          By continuing you agree to Rally's community guidelines.
+          By continuing you agree to Sphera's community guidelines.
         </div>
       </div>
     </div>

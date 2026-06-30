@@ -246,13 +246,13 @@ export default function HomeFeed({ activeTab = 'home', onNavigate = () => {}, ev
                   <div key={key} style={{
                     borderRadius: 8,
                     background: isToday ? 'rgba(83,74,183,0.18)' : 'rgba(255,255,255,0.04)',
-                    outline: isToday ? '1.5px solid var(--purple)' : '1px solid rgba(255,255,255,0.05)',
+                    boxShadow: isToday ? 'inset 0 0 0 1.5px var(--purple)' : 'inset 0 0 0 1px rgba(255,255,255,0.06)',
                     padding: '6px 3px 5px',
-                    minHeight: 52,
+                    minHeight: 72,
                     display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2,
                     opacity: isPast ? 0.38 : 1,
                   }}>
-                    <span style={{ fontSize: 14, fontWeight: 800, color: isToday ? 'var(--purple)' : '#EEEEFF', lineHeight: 1, marginBottom: 2 }}>
+                    <span style={{ fontSize: 14, fontWeight: 600, color: isToday ? 'var(--purple)' : '#EEEEFF', lineHeight: 1, marginBottom: 2 }}>
                       {d.getDate()}
                     </span>
                     {dayEvs.slice(0, 2).map((ev, j) => (
