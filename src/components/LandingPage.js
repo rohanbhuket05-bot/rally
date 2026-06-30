@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { isSupabaseConfigured, signInWithOtp, signInWithProvider } from '../lib/supabaseClient';
-import logo from '../assets/logo.png';
+import logo from '../assets/Sphera Logo v2.png';
 import './HomeFeed.css';
 
 export default function LandingPage() {
