@@ -60,20 +60,20 @@ function SchoolOrgAvatar({ org, size = 44 }) {
     : <div style={{ width: size, height: size, borderRadius: size * 0.3, background: 'rgba(83,74,183,0.3)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--purple)', fontWeight: 800, fontSize: size * 0.34, flexShrink: 0 }}>{initials}</div>;
 }
 
-function SchoolOrgRow({ org }) {
+function SchoolOrgTile({ org }) {
   return (
-    <div className="card" style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '12px 14px' }}>
-      <SchoolOrgAvatar org={org} size={44} />
-      <div style={{ flex: 1, minWidth: 0, textAlign: 'left' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-          <div style={{ fontWeight: 700, fontSize: 14, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{org.name}</div>
+    <div className="card" style={{ padding: '14px 12px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8, textAlign: 'center' }}>
+      <SchoolOrgAvatar org={org} size={48} />
+      <div style={{ width: '100%', minWidth: 0 }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 4 }}>
+          <div style={{ fontWeight: 700, fontSize: 13, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{org.name}</div>
           {org.school_verified && (
-            <svg viewBox="0 0 24 24" width="13" height="13" fill="var(--purple)" style={{ flexShrink: 0 }}>
+            <svg viewBox="0 0 24 24" width="12" height="12" fill="var(--purple)" style={{ flexShrink: 0 }}>
               <path d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
             </svg>
           )}
         </div>
-        <div style={{ fontSize: 12, color: '#666', marginTop: 2 }}>@{org.handle} · {org.org_type}</div>
+        <div style={{ fontSize: 11, color: '#666', marginTop: 2, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{org.org_type}</div>
       </div>
     </div>
   );
@@ -473,7 +473,7 @@ export default function Campus({
       <section style={{ marginBottom: 16 }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
           <h2 style={{ margin: 0, fontSize: 16, fontWeight: 800, textAlign: 'left' }}>Orgs</h2>
-          {schoolOrgs.length > 3 && (
+          {schoolOrgs.length > 4 && (
             <button onClick={() => setShowOrgsPage(true)} style={{ background: 'none', border: 'none', color: 'var(--purple)', fontSize: 13, fontWeight: 700, cursor: 'pointer', padding: 0 }}>
               See all →
             </button>
@@ -484,11 +484,11 @@ export default function Campus({
             <div style={{ fontSize: 13, color: '#555' }}>No organizations registered at {school || 'your school'} yet.</div>
           </div>
         ) : (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-            {schoolOrgs.slice(0, 3).map(org => <SchoolOrgRow key={org.id} org={org} />)}
-            {schoolOrgs.length > 3 && (
-              <button onClick={() => setShowOrgsPage(true)} style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: 12, padding: '12px', fontSize: 13, fontWeight: 600, color: 'var(--purple)', cursor: 'pointer' }}>
-                +{schoolOrgs.length - 3} more organizations
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 8 }}>
+            {schoolOrgs.slice(0, 4).map(org => <SchoolOrgTile key={org.id} org={org} />)}
+            {schoolOrgs.length > 4 && (
+              <button onClick={() => setShowOrgsPage(true)} style={{ gridColumn: '1 / -1', background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: 12, padding: '12px', fontSize: 13, fontWeight: 600, color: 'var(--purple)', cursor: 'pointer' }}>
+                +{schoolOrgs.length - 4} more organizations
               </button>
             )}
           </div>
