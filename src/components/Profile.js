@@ -111,7 +111,7 @@ function SwipeableEventRow({ ev, onOpen, onDelete }) {
   );
 }
 
-export default function Profile({ user, profile = {}, onUpdateProfile = () => {}, activeTab = 'profile', onNavigate = () => {}, onOpenGroup = () => {}, events = [], groups: allGroups = [], onAddEvent = () => {}, onUpdateEvent = () => {}, onDeleteEvent = () => {}, onSignOut = () => {}, onAuthRequired = () => {}, darkMode = false, onToggleDark = () => {}, onViewFriend = () => {}, onOpenDm = () => {} }) {
+export default function Profile({ user, profile = {}, onUpdateProfile = () => {}, activeTab = 'profile', onNavigate = () => {}, onOpenGroup = () => {}, events = [], groups: allGroups = [], onAddEvent = () => {}, onUpdateEvent = () => {}, onDeleteEvent = () => {}, onSignOut = () => {}, onSwitchAccount = () => {}, onAuthRequired = () => {}, darkMode = false, onToggleDark = () => {}, onViewFriend = () => {}, onOpenDm = () => {} }) {
   const [name, setName] = useState(() => profile.name || localStorage.getItem('sphera_name') || '');
   const [bio, setBio] = useState(() => profile.bio || localStorage.getItem('sphera_bio') || '');
   const [username, setUsername] = useState(() => profile.username || localStorage.getItem('sphera_username') || '');
@@ -177,8 +177,11 @@ export default function Profile({ user, profile = {}, onUpdateProfile = () => {}
     onUpdateProfile({ name: newName, bio: newBio, username: finalUsername, friends: profile.friends || [], pronouns, avatar_url: profile.avatar_url || '' });
   };
   // `events` and handlers are provided by App (single source of truth)
+  const [showGeneralSettings, setShowGeneralSettings] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
   const [showSignOutConfirm, setShowSignOutConfirm] = useState(false);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [deleteConfirmText, setDeleteConfirmText] = useState('');
   const [showConfirm, setShowConfirm] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState(null);
   const [selectedEvent, setSelectedEvent] = useState(null);
@@ -326,68 +329,201 @@ export default function Profile({ user, profile = {}, onUpdateProfile = () => {}
     return <ProfileSignIn activeTab={activeTab} onNavigate={onNavigate} />;
   }
 
-  return (
-    <main className="feed-root" style={{ height: '100vh', overflow: 'hidden', paddingBottom: 0 }}>
-      <header className="feed-header" style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
-        <div style={{ textAlign: 'left' }}>
-          <h1 style={{ margin: 0 }}>Profile</h1>
-          <p className="tagline" style={{ margin: 0 }}>{name || 'Set up your profile'}</p>
+  if (showGeneralSettings && !showSettings) {
+    const SettingsRow = ({ icon, label, sub, onClick, chevron = true, color, iconBg }) => (
+      <button
+        onClick={onClick}
+        style={{ width: '100%', display: 'flex', alignItems: 'center', gap: 14, padding: '14px 18px', background: 'none', border: 'none', cursor: onClick ? 'pointer' : 'default', textAlign: 'left' }}
+      >
+        <div style={{ width: 36, height: 36, borderRadius: 10, background: iconBg || 'rgba(255,255,255,0.06)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, color: color || 'var(--purple)', overflow: 'hidden' }}>
+          {icon}
         </div>
-        <button
-          onClick={() => setShowSettings(true)}
-          aria-label="Settings"
-          style={{ background: 'none', border: 'none', padding: 6, cursor: 'pointer', color: '#888', display: 'flex', alignItems: 'center', flexShrink: 0 }}
-        >
-          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" width="22" height="22">
-            <path d="M12 15.5a3.5 3.5 0 1 1 0-7 3.5 3.5 0 0 1 0 7zm7.43-2.44c.04-.32.07-.64.07-.96s-.03-.64-.07-.97l2.11-1.63c.19-.15.24-.42.12-.64l-2-3.46c-.12-.22-.39-.3-.61-.22l-2.49 1c-.52-.4-1.08-.73-1.69-.98l-.38-2.65C14.46 2.18 14.25 2 14 2h-4c-.25 0-.46.18-.49.42l-.38 2.65c-.61.25-1.17.59-1.69.98l-2.49-1c-.23-.09-.49 0-.61.22l-2 3.46c-.13.22-.07.49.12.64l2.11 1.63c-.04.33-.07.65-.07.97s.03.64.07.97l-2.11 1.63c-.19.15-.24.42-.12.64l2 3.46c.12.22.39.3.61.22l2.49-1c.52.4 1.08.73 1.69.98l.38 2.65c.03.24.24.42.49.42h4c.25 0 .46-.18.49-.42l.38-2.65c.61-.25 1.17-.58 1.69-.98l2.49 1c.23.09.49 0 .61-.22l2-3.46c.12-.22.07-.49-.12-.64l-2.11-1.63z"/>
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <div style={{ fontWeight: 600, fontSize: 15, color: color || '#EEEEFF' }}>{label}</div>
+          {sub && <div style={{ fontSize: 12, color: '#8888AA', marginTop: 1 }}>{sub}</div>}
+        </div>
+        {chevron && (
+          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="#555" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0 }}>
+            <polyline points="9 18 15 12 9 6"/>
           </svg>
-        </button>
+        )}
+      </button>
+    );
 
-        {showSettings && (
-          <div className="modal-overlay" onClick={() => setShowSettings(false)}>
-            <div className="modal" style={{ padding: 0, maxWidth: 340, overflow: 'hidden' }} onClick={e => e.stopPropagation()}>
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '16px 20px', borderBottom: '1px solid #F0F0F0' }}>
-                <span style={{ fontWeight: 700, fontSize: 17 }}>Settings</span>
-                <button onClick={() => setShowSettings(false)} style={{ background: 'none', border: 'none', fontSize: 20, cursor: 'pointer', color: '#888', lineHeight: 1, padding: '0 4px' }}>✕</button>
-              </div>
+    const Divider = () => <div style={{ height: 1, background: 'rgba(255,255,255,0.06)', margin: '0 18px' }} />;
 
-              <div style={{ padding: '8px 0' }}>
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '14px 20px' }}>
-                  <span style={{ fontSize: 15, fontWeight: 600 }}>Dark mode</span>
-                  <button
-                    onClick={onToggleDark}
-                    aria-label="Toggle dark mode"
-                    style={{
-                      width: 44, height: 24, borderRadius: 12,
-                      background: darkMode ? 'var(--purple)' : '#DDD',
-                      border: 'none', cursor: 'pointer', position: 'relative',
-                      transition: 'background 200ms', flexShrink: 0,
-                    }}
-                  >
-                    <div style={{
-                      width: 18, height: 18, borderRadius: 9, background: '#fff',
-                      position: 'absolute', top: 3, left: darkMode ? 23 : 3,
-                      transition: 'left 200ms', boxShadow: '0 1px 3px rgba(0,0,0,0.2)',
-                    }} />
-                  </button>
+    return (
+      <main className="feed-root" style={{ height: '100vh', overflow: 'hidden', paddingBottom: 0 }}>
+        <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '56px 20px 16px', borderBottom: '1px solid rgba(255,255,255,0.07)', flexShrink: 0 }}>
+            <button
+              onClick={() => setShowGeneralSettings(false)}
+              style={{ background: 'rgba(255,255,255,0.07)', border: 'none', borderRadius: '50%', width: 36, height: 36, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', flexShrink: 0 }}
+            >
+              <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="#EEEEFF" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                <polyline points="15 18 9 12 15 6"/>
+              </svg>
+            </button>
+            <span style={{ fontWeight: 800, fontSize: 18 }}>Settings</span>
+          </div>
+
+          <div style={{ flex: 1, overflowY: 'auto', padding: '20px 20px 40px' }}>
+
+            {/* Section 1 */}
+            <div style={{ marginBottom: 8, fontSize: 11, fontWeight: 700, color: '#8888AA', letterSpacing: '0.08em', textTransform: 'uppercase' }}>Account</div>
+            <div className="card" style={{ padding: 0, overflow: 'hidden', marginBottom: 24 }}>
+              <SettingsRow
+                onClick={() => { setShowGeneralSettings(false); setShowSettings(true); }}
+                label="Settings and Privacy"
+                color="#9CA3AF"
+                iconBg="rgba(156,163,175,0.15)"
+                icon={<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="#9CA3AF" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M12 15.5a3.5 3.5 0 1 1 0-7 3.5 3.5 0 0 1 0 7zm7.43-2.44c.04-.32.07-.64.07-.96s-.03-.64-.07-.97l2.11-1.63c.19-.15.24-.42.12-.64l-2-3.46c-.12-.22-.39-.3-.61-.22l-2.49 1c-.52-.4-1.08-.73-1.69-.98l-.38-2.65C14.46 2.18 14.25 2 14 2h-4c-.25 0-.46.18-.49.42l-.38 2.65c-.61.25-1.17.59-1.69.98l-2.49-1c-.23-.09-.49 0-.61.22l-2 3.46c-.13.22-.07.49.12.64l2.11 1.63c-.04.33-.07.65-.07.97s.03.64.07.97l-2.11 1.63c-.19.15-.24.42-.12.64l2 3.46c.12.22.39.3.61.22l2.49-1c.52.4 1.08.73 1.69.98l.38 2.65c.03.24.24.42.49.42h4c.25 0 .46-.18.49-.42l.38-2.65c.61-.25 1.17-.58 1.69-.98l2.49 1c.23.09.49 0 .61-.22l2-3.46c.12-.22.07-.49-.12-.64l-2.11-1.63z"/></svg>}
+              />
+              <Divider />
+              <SettingsRow
+                onClick={() => {}}
+                label="Help Center"
+                color="#F59E0B"
+                iconBg="rgba(245,158,11,0.15)"
+                icon={<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="#F59E0B" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M9 18h6"/><path d="M10 22h4"/><path d="M15.09 14c.18-.98.65-1.74 1.41-2.5A4.65 4.65 0 0 0 18 8 6 6 0 0 0 6 8c0 1 .23 2.23 1.5 3.5A4.61 4.61 0 0 1 8.91 14"/></svg>}
+              />
+            </div>
+
+            {/* Section 2 */}
+            <div style={{ marginBottom: 8, fontSize: 11, fontWeight: 700, color: '#8888AA', letterSpacing: '0.08em', textTransform: 'uppercase' }}>Payments</div>
+            <div className="card" style={{ padding: 0, overflow: 'hidden', marginBottom: 24 }}>
+              <SettingsRow
+                onClick={null}
+                label="Wallet"
+                sub="Coming soon"
+                chevron={false}
+                icon={<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><rect x="2" y="5" width="20" height="14" rx="2"/><path d="M2 10h20"/></svg>}
+              />
+              <Divider />
+              <SettingsRow
+                onClick={null}
+                label="Account Balance"
+                sub="Coming soon"
+                chevron={false}
+                color="#22C55E"
+                iconBg="rgba(34,197,94,0.15)"
+                icon={<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="#22C55E" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>}
+              />
+            </div>
+
+            {/* Section 3 */}
+            <div style={{ marginBottom: 8, fontSize: 11, fontWeight: 700, color: '#8888AA', letterSpacing: '0.08em', textTransform: 'uppercase' }}>About</div>
+            <div className="card" style={{ padding: 0, overflow: 'hidden' }}>
+              <SettingsRow
+                onClick={() => {}}
+                label="Rate the app"
+                icon={<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>}
+              />
+              <Divider />
+              <SettingsRow
+                onClick={() => window.open('mailto:support@joinsphera.com')}
+                label="Contact us"
+                icon={<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>}
+              />
+              <Divider />
+              <SettingsRow
+                onClick={() => window.open('https://www.instagram.com/joinsphera', '_blank')}
+                label="Follow @joinsphera"
+                sub="Instagram"
+                iconBg="transparent"
+                icon={<img src={require('../assets/instagram app icon.png')} alt="Instagram" style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />}
+              />
+              <Divider />
+              <SettingsRow
+                onClick={() => window.open('https://www.tiktok.com/@joinsphera', '_blank')}
+                label="Follow @joinsphera"
+                sub="TikTok"
+                iconBg="transparent"
+                icon={<img src={require('../assets/tiktok app icon.png')} alt="TikTok" style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />}
+              />
+            </div>
+
+          </div>
+        </div>
+      </main>
+    );
+  }
+
+  if (showSettings) {
+    return (
+      <main className="feed-root" style={{ height: '100vh', overflow: 'hidden', paddingBottom: 0 }}>
+        <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
+          {/* Header */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '56px 20px 16px', borderBottom: '1px solid rgba(255,255,255,0.07)', flexShrink: 0 }}>
+            <button
+              onClick={() => { setShowSettings(false); setShowGeneralSettings(true); }}
+              style={{ background: 'rgba(255,255,255,0.07)', border: 'none', borderRadius: '50%', width: 36, height: 36, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', flexShrink: 0 }}
+            >
+              <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="#EEEEFF" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                <polyline points="15 18 9 12 15 6"/>
+              </svg>
+            </button>
+            <span style={{ fontWeight: 800, fontSize: 18 }}>Settings and Privacy</span>
+          </div>
+
+          {/* Content */}
+          <div style={{ flex: 1, overflowY: 'auto', padding: '20px 20px 40px' }}>
+            <div style={{ marginBottom: 8, fontSize: 11, fontWeight: 700, color: '#8888AA', letterSpacing: '0.08em', textTransform: 'uppercase' }}>Appearance</div>
+            <div className="card" style={{ padding: 0, overflow: 'hidden', marginBottom: 24 }}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '16px 18px' }}>
+                <div>
+                  <div style={{ fontWeight: 600, fontSize: 15 }}>Dark mode</div>
+                  <div style={{ fontSize: 12, color: '#8888AA', marginTop: 2 }}>Easier on the eyes at night</div>
                 </div>
-
-                <div style={{ height: 1, background: '#F0F0F0', margin: '0 20px' }} />
-
                 <button
-                  onClick={() => setShowSignOutConfirm(true)}
-                  style={{ width: '100%', textAlign: 'left', padding: '14px 20px', background: 'none', border: 'none', fontSize: 15, fontWeight: 600, color: '#E74C3C', cursor: 'pointer' }}
+                  onClick={onToggleDark}
+                  aria-label="Toggle dark mode"
+                  style={{ width: 48, height: 26, borderRadius: 13, background: darkMode ? 'var(--purple)' : 'rgba(255,255,255,0.15)', border: 'none', cursor: 'pointer', position: 'relative', transition: 'background 200ms', flexShrink: 0 }}
                 >
-                  Sign out
+                  <div style={{ width: 20, height: 20, borderRadius: 10, background: '#fff', position: 'absolute', top: 3, left: darkMode ? 25 : 3, transition: 'left 200ms', boxShadow: '0 1px 4px rgba(0,0,0,0.3)' }} />
                 </button>
               </div>
             </div>
+
+            <div style={{ marginBottom: 8, fontSize: 11, fontWeight: 700, color: '#8888AA', letterSpacing: '0.08em', textTransform: 'uppercase' }}>Account</div>
+            <div className="card" style={{ padding: 0, overflow: 'hidden', marginBottom: 12 }}>
+              <button
+                onClick={() => { setShowSettings(false); onSwitchAccount(); }}
+                style={{ width: '100%', textAlign: 'left', padding: '16px 18px', background: 'none', border: 'none', fontSize: 15, fontWeight: 600, color: 'currentColor', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderBottom: '1px solid rgba(255,255,255,0.06)' }}
+              >
+                <span>Switch account</span>
+                <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M17 3l4 4-4 4"/><path d="M21 7H9"/><path d="M7 21l-4-4 4-4"/><path d="M3 17h12"/>
+                </svg>
+              </button>
+              <button
+                onClick={() => setShowSignOutConfirm(true)}
+                style={{ width: '100%', textAlign: 'left', padding: '16px 18px', background: 'none', border: 'none', fontSize: 15, fontWeight: 600, color: '#E74C3C', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}
+              >
+                <span>Sign out</span>
+                <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="#E74C3C" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/>
+                </svg>
+              </button>
+            </div>
+
+            <div className="card" style={{ padding: 0, overflow: 'hidden' }}>
+              <button
+                onClick={() => setShowDeleteConfirm(true)}
+                style={{ width: '100%', textAlign: 'left', padding: '16px 18px', background: 'none', border: 'none', fontSize: 15, fontWeight: 600, color: '#E74C3C', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}
+              >
+                <span>Delete account</span>
+                <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="#E74C3C" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4h6v2"/>
+                </svg>
+              </button>
+            </div>
           </div>
-        )}
+        </div>
 
         {showSignOutConfirm && (
           <div className="modal-overlay">
-            <div className="modal" style={{ textAlign: 'center', padding: 24 }}>
+            <div className="modal" style={{ textAlign: 'center', padding: 24, maxWidth: 320 }}>
               <p style={{ margin: '0 0 8px', fontWeight: 700, fontSize: 16 }}>Sign out?</p>
               <p style={{ margin: '0 0 20px', color: '#666', fontSize: 14 }}>You'll need to sign back in to join events or create groups.</p>
               <div style={{ display: 'flex', gap: 8 }}>
@@ -397,6 +533,64 @@ export default function Profile({ user, profile = {}, onUpdateProfile = () => {}
             </div>
           </div>
         )}
+
+        {showDeleteConfirm && (
+          <div className="modal-overlay">
+            <div className="modal" style={{ padding: 24, maxWidth: 320 }}>
+              <p style={{ margin: '0 0 6px', fontWeight: 700, fontSize: 16, color: '#E74C3C', textAlign: 'center' }}>Delete account?</p>
+              <p style={{ margin: '0 0 16px', color: '#666', fontSize: 14, textAlign: 'center', lineHeight: 1.5 }}>This permanently deletes your profile, events, and all your data. This cannot be undone.</p>
+              <p style={{ margin: '0 0 8px', fontSize: 13, fontWeight: 600, color: '#888' }}>Type <span style={{ color: '#E74C3C', fontFamily: 'monospace' }}>Delete my account</span> to confirm</p>
+              <input
+                className="text-input"
+                value={deleteConfirmText}
+                onChange={e => setDeleteConfirmText(e.target.value)}
+                placeholder="Delete my account"
+                style={{ marginBottom: 16 }}
+                autoFocus
+              />
+              <div style={{ display: 'flex', gap: 8 }}>
+                <button className="nav-btn" style={{ flex: 1 }} onClick={() => { setShowDeleteConfirm(false); setDeleteConfirmText(''); }}>Cancel</button>
+                <button
+                  disabled={deleteConfirmText !== 'Delete my account'}
+                  style={{ flex: 1, borderRadius: 10, padding: '10px', background: deleteConfirmText === 'Delete my account' ? '#E74C3C' : 'rgba(231,76,60,0.3)', border: 'none', color: '#fff', fontWeight: 700, fontSize: 14, cursor: deleteConfirmText === 'Delete my account' ? 'pointer' : 'not-allowed', transition: 'background 150ms' }}
+                  onClick={async () => {
+                    setShowDeleteConfirm(false);
+                    setShowSettings(false);
+                    setDeleteConfirmText('');
+                    try {
+                      const { supabase } = await import('../lib/supabaseClient');
+                      await supabase.from('profiles').delete().eq('id', user.id);
+                    } catch (e) {}
+                    onSignOut();
+                  }}
+                >
+                  Delete
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+      </main>
+    );
+  }
+
+  return (
+    <main className="feed-root" style={{ height: '100vh', overflow: 'hidden', paddingBottom: 0 }}>
+      <header className="feed-header" style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+        <div style={{ textAlign: 'left' }}>
+          <h1 style={{ margin: 0 }}>Profile</h1>
+          <p className="tagline" style={{ margin: 0 }}>{name || 'Set up your profile'}</p>
+        </div>
+        <button
+          onClick={() => setShowGeneralSettings(true)}
+          aria-label="Settings"
+          style={{ background: 'rgba(255,255,255,0.07)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 999, padding: '6px 12px', cursor: 'pointer', color: '#EEEEFF', display: 'flex', alignItems: 'center', flexShrink: 0 }}
+        >
+          <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+            <line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/>
+          </svg>
+        </button>
+
       </header>
 
       {/* Scrollable content — everything below the top header */}
