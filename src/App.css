@@ -8,6 +8,10 @@
 }
 
 @media (min-width: 600px) {
+  .bottom-nav {
+    max-width: 350px;
+  }
+
   .desktop-shell {
     background:
       radial-gradient(ellipse at 25% 15%, rgba(83, 74, 183, 0.1) 0%, transparent 55%),
