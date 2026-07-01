@@ -19,7 +19,10 @@ import SpontaneousCompose from './components/SpontaneousCompose';
 import Campus from './components/Campus';
 import LandingPage from './components/LandingPage';
 import OnboardingFlow from './components/OnboardingFlow';
-import { isSupabaseConfigured, signOut, getUser, onAuthStateChange, getEvents as sbGetEvents, insertEvent as sbInsertEvent, updateEvent as sbUpdateEvent, deleteEvent as sbDeleteEvent, joinEvent as sbJoinEvent, leaveEvent as sbLeaveEvent, getGroups as sbGetGroups, insertGroup as sbInsertGroup, updateGroup as sbUpdateGroup, deleteGroup as sbDeleteGroup, leaveGroup as sbLeaveGroup, getProfile, upsertProfile, createOrGetDm, uploadEventCover as sbUploadEventCover } from './lib/supabaseClient';
+import OrgOnboardingFlow from './components/OrgOnboardingFlow';
+import AccountSwitcher from './components/AccountSwitcher';
+import OrgDashboard from './components/OrgDashboard';
+import { isSupabaseConfigured, signOut, getUser, onAuthStateChange, getEvents as sbGetEvents, insertEvent as sbInsertEvent, updateEvent as sbUpdateEvent, deleteEvent as sbDeleteEvent, joinEvent as sbJoinEvent, leaveEvent as sbLeaveEvent, getGroups as sbGetGroups, insertGroup as sbInsertGroup, updateGroup as sbUpdateGroup, deleteGroup as sbDeleteGroup, leaveGroup as sbLeaveGroup, getProfile, upsertProfile, createOrGetDm, uploadEventCover as sbUploadEventCover, getMyOrganizations } from './lib/supabaseClient';
 
 const MAIN_TABS = ['home', 'campus', 'groups', 'profile', 'post'];
 const PERSISTENT_TABS = [...MAIN_TABS, 'group', 'group-chat', 'friend-profile'];
@@ -28,6 +31,13 @@ function App() {
   const [user, setUser] = useState(null);
   const [authResolved, setAuthResolved] = useState(false);
   const [showOnboarding, setShowOnboarding] = useState(false);
+  const [showOrgOnboarding, setShowOrgOnboarding] = useState(false);
+  const [showAccountSwitcher, setShowAccountSwitcher] = useState(false);
+  const [myOrgs, setMyOrgs] = useState([]);
+  const [activeContext, setActiveContext] = useState(() => {
+    try { return JSON.parse(localStorage.getItem('rally_active_context')) || { type: 'student' }; }
+    catch { return { type: 'student' }; }
+  });
   const [showUsernamePrompt, setShowUsernamePrompt] = useState(false);
   const [darkMode, setDarkMode] = useState(() => {
     if (!localStorage.getItem('rally_dark_migrated_v1')) {
@@ -38,6 +48,7 @@ function App() {
     return localStorage.getItem('rally_dark_mode') !== 'false';
   });
   useEffect(() => { localStorage.setItem('rally_dark_mode', darkMode); }, [darkMode]);
+  useEffect(() => { localStorage.setItem('rally_active_context', JSON.stringify(activeContext)); }, [activeContext]);
   const [profile, setProfile] = useState({
     name: localStorage.getItem('rally_name') || '',
     bio: localStorage.getItem('rally_bio') || '',
@@ -136,9 +147,33 @@ function App() {
     if (!data?.avatar_url && loaded.avatar_url || !data?.email) {
       upsertProfile(userId, { ...loaded, email: u?.email || '' });
     }
-    if (!loaded.school) setShowOnboarding(true);
-    else if (!loaded.username) setShowUsernamePrompt(true);
+    const intent = localStorage.getItem('rally_signup_intent');
+    if (intent === 'org') {
+      localStorage.removeItem('rally_signup_intent');
+      setShowOrgOnboarding(true);
+      return;
+    }
+    const orgs = await getMyOrganizations(userId);
+    setMyOrgs(orgs);
+    const savedContext = (() => { try { return JSON.parse(localStorage.getItem('rally_active_context')); } catch { return null; } })();
+    const hasContext = savedContext && savedContext.type;
+    if (orgs.length > 0 && !hasContext) {
+      setShowAccountSwitcher(true);
+    } else if (!loaded.school) {
+      setShowOnboarding(true);
+    } else if (!loaded.username) {
+      setShowUsernamePrompt(true);
+    }
   }, []);
+
+  const handleOrgOnboardingComplete = useCallback(async () => {
+    setShowOrgOnboarding(false);
+    if (user) {
+      const orgs = await getMyOrganizations(user.id);
+      setMyOrgs(orgs);
+      if (orgs.length > 0) setShowAccountSwitcher(true);
+    }
+  }, [user]);
 
   const handleUsernameChosen = useCallback(async (username) => {
     const updated = { ...profile, username };
@@ -300,7 +335,33 @@ function App() {
 
   if (!authResolved) return null;
   if (!user) return <div className="dark-theme"><LandingPage /></div>;
+  if (showOrgOnboarding) return <div className="dark-theme"><OrgOnboardingFlow user={user} onComplete={handleOrgOnboardingComplete} /></div>;
   if (showOnboarding) return <div className="dark-theme"><OnboardingFlow user={user} profile={profile} onComplete={handleOnboardingComplete} /></div>;
+  if (showAccountSwitcher) return (
+    <div className="dark-theme">
+      <AccountSwitcher
+        profile={profile}
+        orgs={myOrgs}
+        onSelectStudent={() => {
+          setActiveContext({ type: 'student' });
+          setShowAccountSwitcher(false);
+          if (!profile.school) setShowOnboarding(true);
+        }}
+        onSelectOrg={(org) => {
+          setActiveContext({ type: 'org', org });
+          setShowAccountSwitcher(false);
+        }}
+      />
+    </div>
+  );
+  if (activeContext.type === 'org') return (
+    <div className="dark-theme">
+      <OrgDashboard
+        org={activeContext.org}
+        onSwitch={() => setShowAccountSwitcher(true)}
+      />
+    </div>
+  );
 
   return (
     <div className={`App${darkMode ? ' dark-theme' : ''}`}>
@@ -337,7 +398,7 @@ function App() {
         />
       )}
       {activeTab === 'profile' && (
-        <Profile user={user} profile={profile} onUpdateProfile={handleUpdateProfile} activeTab={activeTab} onNavigate={setActiveTab} onOpenGroup={(id) => { setActiveGroupId(id); setActiveTab('group'); }} events={events} groups={groups} onAddEvent={addEvent} onUpdateEvent={updateEvent} onDeleteEvent={deleteEvent} onSignOut={() => { signOut(); setUser(null); }} onAuthRequired={onAuthRequired} darkMode={darkMode} onToggleDark={() => setDarkMode(d => !d)} onViewFriend={(id) => { setViewingFriendId(id); setActiveTab('friend-profile'); }} onOpenDm={async (otherId, otherUser) => { const dm = await createOrGetDm(otherId); if (dm) { setActiveDm({ id: dm.id, otherUser }); setActiveTab('dm'); } }} />
+        <Profile user={user} profile={profile} onUpdateProfile={handleUpdateProfile} activeTab={activeTab} onNavigate={setActiveTab} onOpenGroup={(id) => { setActiveGroupId(id); setActiveTab('group'); }} events={events} groups={groups} onAddEvent={addEvent} onUpdateEvent={updateEvent} onDeleteEvent={deleteEvent} onSignOut={() => { signOut(); setUser(null); localStorage.removeItem('rally_active_context'); setActiveContext({ type: 'student' }); setMyOrgs([]); }} onAuthRequired={onAuthRequired} darkMode={darkMode} onToggleDark={() => setDarkMode(d => !d)} onViewFriend={(id) => { setViewingFriendId(id); setActiveTab('friend-profile'); }} onOpenDm={async (otherId, otherUser) => { const dm = await createOrGetDm(otherId); if (dm) { setActiveDm({ id: dm.id, otherUser }); setActiveTab('dm'); } }} />
       )}
       {activeTab === 'friend-profile' && (
         <FriendProfilePage

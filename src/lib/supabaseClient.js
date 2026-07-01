@@ -843,6 +843,53 @@ export async function getSpontaneousPosts() {
   } catch { return []; }
 }
 
+export async function uploadOrgLogo(userId, file) {
+  try {
+    const ext = file.name.split('.').pop() || 'jpg';
+    const path = `${userId}/org_logo_${Date.now()}.${ext}`;
+    const { error } = await supabase.storage
+      .from('avatars')
+      .upload(path, file, { upsert: true, contentType: file.type });
+    if (error) throw error;
+    const { data: { publicUrl } } = supabase.storage
+      .from('avatars')
+      .getPublicUrl(path, { transform: { width: 200, height: 200, resize: 'cover' } });
+    return publicUrl;
+  } catch (e) {
+    console.warn('uploadOrgLogo error', e.message || e);
+    return null;
+  }
+}
+
+export async function checkOrgHandleAvailable(handle) {
+  try {
+    const { data } = await supabase.from('organizations').select('id').eq('handle', handle.toLowerCase()).maybeSingle();
+    return !data;
+  } catch { return true; }
+}
+
+export async function insertOrganization(org) {
+  try {
+    const { data, error } = await supabase.from('organizations').insert([org]).select().single();
+    if (error) { console.warn('insertOrganization error', error.message); return null; }
+    return data;
+  } catch (e) { console.warn('insertOrganization error', e.message); return null; }
+}
+
+export async function getOrgsBySchool(school) {
+  try {
+    const { data } = await supabase.from('organizations').select('*').eq('school', school).order('created_at', { ascending: false });
+    return data || [];
+  } catch { return []; }
+}
+
+export async function getMyOrganizations(userId) {
+  try {
+    const { data } = await supabase.from('organizations').select('*').eq('owner_id', userId).order('created_at', { ascending: false });
+    return data || [];
+  } catch { return []; }
+}
+
 export function subscribeToSpontaneousPosts(onInsert, onDelete) {
   const channel = supabase
     .channel('spontaneous-posts')
