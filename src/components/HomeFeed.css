@@ -181,8 +181,9 @@
 .delete-btn:hover{ background:rgba(0,0,0,0.04); color:#d33 }
 
 /* Modal */
-.modal-overlay{ position:fixed; inset:0; background:rgba(0,0,0,0.35); display:flex; align-items:center; justify-content:center; z-index:9999 }
-.modal{ background:#fff; padding:16px; border-radius:12px; width:calc(100% - 40px); max-width:360px; box-shadow:0 10px 30px rgba(0,0,0,0.2); border:2px solid #C6C6CC }
+.modal-overlay{ position:fixed; inset:0; background:rgba(0,0,0,0.55); display:flex; align-items:flex-end; justify-content:center; z-index:9999 }
+.modal{ background:#fff; padding:16px; border-radius:20px 20px 0 0; width:100%; max-width:480px; max-height:92dvh; overflow-y:auto; box-shadow:0 -4px 40px rgba(0,0,0,0.4); border:1px solid rgba(255,255,255,0.07) }
+@media (min-height:720px) and (min-width:500px){ .modal-overlay{ align-items:center } .modal{ border-radius:16px; width:calc(100% - 40px); max-height:88dvh } }
 
 .media-grid{ display:grid; grid-template-columns:repeat(3,1fr); gap:8px }
 .media-item{ background:#F4F5FB; border-radius:8px; padding:18px; text-align:center; color:#666 }

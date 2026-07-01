@@ -170,7 +170,7 @@ export default function Create({ onNavigate = () => {}, onCreateGroup = () => {}
               <div
                 onClick={() => coverInputRef.current?.click()}
                 style={{
-                  position: 'relative', width: '100%', height: 140, borderRadius: 12,
+                  position: 'relative', width: '100%', height: 110, borderRadius: 12,
                   background: coverPreview ? 'none' : 'rgba(255,255,255,0.04)',
                   border: coverPreview ? 'none' : '1.5px dashed rgba(255,255,255,0.12)',
                   overflow: 'hidden', cursor: 'pointer',
