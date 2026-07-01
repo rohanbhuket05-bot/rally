@@ -568,12 +568,10 @@ export default function EventDetails({ event, onBack, onUpdateEvent, activeTab, 
               <button onClick={() => setShowEdit(false)} style={{ flex: 1, padding: '12px', borderRadius: 12, border: '1px solid rgba(255,255,255,0.1)', background: 'none', color: '#8888AA', fontWeight: 700, fontSize: 14, cursor: 'pointer' }}>Cancel</button>
               <button
                 onClick={handleEditSave}
+                className="join"
                 style={{
-                  flex: 2, padding: '13px', borderRadius: 12, border: 'none', fontSize: 15, fontWeight: 700,
+                  flex: 2, padding: '13px', borderRadius: 12, fontSize: 15,
                   letterSpacing: '0.02em', cursor: 'pointer',
-                  background: 'linear-gradient(180deg, #5F56CC 0%, #483FA8 100%)',
-                  color: '#fff',
-                  boxShadow: '0 4px 16px rgba(83,74,183,0.45), inset 0 1px 0 rgba(255,255,255,0.12)',
                 }}
               >
                 Save Changes

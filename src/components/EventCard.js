@@ -38,7 +38,7 @@ export default function EventCard({ event, onJoin, currentUserName, currentUserI
   if (compact) {
     const tags = (event.tags && event.tags.length > 0) ? event.tags : (event.category ? [event.category] : []);
     return (
-      <article className="card" onClick={() => onOpenDetails && onOpenDetails(event)} style={{ cursor: onOpenDetails ? 'pointer' : undefined, padding: '10px 10px', display: 'flex', flexDirection: 'column', gap: 6, minWidth: 0, ...(isHost ? { border: '1px solid rgba(255,185,0,0.5)', boxShadow: '0 0 10px rgba(255,185,0,0.15), inset 0 0 10px rgba(255,185,0,0.03)' } : {}) }}>
+      <article className="card" onClick={() => onOpenDetails && onOpenDetails(event)} style={{ cursor: onOpenDetails ? 'pointer' : undefined, padding: '10px 10px', display: 'flex', flexDirection: 'column', gap: 6, minWidth: 0, ...(isHost ? { outline: '1.5px solid rgba(255,185,0,0.5)', outlineOffset: '-1px', boxShadow: '0 0 10px rgba(255,185,0,0.15)' } : {}) }}>
         {event.coverUrl && (
           <img src={event.coverUrl} alt="" style={{ display: 'block', width: 'calc(100% + 20px)', height: 72, objectFit: 'cover', borderRadius: '9px 9px 0 0', margin: '-10px -10px 2px -10px' }} />
         )}

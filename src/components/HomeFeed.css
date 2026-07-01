@@ -12,6 +12,22 @@
   --page-bg-solid: #F2F2F6;
 }
 
+@keyframes fadeInUp {
+  from { opacity: 0; transform: translateY(10px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes shimmer {
+  0%   { background-position: -600px 0; }
+  100% { background-position: 600px 0; }
+}
+.skeleton-shimmer {
+  background: linear-gradient(90deg, rgba(255,255,255,0.04) 0%, rgba(255,255,255,0.09) 50%, rgba(255,255,255,0.04) 100%);
+  background-size: 600px 100%;
+  animation: shimmer 1.4s ease-in-out infinite;
+  border-radius: 4px;
+}
+
 .nav-fade {
   position: fixed;
   bottom: 0;
@@ -108,7 +124,7 @@
 .avatar{ width:36px; height:36px; border-radius:50%; display:flex; align-items:center; justify-content:center; color:#222; font-weight:600; margin-left:-10px; border:3px solid #fff; box-shadow:0 2px 6px rgba(0,0,0,0.08); }
 .avatar.extra{ background:#EEE; color:#333; margin-left:-10px }
 
-.join{ background:var(--purple); color:white; border:none; padding:8px 12px; border-radius:10px; font-weight:700 }
+.join{ background:var(--purple); color:white; border:none; padding:8px 12px; border-radius:10px; font-weight:700; }
 
 .bottom-nav{ position:fixed; left:50%; transform:translateX(-50%); bottom:19px; width:calc(100% - 40px); max-width:360px; display:flex; justify-content:space-around; align-items:center; padding:10px 12px; background:var(--nav-bg); border:1px solid rgba(0,0,0,0.08); border-radius:999px; box-shadow:0 8px 32px rgba(0,0,0,0.14), 0 2px 8px rgba(0,0,0,0.08); backdrop-filter:blur(24px); -webkit-backdrop-filter:blur(24px); z-index:1000; box-sizing:border-box; }
 .nav-pill-btn{ display:flex; align-items:center; justify-content:center; padding:9px 11px; border:none; background:none; border-radius:999px; cursor:pointer; color:#999; transition:color 180ms ease, background 180ms ease; }

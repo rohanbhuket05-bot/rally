@@ -166,61 +166,16 @@ export default function Campus({
   }
 
   return (
-    <main className="feed-root" style={{ overflowY: 'auto' }}>
+    <main className="feed-root" style={{ overflowY: loading ? 'hidden' : 'auto' }}>
       <header className="feed-header">
-        <h1>Scene</h1>
-        <p className="tagline">Everything happening at your school</p>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+          <div>
+            <h1 style={{ margin: 0 }}>Scene</h1>
+            <p className="tagline">Everything happening at your school</p>
+          </div>
+          {school && <SchoolLogo school={school} size={40} style={{ flexShrink: 0 }} />}
+        </div>
       </header>
-
-      {/* School banner */}
-      {school ? (
-        <div style={{
-          marginBottom: 20,
-          borderRadius: 16,
-          background: 'linear-gradient(135deg, rgba(83,74,183,0.15) 0%, rgba(83,74,183,0.05) 100%)',
-          border: '1px solid rgba(83,74,183,0.28)',
-          padding: '16px 18px',
-          display: 'flex',
-          alignItems: 'center',
-          gap: 14,
-        }}>
-          <SchoolLogo school={school} size={52} style={{ flexShrink: 0 }} />
-          <div style={{ textAlign: 'left' }}>
-            <div style={{ fontWeight: 800, fontSize: 19, color: 'var(--text-primary)', lineHeight: 1.2 }}>{school}</div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 5, marginTop: 5 }}>
-              {schoolVerified ? (
-                <>
-                  <svg viewBox="0 0 24 24" width="13" height="13" fill="var(--teal)">
-                    <path d="M9 16.2l-4.2-4.2-1.4 1.4 5.6 5.6 12-12-1.4-1.4z"/>
-                  </svg>
-                  <span style={{ fontSize: 12, color: 'var(--teal)', fontWeight: 600 }}>Verified Student</span>
-                </>
-              ) : (
-                <button
-                  onClick={() => onNavigate('profile')}
-                  style={{ background: 'none', border: 'none', padding: 0, fontSize: 12, color: 'var(--purple)', fontWeight: 600, cursor: 'pointer' }}
-                >
-                  Verify your .edu →
-                </button>
-              )}
-            </div>
-          </div>
-        </div>
-      ) : (
-        <div className="card" style={{ marginBottom: 20, padding: '22px 18px', display: 'flex', alignItems: 'center', gap: 14 }}>
-          <svg viewBox="0 0 24 24" width="36" height="36" fill="none" stroke="var(--purple)" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0 }}>
-            <path d="M22 10v6M2 10l10-5 10 5-10 5z"/>
-            <path d="M6 12v5c3.333 2 8.667 2 12 0v-5"/>
-          </svg>
-          <div style={{ flex: 1, textAlign: 'left' }}>
-            <div style={{ fontWeight: 700, fontSize: 15, marginBottom: 4 }}>Add your college</div>
-            <div style={{ fontSize: 13, color: '#888', marginBottom: 12 }}>Verify your .edu to see what's happening at your school</div>
-            <button className="join" onClick={() => onNavigate('profile')} style={{ padding: '8px 20px', borderRadius: 10, fontSize: 13 }}>
-              Verify school
-            </button>
-          </div>
-        </div>
-      )}
 
       {/* Search */}
       <section style={{ marginBottom: 20 }}>
@@ -422,20 +377,32 @@ export default function Campus({
       </div>
 
       {loading ? (
-        <div className="card" style={{ padding: '28px', marginBottom: 24 }}>
-          <div style={{ fontSize: 13, color: '#888', textAlign: 'left' }}>Loading events…</div>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 10, marginBottom: 24 }}>
+          {[...Array(6)].map((_, i) => (
+            <div key={i} className="card" style={{ padding: '10px 10px', display: 'flex', flexDirection: 'column', gap: 6, minWidth: 0 }}>
+              <div className="skeleton-shimmer" style={{ width: 'calc(100% + 20px)', height: 72, borderRadius: '9px 9px 0 0', margin: '-10px -10px 2px -10px' }} />
+              <div className="skeleton-shimmer" style={{ height: 13, width: '72%' }} />
+              <div className="skeleton-shimmer" style={{ height: 10, width: '48%' }} />
+              <div className="skeleton-shimmer" style={{ height: 18, width: '38%', borderRadius: 12 }} />
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 4, marginTop: 2 }}>
+                <div className="skeleton-shimmer" style={{ height: 10, width: '60%' }} />
+                <div className="skeleton-shimmer" style={{ height: 10, width: '52%' }} />
+              </div>
+            </div>
+          ))}
         </div>
       ) : filteredEvents.length > 0 ? (
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 10, marginBottom: 24 }}>
-          {filteredEvents.map(ev => (
-            <EventCard
-              key={ev.id}
-              event={ev}
-              compact
-              onOpenDetails={onOpenEvent}
-              currentUserId={user?.id}
-              currentUserName={currentUserName}
-            />
+          {filteredEvents.map((ev, i) => (
+            <div key={ev.id} style={{ minWidth: 0, animation: 'fadeInUp 0.3s ease both', animationDelay: `${Math.min(i * 55, 440)}ms` }}>
+              <EventCard
+                event={ev}
+                compact
+                onOpenDetails={onOpenEvent}
+                currentUserId={user?.id}
+                currentUserName={currentUserName}
+              />
+            </div>
           ))}
         </div>
       ) : (

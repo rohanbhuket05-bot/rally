@@ -397,13 +397,10 @@ export default function Create({ onNavigate = () => {}, onCreateGroup = () => {}
 
               <button
                 type="submit"
+                className="join"
                 style={{
                   width: '100%', padding: '15px', marginTop: 4,
-                  background: 'linear-gradient(180deg, #5F56CC 0%, #483FA8 100%)',
-                  color: '#fff', border: 'none', borderRadius: 14,
-                  fontSize: 15, fontWeight: 700, letterSpacing: '0.02em',
-                  cursor: 'pointer',
-                  boxShadow: '0 4px 16px rgba(83,74,183,0.45), inset 0 1px 0 rgba(255,255,255,0.12)',
+                  borderRadius: 14, fontSize: 15, letterSpacing: '0.02em',
                 }}
               >
                 Post event

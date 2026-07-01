@@ -28,6 +28,7 @@ function toDateKey(d) {
 
 export default function HomeFeed({ activeTab = 'home', onNavigate = () => {}, events = [], onAddEvent = () => {}, onUpdateEvent = () => {}, onDeleteEvent = () => {}, onOpenEvent = () => {}, user = null, profile = null, onAuthRequired = () => {}, groups = [], onOpenGroup = () => {} }) {
   const [campusEvents, setCampusEvents] = useState([]);
+  const [campusLoading, setCampusLoading] = useState(true);
   const todayKey = toDateKey(new Date());
   const [spontaneousPosts, setSpontaneousPosts] = useState([]);
   const [viewingStories, setViewingStories] = useState(false);
@@ -49,6 +50,7 @@ export default function HomeFeed({ activeTab = 'home', onNavigate = () => {}, ev
           personal: false, user_id: r.user_id,
         }));
       setCampusEvents(campus);
+      setCampusLoading(false);
     });
   }, []);
 
@@ -101,7 +103,7 @@ export default function HomeFeed({ activeTab = 'home', onNavigate = () => {}, ev
         <h1>Home</h1>
         <p className="tagline">Experiences are better shared</p>
       </header>
-      <div className="scroll-area">
+      <div className="scroll-area" style={campusLoading ? { overflowY: 'hidden' } : undefined}>
 
       {/* Story circles — shown when signed in */}
       {user && (
@@ -167,13 +169,28 @@ export default function HomeFeed({ activeTab = 'home', onNavigate = () => {}, ev
         </section>
       )}
 
-      {campusEvents.length > 0 && (
+      {(campusLoading || campusEvents.length > 0) && (
         <section style={{ marginBottom: 20 }}>
           <h3 style={{ margin: '0 0 10px', textAlign: 'left' }}>On Campus</h3>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 10 }}>
-            {campusEvents.slice(0, 4).map(ev => (
-              <EventCard key={ev.id} event={ev} onJoin={handleJoin} currentUserName={currentUserName} currentUserId={user?.id} onOpenDetails={onOpenEvent} compact />
-            ))}
+            {campusLoading ? (
+              [...Array(2)].map((_, i) => (
+                <div key={i} className="card" style={{ padding: '10px 10px', display: 'flex', flexDirection: 'column', gap: 6, minWidth: 0 }}>
+                  <div className="skeleton-shimmer" style={{ width: 'calc(100% + 20px)', height: 72, borderRadius: '9px 9px 0 0', margin: '-10px -10px 2px -10px' }} />
+                  <div className="skeleton-shimmer" style={{ height: 13, width: '72%' }} />
+                  <div className="skeleton-shimmer" style={{ height: 10, width: '48%' }} />
+                  <div className="skeleton-shimmer" style={{ height: 18, width: '38%', borderRadius: 12 }} />
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 4, marginTop: 2 }}>
+                    <div className="skeleton-shimmer" style={{ height: 10, width: '60%' }} />
+                    <div className="skeleton-shimmer" style={{ height: 10, width: '52%' }} />
+                  </div>
+                </div>
+              ))
+            ) : (
+              campusEvents.slice(0, 4).map(ev => (
+                <EventCard key={ev.id} event={ev} onJoin={handleJoin} currentUserName={currentUserName} currentUserId={user?.id} onOpenDetails={onOpenEvent} compact />
+              ))
+            )}
           </div>
         </section>
       )}
@@ -225,7 +242,7 @@ export default function HomeFeed({ activeTab = 'home', onNavigate = () => {}, ev
                     background: isToday ? 'rgba(83,74,183,0.18)' : 'rgba(255,255,255,0.04)',
                     boxShadow: isToday ? 'inset 0 0 0 1.5px var(--purple)' : 'inset 0 0 0 1px rgba(255,255,255,0.06)',
                     padding: '6px 3px 5px',
-                    minHeight: 72,
+                    minHeight: 72, minWidth: 0, overflow: 'hidden',
                     display: 'flex', flexDirection: 'column', alignItems: 'flex-start', gap: 2,
                     opacity: isPast ? 0.38 : 1,
                   }}>
@@ -235,9 +252,9 @@ export default function HomeFeed({ activeTab = 'home', onNavigate = () => {}, ev
                     {dayEvs.slice(0, 2).map((ev, j) => (
                       <div key={j} onClick={() => onOpenEvent(ev)} style={{
                         width: '100%', padding: '2px 3px', borderRadius: 4, boxSizing: 'border-box',
-                        background: 'rgba(83,74,183,0.32)',
-                        fontSize: 9, fontWeight: 700, lineHeight: 1.35,
-                        color: '#C4BAFF',
+                        background: 'transparent', border: '1.5px solid rgba(255,255,255,0.35)',
+                        fontSize: 9, fontWeight: 600, lineHeight: 1.35,
+                        color: '#EEEEFF',
                         overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
                         cursor: 'pointer', textAlign: 'left',
                       }}>
@@ -354,7 +371,7 @@ export default function HomeFeed({ activeTab = 'home', onNavigate = () => {}, ev
                     background: isToday ? 'rgba(83,74,183,0.18)' : 'rgba(255,255,255,0.04)',
                     boxShadow: isToday ? 'inset 0 0 0 1.5px var(--purple)' : 'inset 0 0 0 1px rgba(255,255,255,0.06)',
                     padding: '6px 3px 5px',
-                    minHeight: 72,
+                    minHeight: 72, minWidth: 0, overflow: 'hidden',
                     display: 'flex', flexDirection: 'column', alignItems: 'flex-start', gap: 2,
                     opacity: isPast ? 0.38 : 1,
                   }}>
