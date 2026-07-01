@@ -299,11 +299,26 @@ function App() {
   }, []);
 
   if (!authResolved) return null;
-  if (!user) return <div className="dark-theme"><LandingPage /></div>;
-  if (showOnboarding) return <div className="dark-theme"><OnboardingFlow user={user} profile={profile} onComplete={handleOnboardingComplete} /></div>;
+
+  if (!user) return (
+    <div className="desktop-shell">
+      <div className="desktop-frame dark-theme">
+        <LandingPage />
+      </div>
+    </div>
+  );
+
+  if (showOnboarding) return (
+    <div className="desktop-shell">
+      <div className="desktop-frame dark-theme">
+        <OnboardingFlow user={user} profile={profile} onComplete={handleOnboardingComplete} />
+      </div>
+    </div>
+  );
 
   return (
-    <div className={`App${darkMode ? ' dark-theme' : ''}`}>
+    <div className="desktop-shell">
+    <div className={`desktop-frame App${darkMode ? ' dark-theme' : ''}`}>
       {authModalMessage !== null && (
         <AuthModal message={authModalMessage} onClose={() => setAuthModalMessage(null)} />
       )}
@@ -441,6 +456,7 @@ function App() {
           }
         }}
       />
+    </div>
     </div>
   );
 }

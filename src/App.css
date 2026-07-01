@@ -2,6 +2,32 @@
   text-align: center;
 }
 
+.desktop-shell {
+  min-height: 100dvh;
+  background: #000;
+}
+
+@media (min-width: 600px) {
+  .desktop-shell {
+    background:
+      radial-gradient(ellipse at 25% 15%, rgba(83, 74, 183, 0.1) 0%, transparent 55%),
+      radial-gradient(ellipse at 75% 85%, rgba(83, 74, 183, 0.07) 0%, transparent 45%),
+      #07070E;
+    display: flex;
+    justify-content: center;
+  }
+
+  .desktop-frame {
+    width: 390px;
+    min-height: 100dvh;
+    background: #000;
+    flex-shrink: 0;
+    box-shadow:
+      0 0 0 1px rgba(255, 255, 255, 0.06),
+      0 0 80px rgba(83, 74, 183, 0.15);
+  }
+}
+
 .App-logo {
   height: 40vmin;
   pointer-events: none;
