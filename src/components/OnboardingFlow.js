@@ -119,6 +119,9 @@ export default function OnboardingFlow({ user, profile, onComplete }) {
       flexDirection: 'column',
       padding: '56px 24px 40px',
       boxSizing: 'border-box',
+      maxWidth: 520,
+      margin: '0 auto',
+      width: '100%',
     }}>
 
       {/* Progress bar */}
