@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+﻿import React, { useState, useEffect } from 'react';
 import { isSupabaseConfigured, getGroupInvites, acceptGroupInvite, declineGroupInvite } from '../lib/supabaseClient';
 import { avatarColor } from '../lib/avatarColor';
 import { getInitials } from '../lib/utils';
@@ -18,7 +18,7 @@ export default function Groups({
   user,
   profile = {},
 }) {
-  const myName = localStorage.getItem('rally_name') || localStorage.getItem('rally_username') || '';
+  const myName = localStorage.getItem('sphera_name') || localStorage.getItem('sphera_username') || '';
   const [invites, setInvites] = useState([]);
   const [acceptError, setAcceptError] = useState('');
 
@@ -68,7 +68,7 @@ export default function Groups({
         <div className="card" style={{ padding: '14px 16px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12 }}>
           <div>
             <div style={{ fontWeight: 700 }}>Create a group</div>
-            <div style={{ color: '#666', fontSize: 13, marginTop: 4 }}>Club, friend group, or event rally.</div>
+            <div style={{ color: '#666', fontSize: 13, marginTop: 4 }}>Club, friend group, or Event Group.</div>
           </div>
           <button className="join" style={{ borderRadius: 10, padding: '8px 16px', flexShrink: 0 }} onClick={() => onCreateGroup({})}>
             + New

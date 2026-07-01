@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+﻿import React, { useState, useEffect, useRef } from 'react';
 import { getFriendships, searchUsersByUsername, sendGroupInvite, getOutgoingGroupInvites, isSupabaseConfigured, getGroupMessages, subscribeToGroupMessages, getProfilesByIds, uploadGroupLogo, removeGroupMember } from '../lib/supabaseClient';
 import { avatarColor, AVATAR_COLORS } from '../lib/avatarColor';
 import { getInitials } from '../lib/utils';
@@ -76,7 +76,7 @@ export default function GroupDetails({
   // Load last-read count from localStorage when group changes
   useEffect(() => {
     if (!group?.id) return;
-    setLastReadCount(parseInt(localStorage.getItem(`rally_chat_read_${group.id}`) || '0'));
+    setLastReadCount(parseInt(localStorage.getItem(`sphera_chat_read_${group.id}`) || '0'));
   }, [group?.id]);
 
   // Fetch messages + subscribe for real-time new-message count
@@ -164,7 +164,7 @@ export default function GroupDetails({
   }
 
   function handleOpenChat() {
-    localStorage.setItem(`rally_chat_read_${group.id}`, String(liveMessages.length));
+    localStorage.setItem(`sphera_chat_read_${group.id}`, String(liveMessages.length));
     setLastReadCount(liveMessages.length);
     onOpenChat();
   }

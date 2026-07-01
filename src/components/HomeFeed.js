@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+﻿import React, { useState, useEffect } from 'react';
 import EventCard from './EventCard';
 import StoryViewer from './StoryViewer';
 import { getPublicEvents, getSpontaneousPosts, subscribeToSpontaneousPosts, deleteSpontaneousPost, isSupabaseConfigured } from '../lib/supabaseClient';
@@ -64,7 +64,7 @@ export default function HomeFeed({ activeTab = 'home', onNavigate = () => {}, ev
     return unsub;
   }, [user]);
 
-  const currentUserName = localStorage.getItem('rally_name') || localStorage.getItem('rally_username') || '';
+  const currentUserName = localStorage.getItem('sphera_name') || localStorage.getItem('sphera_username') || '';
 
   // Deduplicate by user: most recent post per user
   const storyByUser = Object.values(

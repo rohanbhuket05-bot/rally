@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+﻿import React, { useState } from 'react';
 import { avatarColor } from '../lib/avatarColor';
 import { getInitials } from '../lib/utils';
 import './HomeFeed.css';
@@ -6,7 +6,7 @@ import './HomeFeed.css';
 const TYPE_OPTIONS = [
   { value: 'club',   label: 'Club / Org',    color: 'var(--purple)', bg: 'var(--light-purple)', hint: 'A public organization with hosted events and a member roster.' },
   { value: 'friend', label: 'Friend Group',  color: 'var(--pink)',   bg: 'var(--light-pink)',   hint: 'A private group of people you already know.' },
-  { value: 'event',  label: 'Event Rally',   color: 'var(--teal)',   bg: 'var(--light-teal)',   hint: 'A group formed around attending a specific event together.' },
+  { value: 'event',  label: 'Event Group',   color: 'var(--teal)',   bg: 'var(--light-teal)',   hint: 'A group formed around attending a specific event together.' },
 ];
 
 const PRIVACY_OPTIONS = [
@@ -32,7 +32,7 @@ export default function CreateGroup({
   const [memberInput, setMemberInput] = useState('');
   const [members, setMembers] = useState([]);
 
-  const myName = localStorage.getItem('rally_name') || localStorage.getItem('rally_username') || 'You';
+  const myName = localStorage.getItem('sphera_name') || localStorage.getItem('sphera_username') || 'You';
   const myInitials = getInitials(myName);
 
   function addMember() {

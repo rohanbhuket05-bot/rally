@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+﻿import React, { useState, useEffect, useMemo } from 'react';
 import EventCard from './EventCard';
 import { getPublicEvents } from '../lib/supabaseClient';
 import { getInitials } from '../lib/utils';
@@ -38,7 +38,7 @@ export default function Explore({ events = [], onNavigate = () => {}, onOpenEven
 
   function handleJoin(event) {
     if (!user) { onAuthRequired('Sign in to join this event'); return; }
-    const name = localStorage.getItem('rally_name') || localStorage.getItem('rally_username') || '';
+    const name = localStorage.getItem('sphera_name') || localStorage.getItem('sphera_username') || '';
     const initials = getInitials(name || 'You');
     const exists = (event.attendees || []).some(a => a.name === name);
     const attendees = exists
@@ -84,7 +84,7 @@ export default function Explore({ events = [], onNavigate = () => {}, onOpenEven
         <h3 style={{ margin: '6px 0', textAlign: 'left' }}>Trending</h3>
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 10 }}>
           {results.slice(0, 4).map(ev => (
-            <EventCard key={`t-${ev.id}`} event={ev} onJoin={handleJoin} currentUserName={localStorage.getItem('rally_name') || localStorage.getItem('rally_username') || ''} currentUserId={user?.id} onOpenDetails={onOpenEvent} compact />
+            <EventCard key={`t-${ev.id}`} event={ev} onJoin={handleJoin} currentUserName={localStorage.getItem('sphera_name') || localStorage.getItem('sphera_username') || ''} currentUserId={user?.id} onOpenDetails={onOpenEvent} compact />
           ))}
         </div>
       </section>
@@ -93,7 +93,7 @@ export default function Explore({ events = [], onNavigate = () => {}, onOpenEven
         <h3 style={{ margin: '6px 0', textAlign: 'left' }}>Nearby</h3>
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 10 }}>
           {results.slice(4, 10).map(ev => (
-            <EventCard key={`n-${ev.id}`} event={ev} onJoin={handleJoin} currentUserName={localStorage.getItem('rally_name') || localStorage.getItem('rally_username') || ''} currentUserId={user?.id} onOpenDetails={onOpenEvent} compact />
+            <EventCard key={`n-${ev.id}`} event={ev} onJoin={handleJoin} currentUserName={localStorage.getItem('sphera_name') || localStorage.getItem('sphera_username') || ''} currentUserId={user?.id} onOpenDetails={onOpenEvent} compact />
           ))}
         </div>
       </section>

@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+﻿import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { CITIES } from '../lib/utils';
 import './HomeFeed.css';
 
@@ -28,8 +28,8 @@ const createOptions = [
     accent: '#EF9F27',
   },
   {
-    id: 'create-rally',
-    title: 'Create a rally',
+    id: 'create-group',
+    title: 'Create a group',
     description: 'Anchor your plan to an existing event and invite people to join your group.',
     accent: '#1D9E75',
   },
@@ -92,9 +92,9 @@ export default function Create({ onNavigate = () => {}, onCreateGroup = () => {}
   }, [showTagsMenu]);
 
   function handleStart(option) {
-    if (!user) { onAuthRequired('Sign in to create on Rally'); return; }
+    if (!user) { onAuthRequired('Sign in to create on Sphera'); return; }
     if (option.id === 'host-event') { setShowHostModal(true); return; }
-    if (option.id === 'create-rally') { onCreateGroup({ initialType: 'event' }); return; }
+    if (option.id === 'create-group') { onCreateGroup({ initialType: 'event' }); return; }
     if (option.id === 'spontaneous') { onNavigate('spontaneous'); return; }
   }
 
@@ -139,12 +139,12 @@ export default function Create({ onNavigate = () => {}, onCreateGroup = () => {}
 
       <section className="create-grid">
         {createOptions.map((option) => (
-          <article key={option.id} className="create-card" style={{ borderTopColor: option.accent, cursor: option.id !== 'create-rally' ? 'pointer' : 'default', opacity: option.id === 'create-rally' ? 0.6 : 1 }} onClick={() => option.id !== 'create-rally' && handleStart(option)}>
+          <article key={option.id} className="create-card" style={{ borderTopColor: option.accent, cursor: option.id !== 'create-group' ? 'pointer' : 'default', opacity: option.id === 'create-group' ? 0.6 : 1 }} onClick={() => option.id !== 'create-group' && handleStart(option)}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
               <div className="create-badge" style={{ backgroundColor: option.accent }}>
                 {option.title}
               </div>
-              {option.id === 'create-rally' && (
+              {option.id === 'create-group' && (
                 <span style={{ fontSize: 10, fontWeight: 700, color: '#888', background: 'rgba(0,0,0,0.08)', borderRadius: 999, padding: '3px 8px', letterSpacing: '0.05em', textTransform: 'uppercase' }}>
                   Coming soon
                 </span>

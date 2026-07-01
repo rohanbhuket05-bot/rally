@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+﻿import React, { useState, useEffect, useRef } from 'react';
 import './HomeFeed.css';
 
 import { getSchoolFromEmail, SCHOOLS, getDomainsForSchool } from '../data/schools';
@@ -112,10 +112,10 @@ function SwipeableEventRow({ ev, onOpen, onDelete }) {
 }
 
 export default function Profile({ user, profile = {}, onUpdateProfile = () => {}, activeTab = 'profile', onNavigate = () => {}, onOpenGroup = () => {}, events = [], groups: allGroups = [], onAddEvent = () => {}, onUpdateEvent = () => {}, onDeleteEvent = () => {}, onSignOut = () => {}, onAuthRequired = () => {}, darkMode = false, onToggleDark = () => {}, onViewFriend = () => {}, onOpenDm = () => {} }) {
-  const [name, setName] = useState(() => profile.name || localStorage.getItem('rally_name') || '');
-  const [bio, setBio] = useState(() => profile.bio || localStorage.getItem('rally_bio') || '');
-  const [username, setUsername] = useState(() => profile.username || localStorage.getItem('rally_username') || '');
-  const [pronouns, setPronouns] = useState(() => profile.pronouns || localStorage.getItem('rally_pronouns') || '');
+  const [name, setName] = useState(() => profile.name || localStorage.getItem('sphera_name') || '');
+  const [bio, setBio] = useState(() => profile.bio || localStorage.getItem('sphera_bio') || '');
+  const [username, setUsername] = useState(() => profile.username || localStorage.getItem('sphera_username') || '');
+  const [pronouns, setPronouns] = useState(() => profile.pronouns || localStorage.getItem('sphera_pronouns') || '');
   const [editingProfile, setEditingProfile] = useState(false);
   const [uploadingAvatar, setUploadingAvatar] = useState(false);
   const avatarInputRef = useRef(null);
@@ -124,9 +124,9 @@ export default function Profile({ user, profile = {}, onUpdateProfile = () => {}
 
   const getStoredCheers = () => {
     try {
-      const stored = Number(localStorage.getItem('rally_cheers'));
+      const stored = Number(localStorage.getItem('sphera_cheers'));
       if (Number.isNaN(stored) || stored < 0 || stored === 12) {
-        localStorage.setItem('rally_cheers', '0');
+        localStorage.setItem('sphera_cheers', '0');
         return 0;
       }
       return stored;
@@ -141,14 +141,14 @@ export default function Profile({ user, profile = {}, onUpdateProfile = () => {}
     if (profile.bio !== undefined) setBio(profile.bio);
     if (profile.username !== undefined) setUsername(profile.username);
     if (profile.pronouns !== undefined) setPronouns(profile.pronouns || '');
-    if (profile.school) { setSchool(profile.school); localStorage.setItem('rally_school', profile.school); }
-    if (profile.school_verified) { localStorage.setItem('rally_school_verified', profile.school); }
+    if (profile.school) { setSchool(profile.school); localStorage.setItem('sphera_school', profile.school); }
+    if (profile.school_verified) { localStorage.setItem('sphera_school_verified', profile.school); }
   }, [profile]);
 
   // Live username validation + availability check while editing
   useEffect(() => {
     if (!editingProfile) return;
-    const original = (profile.username || localStorage.getItem('rally_username') || '').toLowerCase();
+    const original = (profile.username || localStorage.getItem('sphera_username') || '').toLowerCase();
     if (username.toLowerCase() === original) {
       setUsernameStatus('idle'); setUsernameError(null); return;
     }
@@ -169,10 +169,10 @@ export default function Profile({ user, profile = {}, onUpdateProfile = () => {}
     setName(newName);
     setBio(newBio);
     setUsername(finalUsername);
-    localStorage.setItem('rally_name', newName);
-    localStorage.setItem('rally_bio', newBio);
-    localStorage.setItem('rally_username', finalUsername);
-    localStorage.setItem('rally_pronouns', pronouns);
+    localStorage.setItem('sphera_name', newName);
+    localStorage.setItem('sphera_bio', newBio);
+    localStorage.setItem('sphera_username', finalUsername);
+    localStorage.setItem('sphera_pronouns', pronouns);
     setEditingProfile(false);
     onUpdateProfile({ name: newName, bio: newBio, username: finalUsername, friends: profile.friends || [], pronouns, avatar_url: profile.avatar_url || '' });
   };
@@ -213,7 +213,7 @@ export default function Profile({ user, profile = {}, onUpdateProfile = () => {}
   useEffect(() => {
     if (!user) return;
     getFriendNotifications(user.id).then(({ incoming, acceptedTotal }) => {
-      const seenAccepted = parseInt(localStorage.getItem('rally_seen_accepted') || '0');
+      const seenAccepted = parseInt(localStorage.getItem('sphera_seen_accepted') || '0');
       setFriendNotifCount(incoming + Math.max(0, acceptedTotal - seenAccepted));
     });
   }, [user]);
@@ -223,7 +223,7 @@ export default function Profile({ user, profile = {}, onUpdateProfile = () => {}
     setShowFriendsPanel(opening);
     if (opening && user) {
       getFriendNotifications(user.id).then(({ acceptedTotal }) => {
-        localStorage.setItem('rally_seen_accepted', String(acceptedTotal));
+        localStorage.setItem('sphera_seen_accepted', String(acceptedTotal));
       });
       setFriendNotifCount(0);
     }
@@ -276,16 +276,16 @@ export default function Profile({ user, profile = {}, onUpdateProfile = () => {}
 
     const handleCheersUpdated = () => syncCheers();
     const handleStorage = (event) => {
-      if (event.key === 'rally_cheers') {
+      if (event.key === 'sphera_cheers') {
         syncCheers();
       }
     };
 
-    window.addEventListener('rally-cheers-updated', handleCheersUpdated);
+    window.addEventListener('sphera-cheers-updated', handleCheersUpdated);
     window.addEventListener('storage', handleStorage);
 
     return () => {
-      window.removeEventListener('rally-cheers-updated', handleCheersUpdated);
+      window.removeEventListener('sphera-cheers-updated', handleCheersUpdated);
       window.removeEventListener('storage', handleStorage);
     };
   }, []);
@@ -310,7 +310,7 @@ export default function Profile({ user, profile = {}, onUpdateProfile = () => {}
   }
 
   const detectedSchool = getSchoolFromEmail(user?.email);
-  const [school, setSchool] = useState(() => localStorage.getItem('rally_school') || detectedSchool || '');
+  const [school, setSchool] = useState(() => localStorage.getItem('sphera_school') || detectedSchool || '');
   const [showSchoolPicker, setShowSchoolPicker] = useState(false);
   const [schoolSearch, setSchoolSearch] = useState('');
 
@@ -318,7 +318,7 @@ export default function Profile({ user, profile = {}, onUpdateProfile = () => {}
   // or if a previous OTP verification was completed (future flow).
   const schoolVerified = !!school && (
     detectedSchool === school ||
-    localStorage.getItem('rally_school_verified') === school
+    localStorage.getItem('sphera_school_verified') === school
   );
 
   // ── Logged-out state ─────────────────────────────────────────────────────────
@@ -609,7 +609,7 @@ export default function Profile({ user, profile = {}, onUpdateProfile = () => {}
                         key={s}
                         onClick={() => {
                           setSchool(s);
-                          localStorage.setItem('rally_school', s);
+                          localStorage.setItem('sphera_school', s);
                           setShowSchoolPicker(false);
                           setSchoolSearch('');
                           onUpdateProfile({ name, bio, username, friends: [], school: s, school_verified: detectedSchool === s });
@@ -650,7 +650,7 @@ export default function Profile({ user, profile = {}, onUpdateProfile = () => {}
                   )}
                   {school && (
                     <button
-                      onClick={() => { setSchool(''); localStorage.removeItem('rally_school'); localStorage.removeItem('rally_school_verified'); setShowSchoolPicker(false); setSchoolSearch(''); onUpdateProfile({ name, bio, username, friends: [], school: '', school_verified: false }); }}
+                      onClick={() => { setSchool(''); localStorage.removeItem('sphera_school'); localStorage.removeItem('sphera_school_verified'); setShowSchoolPicker(false); setSchoolSearch(''); onUpdateProfile({ name, bio, username, friends: [], school: '', school_verified: false }); }}
                       style={{ marginTop:8, background:'none', border:'none', color:'#888', fontSize:13, cursor:'pointer', textAlign:'center' }}
                     >
                       Remove university
@@ -745,7 +745,7 @@ export default function Profile({ user, profile = {}, onUpdateProfile = () => {}
                 disabled={usernameStatus === 'invalid' || usernameStatus === 'taken' || usernameStatus === 'checking'}
                 style={{ opacity: (usernameStatus === 'invalid' || usernameStatus === 'taken' || usernameStatus === 'checking') ? 0.45 : 1 }}
               >Save</button>
-              <button className="nav-btn" onClick={()=>{ setUsername(localStorage.getItem('rally_username')||''); setName(localStorage.getItem('rally_name')||''); setBio(localStorage.getItem('rally_bio')||''); setPronouns(localStorage.getItem('rally_pronouns')||''); setEditingProfile(false); }}>Cancel</button>
+              <button className="nav-btn" onClick={()=>{ setUsername(localStorage.getItem('sphera_username')||''); setName(localStorage.getItem('sphera_name')||''); setBio(localStorage.getItem('sphera_bio')||''); setPronouns(localStorage.getItem('sphera_pronouns')||''); setEditingProfile(false); }}>Cancel</button>
             </div>
           </div>
         )}
@@ -918,7 +918,7 @@ export default function Profile({ user, profile = {}, onUpdateProfile = () => {}
         {showConfirm && (
           <div className="modal-overlay">
             <div className="modal">
-              <p style={{ margin: 0, fontWeight: 700 }}>Are you sure you want to delete this rallypoint?</p>
+              <p style={{ margin: 0, fontWeight: 700 }}>Are you sure you want to delete this spherapoint?</p>
               <p style={{ marginTop: 8, marginBottom: 12, color: '#666' }}>This action cannot be undone.</p>
               <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
                 <button className="nav-btn" onClick={() => { setShowConfirm(false); setDeleteTarget(null); }}>Cancel</button>
@@ -1007,7 +1007,7 @@ export default function Profile({ user, profile = {}, onUpdateProfile = () => {}
       return (
         <main className="feed-root" style={{ justifyContent: 'center', textAlign: 'center' }}>
           <div style={{ marginBottom: 32, marginTop: 24 }}>
-            <div style={{ fontSize: 40, fontWeight: 900, color: 'var(--purple)', letterSpacing: '-1px', lineHeight: 1 }}>Rally</div>
+            <div style={{ fontSize: 40, fontWeight: 900, color: 'var(--purple)', letterSpacing: '-1px', lineHeight: 1 }}>Sphera</div>
             <div style={{ fontSize: 14, color: '#888', marginTop: 8 }}>Experiences are better shared</div>
           </div>
 

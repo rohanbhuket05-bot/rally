@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+﻿import React, { useState, useEffect } from 'react';
 import { checkUsernameAvailable } from '../lib/supabaseClient';
 import { validateUsername } from '../lib/usernameValidation';
 import './HomeFeed.css';
@@ -32,12 +32,12 @@ export default function UsernamePrompt({ user, onComplete }) {
   return (
     <div className="modal-overlay">
       <div className="modal" style={{ padding: 28, textAlign: 'center' }}>
-        <div style={{ fontSize: 26, fontWeight: 900, color: 'var(--purple)', letterSpacing: '-0.5px', marginBottom: 4 }}>Rally</div>
+        <div style={{ fontSize: 26, fontWeight: 900, color: 'var(--purple)', letterSpacing: '-0.5px', marginBottom: 4 }}>Sphera</div>
         <div style={{ fontSize: 12, color: '#999', marginBottom: 20 }}>Experiences are better shared</div>
 
         <h2 style={{ margin: '0 0 8px', fontSize: 18, color: '#111' }}>Pick your username</h2>
         <p style={{ margin: '0 0 20px', fontSize: 14, color: '#666', lineHeight: 1.5 }}>
-          This is how people find you on Rally. You can change it later.
+          This is how people find you on Sphera. You can change it later.
         </p>
 
         <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>

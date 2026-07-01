@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+﻿import React, { useState } from 'react';
 import { isSupabaseConfigured, signInWithOtp, signInWithProvider } from '../lib/supabaseClient';
 import './HomeFeed.css';
 
@@ -38,7 +38,7 @@ export default function AuthModal({ onClose, message = 'Sign in to continue' }) 
         </button>
 
         <div style={{ marginBottom: 20 }}>
-          <div style={{ fontSize: 26, fontWeight: 900, color: 'var(--purple)', letterSpacing: '-0.5px' }}>Rally</div>
+          <div style={{ fontSize: 26, fontWeight: 900, color: 'var(--purple)', letterSpacing: '-0.5px' }}>Sphera</div>
           <div style={{ fontSize: 12, color: '#999', marginTop: 2 }}>Experiences are better shared</div>
         </div>
 
@@ -96,7 +96,7 @@ export default function AuthModal({ onClose, message = 'Sign in to continue' }) 
         )}
 
         <div style={{ marginTop: 16, fontSize: 11, color: '#ccc' }}>
-          By continuing you agree to Rally's community guidelines.
+          By continuing you agree to Sphera's community guidelines.
         </div>
       </div>
     </div>

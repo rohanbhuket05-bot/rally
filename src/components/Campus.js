@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+﻿import React, { useState, useEffect, useMemo } from 'react';
 import EventCard from './EventCard';
 import SchoolLogo from './SchoolLogo';
 import StoryViewer from './StoryViewer';
@@ -133,9 +133,9 @@ export default function Campus({
   const [orgSearch, setOrgSearch] = useState('');
   const [schoolOrgs, setSchoolOrgs] = useState([]);
 
-  const school = profile?.school || localStorage.getItem('rally_school') || '';
+  const school = profile?.school || localStorage.getItem('sphera_school') || '';
   const schoolVerified = profile?.school_verified || false;
-  const currentUserName = profile?.name || localStorage.getItem('rally_name') || '';
+  const currentUserName = profile?.name || localStorage.getItem('sphera_name') || '';
 
   useEffect(() => {
     if (!isSupabaseConfigured()) { setLoading(false); return; }
@@ -314,10 +314,10 @@ export default function Campus({
         </section>
       )}
 
-      {/* Rallypoints */}
+      {/* Spherapoints */}
       {spontaneousPosts.length > 0 && (
         <section style={{ marginBottom: 24 }}>
-          <h2 style={{ margin: '0 0 12px', fontSize: 16, fontWeight: 800, textAlign: 'left' }}>Rallypoints</h2>
+          <h2 style={{ margin: '0 0 12px', fontSize: 16, fontWeight: 800, textAlign: 'left' }}>Spherapoints</h2>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
             {spontaneousPosts.map(post => {
               const col = avatarColor(post.senderName || '');

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+﻿import React, { useState } from 'react';
 import { isSupabaseConfigured, signInWithOtp, signInWithProvider } from '../lib/supabaseClient';
 import logo from '../assets/Sphera Logo v2 Transparent.png';
 import './HomeFeed.css';
@@ -282,7 +282,7 @@ export default function LandingPage() {
 
             <button
               onClick={() => {
-                localStorage.setItem('rally_signup_intent', 'org');
+                localStorage.setItem('sphera_signup_intent', 'org');
                 signInWithProvider('google');
               }}
               style={{

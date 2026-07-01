@@ -1,4 +1,4 @@
-import './App.css';
+﻿import './App.css';
 import './styles/darkTheme.css';
 import { useState, useEffect, useCallback } from 'react';
 import HomeFeed from './components/HomeFeed';
@@ -35,55 +35,55 @@ function App() {
   const [showAccountSwitcher, setShowAccountSwitcher] = useState(false);
   const [myOrgs, setMyOrgs] = useState([]);
   const [activeContext, setActiveContext] = useState(() => {
-    try { return JSON.parse(localStorage.getItem('rally_active_context')) || { type: 'student' }; }
+    try { return JSON.parse(localStorage.getItem('sphera_active_context')) || { type: 'student' }; }
     catch { return { type: 'student' }; }
   });
   const [showUsernamePrompt, setShowUsernamePrompt] = useState(false);
   const [darkMode, setDarkMode] = useState(() => {
-    if (!localStorage.getItem('rally_dark_migrated_v1')) {
-      localStorage.setItem('rally_dark_mode', 'true');
-      localStorage.setItem('rally_dark_migrated_v1', '1');
+    if (!localStorage.getItem('sphera_dark_migrated_v1')) {
+      localStorage.setItem('sphera_dark_mode', 'true');
+      localStorage.setItem('sphera_dark_migrated_v1', '1');
       return true;
     }
-    return localStorage.getItem('rally_dark_mode') !== 'false';
+    return localStorage.getItem('sphera_dark_mode') !== 'false';
   });
-  useEffect(() => { localStorage.setItem('rally_dark_mode', darkMode); }, [darkMode]);
-  useEffect(() => { localStorage.setItem('rally_active_context', JSON.stringify(activeContext)); }, [activeContext]);
+  useEffect(() => { localStorage.setItem('sphera_dark_mode', darkMode); }, [darkMode]);
+  useEffect(() => { localStorage.setItem('sphera_active_context', JSON.stringify(activeContext)); }, [activeContext]);
   const [profile, setProfile] = useState({
-    name: localStorage.getItem('rally_name') || '',
-    bio: localStorage.getItem('rally_bio') || '',
-    username: localStorage.getItem('rally_username') || '',
-    friends: (() => { try { return JSON.parse(localStorage.getItem('rally_friends') || '[]'); } catch(e) { return []; } })(),
+    name: localStorage.getItem('sphera_name') || '',
+    bio: localStorage.getItem('sphera_bio') || '',
+    username: localStorage.getItem('sphera_username') || '',
+    friends: (() => { try { return JSON.parse(localStorage.getItem('sphera_friends') || '[]'); } catch(e) { return []; } })(),
   });
   const [authModalMessage, setAuthModalMessage] = useState(null); // null = hidden, string = shown
   const [activeTab, setActiveTabRaw] = useState(() => {
-    const saved = localStorage.getItem('rally_active_tab');
+    const saved = localStorage.getItem('sphera_active_tab');
     // Reloading on group-chat causes a blank screen — redirect to groups until fixed
     if (saved === 'group-chat') return 'groups';
     if (PERSISTENT_TABS.includes(saved)) return saved;
     // First-time visitors land on profile to set up their account
-    const isFirstVisit = !localStorage.getItem('rally_name') && !localStorage.getItem('rally_username');
+    const isFirstVisit = !localStorage.getItem('sphera_name') && !localStorage.getItem('sphera_username');
     return isFirstVisit ? 'profile' : 'home';
   });
   const setActiveTab = useCallback((tabOrFn) => {
     setActiveTabRaw(prev => {
       const next = typeof tabOrFn === 'function' ? tabOrFn(prev) : tabOrFn;
-      if (PERSISTENT_TABS.includes(next)) localStorage.setItem('rally_active_tab', next);
+      if (PERSISTENT_TABS.includes(next)) localStorage.setItem('sphera_active_tab', next);
       return next;
     });
   }, []);
   const [previousTab, setPreviousTab] = useState('home');
-  const [activeGroupId, setActiveGroupId] = useState(() => localStorage.getItem('rally_active_group_id') || null);
+  const [activeGroupId, setActiveGroupId] = useState(() => localStorage.getItem('sphera_active_group_id') || null);
   useEffect(() => {
-    if (activeGroupId) localStorage.setItem('rally_active_group_id', activeGroupId);
-    else localStorage.removeItem('rally_active_group_id');
+    if (activeGroupId) localStorage.setItem('sphera_active_group_id', activeGroupId);
+    else localStorage.removeItem('sphera_active_group_id');
   }, [activeGroupId]);
   const [activeEventId, setActiveEventId] = useState(null);
   const [activeEventData, setActiveEventData] = useState(null);
-  const [viewingFriendId, setViewingFriendId] = useState(() => localStorage.getItem('rally_viewing_friend_id') || null);
+  const [viewingFriendId, setViewingFriendId] = useState(() => localStorage.getItem('sphera_viewing_friend_id') || null);
   useEffect(() => {
-    if (viewingFriendId) localStorage.setItem('rally_viewing_friend_id', viewingFriendId);
-    else localStorage.removeItem('rally_viewing_friend_id');
+    if (viewingFriendId) localStorage.setItem('sphera_viewing_friend_id', viewingFriendId);
+    else localStorage.removeItem('sphera_viewing_friend_id');
   }, [viewingFriendId]);
   const [createGroupContext, setCreateGroupContext] = useState(null);
   const [events, setEvents] = useState([]);
@@ -91,9 +91,9 @@ function App() {
 
   // clear stale localStorage data — Supabase is the source of truth
   useEffect(() => {
-    localStorage.removeItem('rally_events');
-    localStorage.removeItem('rally_groups');
-    localStorage.removeItem('rally_events_migrated_v3');
+    localStorage.removeItem('sphera_events');
+    localStorage.removeItem('sphera_groups');
+    localStorage.removeItem('sphera_events_migrated_v3');
   }, []);
   const [previewGroup, setPreviewGroup] = useState(null);
   const [activeDm, setActiveDm] = useState(null); // { id, otherUser }
@@ -104,7 +104,7 @@ function App() {
     let mounted = true;
     sbGetEvents().then(rows => {
       if (!mounted || !rows) return;
-      const fallbackHost = localStorage.getItem('rally_username') || localStorage.getItem('rally_name') || '';
+      const fallbackHost = localStorage.getItem('sphera_username') || localStorage.getItem('sphera_name') || '';
       setEvents(rows.map(r => {
         const isPersonal = r.personal === true;
         return { id: r.id, title: r.title, dateISO: r.date_iso || r.dateISO, showTime: r.show_time ?? r.showTime ?? true, location: r.location, city: r.city || '', host: r.host || (isPersonal ? undefined : fallbackHost), attendees: r.attendees || [], personal: isPersonal, tags: r.tags || [], visibility: isPersonal ? 'private' : (r.visibility || 'public'), user_id: r.user_id, coverUrl: r.cover_url || r.coverUrl || null };
@@ -137,25 +137,25 @@ function App() {
       grad_year: data?.grad_year || null,
     };
     setProfile(loaded);
-    localStorage.setItem('rally_name', loaded.name);
-    localStorage.setItem('rally_bio', loaded.bio);
-    localStorage.setItem('rally_username', loaded.username);
-    localStorage.setItem('rally_friends', JSON.stringify(loaded.friends));
-    if (loaded.school) localStorage.setItem('rally_school', loaded.school);
-    if (loaded.school_verified) localStorage.setItem('rally_school_verified', loaded.school);
+    localStorage.setItem('sphera_name', loaded.name);
+    localStorage.setItem('sphera_bio', loaded.bio);
+    localStorage.setItem('sphera_username', loaded.username);
+    localStorage.setItem('sphera_friends', JSON.stringify(loaded.friends));
+    if (loaded.school) localStorage.setItem('sphera_school', loaded.school);
+    if (loaded.school_verified) localStorage.setItem('sphera_school_verified', loaded.school);
     // Persist Google avatar and email to profiles table on first sign-in
     if (!data?.avatar_url && loaded.avatar_url || !data?.email) {
       upsertProfile(userId, { ...loaded, email: u?.email || '' });
     }
-    const intent = localStorage.getItem('rally_signup_intent');
+    const intent = localStorage.getItem('sphera_signup_intent');
     if (intent === 'org') {
-      localStorage.removeItem('rally_signup_intent');
+      localStorage.removeItem('sphera_signup_intent');
       setShowOrgOnboarding(true);
       return;
     }
     const orgs = await getMyOrganizations(userId);
     setMyOrgs(orgs);
-    const savedContext = (() => { try { return JSON.parse(localStorage.getItem('rally_active_context')); } catch { return null; } })();
+    const savedContext = (() => { try { return JSON.parse(localStorage.getItem('sphera_active_context')); } catch { return null; } })();
     const hasContext = savedContext && savedContext.type;
     if (orgs.length > 0 && !hasContext) {
       setShowAccountSwitcher(true);
@@ -179,16 +179,16 @@ function App() {
     const updated = { ...profile, username };
     setProfile(updated);
     setShowUsernamePrompt(false);
-    localStorage.setItem('rally_username', username);
+    localStorage.setItem('sphera_username', username);
     if (user) await upsertProfile(user.id, updated);
   }, [profile, user]);
 
   const handleUpdateProfile = useCallback(async (updated) => {
     setProfile(updated);
-    localStorage.setItem('rally_name', updated.name || '');
-    localStorage.setItem('rally_bio', updated.bio || '');
-    localStorage.setItem('rally_username', updated.username || '');
-    localStorage.setItem('rally_friends', JSON.stringify(updated.friends || []));
+    localStorage.setItem('sphera_name', updated.name || '');
+    localStorage.setItem('sphera_bio', updated.bio || '');
+    localStorage.setItem('sphera_username', updated.username || '');
+    localStorage.setItem('sphera_friends', JSON.stringify(updated.friends || []));
     if (user) await upsertProfile(user.id, updated);
   }, [user]);
 
@@ -214,17 +214,17 @@ function App() {
   const handleOnboardingComplete = useCallback(async ({ school, gradYear, username, name, avatarUrl, schoolVerified, eduEmail }) => {
     const updated = { ...profile, school, grad_year: gradYear, username, name, avatar_url: avatarUrl, school_verified: !!schoolVerified };
     setProfile(updated);
-    localStorage.setItem('rally_school', school);
-    localStorage.setItem('rally_username', username);
-    localStorage.setItem('rally_name', name);
-    if (schoolVerified) localStorage.setItem('rally_school_verified', school);
+    localStorage.setItem('sphera_school', school);
+    localStorage.setItem('sphera_username', username);
+    localStorage.setItem('sphera_name', name);
+    if (schoolVerified) localStorage.setItem('sphera_school_verified', school);
     if (user) await upsertProfile(user.id, { ...updated, email: user.email, school_verified: !!schoolVerified });
     setShowOnboarding(false);
   }, [profile, user]);
 
   const addEvent = useCallback(async (evt) => {
     // optimistic add locally
-    const hostName = localStorage.getItem('rally_username') || localStorage.getItem('rally_name') || 'Unknown';
+    const hostName = localStorage.getItem('sphera_username') || localStorage.getItem('sphera_name') || 'Unknown';
     const temp = { ...evt, id: Date.now(), host: evt.personal ? undefined : (evt.host || hostName) };
     setEvents(s => {
       const merged = [temp, ...s];
@@ -398,7 +398,7 @@ function App() {
         />
       )}
       {activeTab === 'profile' && (
-        <Profile user={user} profile={profile} onUpdateProfile={handleUpdateProfile} activeTab={activeTab} onNavigate={setActiveTab} onOpenGroup={(id) => { setActiveGroupId(id); setActiveTab('group'); }} events={events} groups={groups} onAddEvent={addEvent} onUpdateEvent={updateEvent} onDeleteEvent={deleteEvent} onSignOut={() => { signOut(); setUser(null); localStorage.removeItem('rally_active_context'); setActiveContext({ type: 'student' }); setMyOrgs([]); }} onAuthRequired={onAuthRequired} darkMode={darkMode} onToggleDark={() => setDarkMode(d => !d)} onViewFriend={(id) => { setViewingFriendId(id); setActiveTab('friend-profile'); }} onOpenDm={async (otherId, otherUser) => { const dm = await createOrGetDm(otherId); if (dm) { setActiveDm({ id: dm.id, otherUser }); setActiveTab('dm'); } }} />
+        <Profile user={user} profile={profile} onUpdateProfile={handleUpdateProfile} activeTab={activeTab} onNavigate={setActiveTab} onOpenGroup={(id) => { setActiveGroupId(id); setActiveTab('group'); }} events={events} groups={groups} onAddEvent={addEvent} onUpdateEvent={updateEvent} onDeleteEvent={deleteEvent} onSignOut={() => { signOut(); setUser(null); localStorage.removeItem('sphera_active_context'); setActiveContext({ type: 'student' }); setMyOrgs([]); }} onAuthRequired={onAuthRequired} darkMode={darkMode} onToggleDark={() => setDarkMode(d => !d)} onViewFriend={(id) => { setViewingFriendId(id); setActiveTab('friend-profile'); }} onOpenDm={async (otherId, otherUser) => { const dm = await createOrGetDm(otherId); if (dm) { setActiveDm({ id: dm.id, otherUser }); setActiveTab('dm'); } }} />
       )}
       {activeTab === 'friend-profile' && (
         <FriendProfilePage

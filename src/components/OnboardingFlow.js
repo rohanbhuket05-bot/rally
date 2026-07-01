@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+﻿import React, { useState, useEffect, useRef } from 'react';
 import { SCHOOLS } from '../data/schools';
 import { checkUsernameAvailable, uploadAvatarImage, sendEduVerification, verifyEduCode } from '../lib/supabaseClient';
 import { getDomainsForSchool } from '../data/schools';
@@ -222,7 +222,7 @@ export default function OnboardingFlow({ user, profile, onComplete }) {
           <h1 style={{ margin: '0 0 6px', fontSize: 28, fontWeight: 900, color: '#EEEEFF', letterSpacing: '-0.5px' }}>
             Pick a username
           </h1>
-          <p style={{ margin: '0 0 24px', fontSize: 15, color: '#8888AA' }}>This is how people find you on Rally</p>
+          <p style={{ margin: '0 0 24px', fontSize: 15, color: '#8888AA' }}>This is how people find you on Sphera</p>
 
           <div style={{ position: 'relative', marginBottom: 8 }}>
             <span style={{ position: 'absolute', left: 14, top: '50%', transform: 'translateY(-50%)', color: '#8888AA', fontSize: 15, pointerEvents: 'none' }}>@</span>

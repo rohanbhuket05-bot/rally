@@ -1,4 +1,4 @@
-import React from 'react';
+﻿import React from 'react';
 import { formatDate } from '../lib/utils';
 import './HomeFeed.css';
 
@@ -21,7 +21,7 @@ export default function EventCard({ event, onJoin, currentUserName, currentUserI
   const joined = currentUserId
     ? attendees.some(a => a.user_id === currentUserId)
     : (currentUserName && attendees.some(a => a.name === currentUserName));
-  const isHost = currentUserId ? event.user_id === currentUserId : event.host === localStorage.getItem('rally_username');
+  const isHost = currentUserId ? event.user_id === currentUserId : event.host === localStorage.getItem('sphera_username');
 
   if (personal) {
     return (

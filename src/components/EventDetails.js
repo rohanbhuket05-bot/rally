@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+﻿import React, { useState, useEffect, useRef } from 'react';
 import { getEventMessages, subscribeToEventMessages, getEventAttendees, subscribeToEventAttendees, isSupabaseConfigured, getProfilesByIds, uploadEventCover } from '../lib/supabaseClient';
 import { avatarColor } from '../lib/avatarColor';
 import { getInitials } from '../lib/utils';
@@ -51,7 +51,7 @@ export default function EventDetails({ event, onBack, onUpdateEvent, activeTab, 
 
   useEffect(() => {
     if (!eventId || !isSupabaseConfigured()) return;
-    const readKey = `rally_chat_read_event_${eventId}`;
+    const readKey = `sphera_chat_read_event_${eventId}`;
     setLastReadCount(parseInt(localStorage.getItem(readKey) || '0'));
     let cancelled = false;
     getEventMessages(eventId).then(msgs => { if (!cancelled) setLiveMessages(msgs); });
@@ -66,7 +66,7 @@ export default function EventDetails({ event, onBack, onUpdateEvent, activeTab, 
 
   if (!event) return null;
 
-  const currentUserName = localStorage.getItem('rally_name') || localStorage.getItem('rally_username') || '';
+  const currentUserName = localStorage.getItem('sphera_name') || localStorage.getItem('sphera_username') || '';
   const { title, dateISO, showTime, location, attendees = [], trending, category, tags = [] } = event;
 
   const dateDisplay = dateISO
@@ -94,7 +94,7 @@ export default function EventDetails({ event, onBack, onUpdateEvent, activeTab, 
   function openChat() {
     if (!user) { onAuthRequired('Sign in to access the chat'); return; }
     if (!joined) { setShowJoinPrompt(true); return; }
-    localStorage.setItem(`rally_chat_read_event_${eventId}`, String(liveMessages.length));
+    localStorage.setItem(`sphera_chat_read_event_${eventId}`, String(liveMessages.length));
     setLastReadCount(liveMessages.length);
     onOpenChat(event);
   }
