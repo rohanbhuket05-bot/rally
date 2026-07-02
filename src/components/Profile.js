@@ -1,4 +1,5 @@
 ﻿import React, { useState, useEffect, useRef } from 'react';
+import EventCard from './EventCard';
 import './HomeFeed.css';
 
 import { getSchoolFromEmail, SCHOOLS, getDomainsForSchool } from '../data/schools';
@@ -979,13 +980,13 @@ export default function Profile({ user, profile = {}, onUpdateProfile = () => {}
       <section style={{ marginTop: 12, overflow: 'hidden' }}>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
           <h3
-            style={{ margin: '6px 0', cursor: upcomingEvents.length > 3 ? 'pointer' : undefined, display: 'flex', alignItems: 'center', gap: 6 }}
-            onClick={() => upcomingEvents.length > 3 && setShowAllEvents(s => !s)}
+            style={{ margin: '6px 0', cursor: upcomingEvents.length > 4 ? 'pointer' : undefined, display: 'flex', alignItems: 'center', gap: 6 }}
+            onClick={() => upcomingEvents.length > 4 && setShowAllEvents(s => !s)}
           >
             Upcoming
-            {upcomingEvents.length > 3 && (
+            {upcomingEvents.length > 4 && (
               <span style={{ display: 'inline-flex', alignItems: 'center', gap: 3, color: 'var(--purple)', fontSize: 11, fontWeight: 600 }}>
-                {!showAllEvents && `+${upcomingEvents.length - 3}`}
+                {!showAllEvents && `+${upcomingEvents.length - 4}`}
                 <span style={{ transition: 'transform 200ms', display: 'inline-block', transform: showAllEvents ? 'rotate(180deg)' : 'rotate(0deg)' }}>▼</span>
               </span>
             )}
@@ -1066,9 +1067,9 @@ export default function Profile({ user, profile = {}, onUpdateProfile = () => {}
           </div>
         )}
 
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginTop: 8 }}>
-          {(showAllEvents ? upcomingEvents : upcomingEvents.slice(0, 3)).map((ev) => (
-            <SwipeableEventRow key={ev.id} ev={ev} onOpen={openEvent} onDelete={onDeleteEvent} />
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 10, marginTop: 8 }}>
+          {(showAllEvents ? upcomingEvents : upcomingEvents.slice(0, 4)).map((ev) => (
+            <EventCard key={ev.id} event={ev} compact onOpenDetails={openEvent} currentUserId={user?.id} currentUserName={profile?.name || ''} />
           ))}
 
         {selectedEvent && (
